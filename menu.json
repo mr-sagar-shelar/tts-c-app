@@ -7,10 +7,11 @@
       "key": "file_manager",
       "shortcut": "f",
       "items": [
-        { "title_key": "flashdisk", "key": "flashdisk", "shortcut": "f" },
-        { "title_key": "sd_card", "key": "sd_card", "shortcut": "s" },
-        { "title_key": "usb_drive", "key": "usb_drive", "shortcut": "u" },
-        { "title_key": "google_drive", "key": "google_drive", "shortcut": "g" }
+        { "title_key": "fm_browse", "key": "fm_browse", "shortcut": "b" },
+        { "title_key": "fm_new_folder", "key": "fm_new_folder", "shortcut": "n" },
+        { "title_key": "fm_new_file", "key": "fm_new_file", "shortcut": "f" },
+        { "title_key": "fm_rename", "key": "fm_rename", "shortcut": "r" },
+        { "title_key": "fm_delete", "key": "fm_delete", "shortcut": "d" }
       ]
     },
     {

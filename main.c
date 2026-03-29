@@ -103,7 +103,6 @@ char* file_navigator(const char *start_path, int select_dir_only) {
         FileEntry entries[256];
         int count = 0;
 
-        // Only show parent directory if we are not at USER_SPACE
         char abs_current[1024];
         realpath(current_path, abs_current);
         
@@ -122,8 +121,11 @@ char* file_navigator(const char *start_path, int select_dir_only) {
             char full_path[2048];
             snprintf(full_path, sizeof(full_path), "%s/%s", current_path, entry->d_name);
             struct stat st;
-            stat(full_path, &st);
-            entries[count].is_dir = S_ISDIR(st.st_mode);
+            if (stat(full_path, &st) == 0) {
+                entries[count].is_dir = S_ISDIR(st.st_mode);
+            } else {
+                entries[count].is_dir = 0;
+            }
             count++;
         }
         closedir(dir);
@@ -159,7 +161,6 @@ char* file_navigator(const char *start_path, int select_dir_only) {
             if (last_slash && last_slash != current_path) {
                 *last_slash = '\0';
             } else {
-                // Should not happen due to check above, but for safety:
                 strcpy(current_path, USER_SPACE);
             }
         } else {
@@ -355,8 +356,80 @@ void handle_settings(MenuNode *node, MenuNode *root) {
     }
 }
 
+void handle_file_manager(MenuNode *node) {
+    if (strcmp(node->key, "fm_browse") == 0) {
+        char *path = file_navigator(USER_SPACE, 0);
+        if (path) {
+            struct stat st;
+            if (stat(path, &st) == 0 && S_ISREG(st.st_mode)) {
+                handle_file_viewer(path);
+            }
+            free(path);
+        }
+    } else if (strcmp(node->key, "fm_new_folder") == 0) {
+        char *dir = file_navigator(USER_SPACE, 1);
+        if (dir) {
+            char name[256];
+            get_user_input(name, 256, "Enter folder name");
+            if (strlen(name) > 0) {
+                char full[1024];
+                snprintf(full, sizeof(full), "%s/%s", dir, name);
+                mkdir(full, 0777);
+                printf("\nFolder created. Press any key..."); fflush(stdout); read_key();
+            }
+            free(dir);
+        }
+    } else if (strcmp(node->key, "fm_new_file") == 0) {
+        char *dir = file_navigator(USER_SPACE, 1);
+        if (dir) {
+            char name[256];
+            get_user_input(name, 256, "Enter file name");
+            if (strlen(name) > 0) {
+                char full[1024];
+                snprintf(full, sizeof(full), "%s/%s", dir, name);
+                FILE *f = fopen(full, "w");
+                if (f) fclose(f);
+                printf("\nFile created. Press any key..."); fflush(stdout); read_key();
+            }
+            free(dir);
+        }
+    } else if (strcmp(node->key, "fm_rename") == 0) {
+        char *path = file_navigator(USER_SPACE, 0);
+        if (path) {
+            char new_name[256];
+            get_user_input(new_name, 256, "Enter new name (no path)");
+            if (strlen(new_name) > 0) {
+                char *last_slash = strrchr(path, '/');
+                char new_path[1024] = {0};
+                if (last_slash) {
+                    strncpy(new_path, path, last_slash - path + 1);
+                    strcat(new_path, new_name);
+                } else {
+                    strcpy(new_path, new_name);
+                }
+                rename(path, new_path);
+                printf("\nRenamed. Press any key..."); fflush(stdout); read_key();
+            }
+            free(path);
+        }
+    } else if (strcmp(node->key, "fm_delete") == 0) {
+        char *path = file_navigator(USER_SPACE, 0);
+        if (path) {
+            printf("\nAre you sure you want to delete %s? (y/n)", path);
+            fflush(stdout);
+            int k = read_key();
+            if (k == 'y' || k == 'Y') {
+                remove(path); // Works for files and empty dirs
+                printf("\nDeleted. Press any key..."); fflush(stdout); read_key();
+            }
+            free(path);
+        }
+    }
+}
+
 int main() {
     init_config();
+    mkdir(USER_SPACE, 0777);
     MenuNode *root = load_menu_from_json("menu.json");
     if (!root) {
         fprintf(stderr, "Failed to load menu.json\n");
@@ -407,7 +480,7 @@ int main() {
                 } else {
                     if (strcmp(selected_node->key, "notepad_new") == 0) {
                         handle_notepad(NULL, NULL);
-                    } else if (strcmp(selected_node->key, "notepad_open") == 0 || strcmp(selected_node->key, "wp_open") == 0 || strcmp(selected_node->key, "flashdisk") == 0) {
+                    } else if (strcmp(selected_node->key, "notepad_open") == 0 || strcmp(selected_node->key, "wp_open") == 0) {
                         char *selected_path = file_navigator(USER_SPACE, 0);
                         if (selected_path) {
                             if (strcmp(selected_node->key, "notepad_open") == 0) {
@@ -428,15 +501,16 @@ int main() {
                     } else {
                         MenuNode *temp = selected_node;
                         int is_settings = 0;
+                        int is_fm = 0;
                         while (temp) {
-                            if (strcmp(temp->key, "settings") == 0) {
-                                is_settings = 1;
-                                break;
-                            }
+                            if (strcmp(temp->key, "settings") == 0) is_settings = 1;
+                            if (strcmp(temp->key, "file_manager") == 0) is_fm = 1;
                             temp = temp->parent;
                         }
                         if (is_settings) {
                             handle_settings(selected_node, root);
+                        } else if (is_fm) {
+                            handle_file_manager(selected_node);
                         }
                     }
                 }
@@ -454,15 +528,16 @@ int main() {
                         } else {
                             MenuNode *temp = current_node->items[i];
                             int is_settings = 0;
+                            int is_fm = 0;
                             while (temp) {
-                                if (strcmp(temp->key, "settings") == 0) {
-                                    is_settings = 1;
-                                    break;
-                                }
+                                if (strcmp(temp->key, "settings") == 0) is_settings = 1;
+                                if (strcmp(temp->key, "file_manager") == 0) is_fm = 1;
                                 temp = temp->parent;
                             }
                             if (is_settings) {
                                 handle_settings(current_node->items[i], root);
+                            } else if (is_fm) {
+                                handle_file_manager(current_node->items[i]);
                             }
                         }
                     }
