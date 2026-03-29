@@ -8,7 +8,9 @@
 
 typedef struct MenuNode {
     char *title;
+    char *title_key;
     char *key;
+    char shortcut;
     struct MenuNode **items;
     int num_items;
     struct MenuNode *parent;
@@ -17,5 +19,6 @@ typedef struct MenuNode {
 MenuNode* load_menu_from_json(const char *filename);
 void free_menu(MenuNode *node);
 void print_menu(MenuNode *node, int selected_index);
+void set_language(MenuNode *root, const char *lang_code);
 
 #endif

@@ -1,133 +1,146 @@
 {
-  "title": "Braille Sense 6 Main Menu",
+  "title_key": "main_menu",
   "key": "main_menu",
   "items": [
     {
-      "title": "File Manager",
+      "title_key": "file_manager",
       "key": "file_manager",
+      "shortcut": "f",
       "items": [
-        { "title": "Flashdisk", "key": "flashdisk" },
-        { "title": "SD Card", "key": "sd_card" },
-        { "title": "USB Drive", "key": "usb_drive" },
-        { "title": "Google Drive", "key": "google_drive" }
+        { "title_key": "flashdisk", "key": "flashdisk", "shortcut": "f" },
+        { "title_key": "sd_card", "key": "sd_card", "shortcut": "s" },
+        { "title_key": "usb_drive", "key": "usb_drive", "shortcut": "u" },
+        { "title_key": "google_drive", "key": "google_drive", "shortcut": "g" }
       ]
     },
     {
-      "title": "Word Processor",
+      "title_key": "word_processor",
       "key": "word_processor",
+      "shortcut": "w",
       "items": [
         {
-          "title": "File",
+          "title_key": "wp_file",
           "key": "wp_file",
+          "shortcut": "f",
           "items": [
-            { "title": "New", "key": "wp_new" },
-            { "title": "Open", "key": "wp_open" },
-            { "title": "Save", "key": "wp_save" },
-            { "title": "Save As", "key": "wp_save_as" },
-            { "title": "Print", "key": "wp_print" },
-            { "title": "Exit", "key": "wp_exit" }
+            { "title_key": "wp_new", "key": "wp_new", "shortcut": "n" },
+            { "title_key": "wp_open", "key": "wp_open", "shortcut": "o" },
+            { "title_key": "wp_save", "key": "wp_save", "shortcut": "s" },
+            { "title_key": "wp_save_as", "key": "wp_save_as", "shortcut": "a" },
+            { "title_key": "wp_print", "key": "wp_print", "shortcut": "p" },
+            { "title_key": "wp_exit", "key": "wp_exit", "shortcut": "z" }
           ]
         },
         {
-          "title": "Edit",
+          "title_key": "wp_edit",
           "key": "wp_edit",
+          "shortcut": "e",
           "items": [
-            { "title": "Start Selection", "key": "wp_start_selection" },
-            { "title": "Copy", "key": "wp_copy" },
-            { "title": "Cut", "key": "wp_cut" },
-            { "title": "Paste", "key": "wp_paste" },
-            { "title": "Delete", "key": "wp_delete" },
-            { "title": "Select All", "key": "wp_select_all" },
-            { "title": "Find", "key": "wp_find" },
-            { "title": "Replace", "key": "wp_replace" }
+            { "title_key": "wp_start_selection", "key": "wp_start_selection", "shortcut": "s" },
+            { "title_key": "wp_copy", "key": "wp_copy", "shortcut": "c" },
+            { "title_key": "wp_cut", "key": "wp_cut", "shortcut": "x" },
+            { "title_key": "wp_paste", "key": "wp_paste", "shortcut": "v" },
+            { "title_key": "wp_delete", "key": "wp_delete", "shortcut": "d" },
+            { "title_key": "wp_select_all", "key": "wp_select_all", "shortcut": "a" },
+            { "title_key": "wp_find", "key": "wp_find", "shortcut": "f" },
+            { "title_key": "wp_replace", "key": "wp_replace", "shortcut": "r" }
           ]
         },
         {
-          "title": "Insert",
+          "title_key": "wp_insert",
           "key": "wp_insert",
+          "shortcut": "i",
           "items": [
-            { "title": "Date and Time", "key": "wp_insert_date_time" },
-            { "title": "Page Break", "key": "wp_insert_page_break" }
+            { "title_key": "wp_insert_date_time", "key": "wp_insert_date_time", "shortcut": "d" },
+            { "title_key": "wp_insert_page_break", "key": "wp_insert_page_break", "shortcut": "p" }
           ]
         },
         {
-          "title": "Format",
+          "title_key": "wp_format",
           "key": "wp_format",
+          "shortcut": "o",
           "items": [
-            { "title": "Font", "key": "wp_font" },
-            { "title": "Paragraph", "key": "wp_paragraph" },
-            { "title": "Style", "key": "wp_style" }
+            { "title_key": "wp_font", "key": "wp_font", "shortcut": "f" },
+            { "title_key": "wp_paragraph", "key": "wp_paragraph", "shortcut": "p" },
+            { "title_key": "wp_style", "key": "wp_style", "shortcut": "s" }
           ]
         }
       ]
     },
-    { "title": "Notepad", "key": "notepad" },
-    { "title": "Email", "key": "email" },
+    { "title_key": "notepad", "key": "notepad", "shortcut": "n" },
+    { "title_key": "email", "key": "email", "shortcut": "e" },
     {
-      "title": "Media",
+      "title_key": "media",
       "key": "media",
+      "shortcut": "m",
       "items": [
-        { "title": "Media Player", "key": "media_player" },
-        { "title": "FM Radio", "key": "fm_radio" },
-        { "title": "DAISY Player", "key": "daisy_player" }
+        { "title_key": "media_player", "key": "media_player", "shortcut": "m" },
+        { "title_key": "fm_radio", "key": "fm_radio", "shortcut": "r" },
+        { "title_key": "daisy_player", "key": "daisy_player", "shortcut": "d" }
       ]
     },
     {
-      "title": "Organizer",
+      "title_key": "organizer",
       "key": "organizer",
+      "shortcut": "o",
       "items": [
-        { "title": "Address Manager", "key": "address_manager" },
-        { "title": "Schedule Manager", "key": "schedule_manager" },
-        { "title": "Database Manager", "key": "database_manager" }
+        { "title_key": "address_manager", "key": "address_manager", "shortcut": "a" },
+        { "title_key": "schedule_manager", "key": "schedule_manager", "shortcut": "s" },
+        { "title_key": "database_manager", "key": "database_manager", "shortcut": "d" }
       ]
     },
     {
-      "title": "Web Tools",
+      "title_key": "web_tools",
       "key": "web_tools",
+      "shortcut": "b",
       "items": [
-        { "title": "Web Browser", "key": "web_browser" },
-        { "title": "Google Search", "key": "google_search" },
-        { "title": "Wiki Search", "key": "wiki_search" }
+        { "title_key": "web_browser", "key": "web_browser", "shortcut": "b" },
+        { "title_key": "google_search", "key": "google_search", "shortcut": "g" },
+        { "title_key": "wiki_search", "key": "wiki_search", "shortcut": "w" }
       ]
     },
     {
-      "title": "Extras",
+      "title_key": "extras",
       "key": "extras",
+      "shortcut": "x",
       "items": [
-        { "title": "Excel Viewer", "key": "excel_viewer" },
-        { "title": "Online DAISY", "key": "online_daisy" },
-        { "title": "Sense Dictionary", "key": "sense_dictionary" },
-        { "title": "Color Reader", "key": "color_reader" }
+        { "title_key": "excel_viewer", "key": "excel_viewer", "shortcut": "e" },
+        { "title_key": "online_daisy", "key": "online_daisy", "shortcut": "o" },
+        { "title_key": "sense_dictionary", "key": "sense_dictionary", "shortcut": "s" },
+        { "title_key": "color_reader", "key": "color_reader", "shortcut": "c" }
       ]
     },
     {
-      "title": "Utilities",
+      "title_key": "utilities",
       "key": "utilities",
+      "shortcut": "u",
       "items": [
-        { "title": "Calculator", "key": "calculator" },
-        { "title": "BrailleSense Math", "key": "bs_math" },
-        { "title": "World Clock", "key": "world_clock" },
-        { "title": "Compass", "key": "compass" },
-        { "title": "Display Time and Date", "key": "display_time_date" },
-        { "title": "Wake-up Alarm", "key": "alarm" },
-        { "title": "Terminal for Screen Reader", "key": "terminal" }
+        { "title_key": "calculator", "key": "calculator", "shortcut": "c" },
+        { "title_key": "bs_math", "key": "bs_math", "shortcut": "m" },
+        { "title_key": "world_clock", "key": "world_clock", "shortcut": "w" },
+        { "title_key": "compass", "key": "compass", "shortcut": "p" },
+        { "title_key": "display_time_date", "key": "display_time_date", "shortcut": "t" },
+        { "title_key": "alarm", "key": "alarm", "shortcut": "a" },
+        { "title_key": "terminal", "key": "terminal", "shortcut": "s" }
       ]
     },
     {
-      "title": "Settings",
+      "title_key": "settings",
       "key": "settings",
+      "shortcut": "s",
       "items": [
-        { "title": "Set Time and Date", "key": "set_time_date" },
-        { "title": "Setup Internet", "key": "setup_internet" },
-        { "title": "Bluetooth Manager", "key": "bluetooth_manager" },
-        { "title": "Menu Manager", "key": "menu_manager" },
-        { "title": "Global Options", "key": "global_options" },
-        { "title": "Android System Settings", "key": "android_settings" }
+        { "title_key": "set_time_date", "key": "set_time_date", "shortcut": "t" },
+        { "title_key": "setup_internet", "key": "setup_internet", "shortcut": "w" },
+        { "title_key": "bluetooth_manager", "key": "bluetooth_manager", "shortcut": "b" },
+        { "title_key": "menu_manager", "key": "menu_manager", "shortcut": "m" },
+        { "title_key": "global_options", "key": "global_options", "shortcut": "o" },
+        { "title_key": "android_settings", "key": "android_settings", "shortcut": "e" },
+        { "title_key": "language_switch", "key": "language_switch", "shortcut": "l" }
       ]
     },
-    { "title": "Help", "key": "help" },
-    { "title": "Play Store", "key": "play_store" },
-    { "title": "All Apps", "key": "all_apps" },
-    { "title": "Information", "key": "info" }
+    { "title_key": "help", "key": "help", "shortcut": "h" },
+    { "title_key": "play_store", "key": "play_store", "shortcut": "p" },
+    { "title_key": "all_apps", "key": "all_apps", "shortcut": "a" },
+    { "title_key": "info", "key": "info", "shortcut": "i" }
   ]
 }
