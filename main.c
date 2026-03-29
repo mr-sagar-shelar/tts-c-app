@@ -702,10 +702,35 @@ void handle_dictionary() {
     cJSON_Delete(dict_json);
 }
 
+char *url_encode(const char *str) {
+    static const char *hex = "0123456789ABCDEF";
+    size_t len = strlen(str);
+    char *encoded = (char*)malloc(len * 3 + 1);
+    if (!encoded) return NULL;
+
+    char *p = encoded;
+    while (*str) {
+        unsigned char c = (unsigned char)*str;
+        if (isalnum(c) || c == '-' || c == '_' || c == '.' || c == '~') {
+            *p++ = c;
+        } else {
+            *p++ = '%';
+            *p++ = hex[c >> 4];
+            *p++ = hex[c & 15];
+        }
+        str++;
+    }
+    *p = '\0';
+    return encoded;
+}
+
 void handle_online_dictionary() {
     char word[256];
     get_user_input(word, sizeof(word), "Enter word to search online");
     if (strlen(word) == 0) return;
+
+    char *encoded_word = url_encode(word);
+    if (!encoded_word) return;
 
     char *lang = get_setting("language");
     char api_lang[16] = "en";
@@ -721,10 +746,11 @@ void handle_online_dictionary() {
     printf("\033[H\033[J--- Online Dictionary ---\nSearching for '%s' in %s...\n", word, api_lang);
     fflush(stdout);
 
-    char url[512];
-    snprintf(url, sizeof(url), "https://api.dictionaryapi.dev/api/v2/entries/%s/%s", api_lang, word);
+    char url[1024];
+    snprintf(url, sizeof(url), "https://api.dictionaryapi.dev/api/v2/entries/%s/%s", api_lang, encoded_word);
+    free(encoded_word);
 
-    char cmd[1024];
+    char cmd[2048];
     snprintf(cmd, sizeof(cmd), "curl -s \"%s\"", url);
 
     FILE *fp = popen(cmd, "r");
