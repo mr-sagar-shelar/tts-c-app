@@ -600,6 +600,108 @@ void contact_form(Contact *c, int is_edit) {
     }
 }
 
+void handle_dictionary() {
+    char *lang = get_setting("language");
+    if (!lang) lang = strdup("en");
+
+    char dict_file[32];
+    snprintf(dict_file, sizeof(dict_file), "dict_%s.json", lang);
+    free(lang);
+
+    FILE *f = fopen(dict_file, "rb");
+    if (!f) {
+        printf("\033[H\033[J--- Sense Dictionary ---\nDictionary file '%s' not found. Press any key...", dict_file);
+        fflush(stdout); read_key();
+        return;
+    }
+
+    fseek(f, 0, SEEK_END);
+    long len = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    char *data = (char*)malloc(len + 1);
+    fread(data, 1, len, f);
+    data[len] = '\0';
+    fclose(f);
+
+    cJSON *dict_json = cJSON_Parse(data);
+    free(data);
+    if (!dict_json) {
+        printf("\033[H\033[J--- Sense Dictionary ---\nError parsing dictionary file. Press any key...");
+        fflush(stdout); read_key();
+        return;
+    }
+
+    cJSON *words_array = cJSON_GetObjectItemCaseSensitive(dict_json, "words");
+    int total_words = cJSON_GetArraySize(words_array);
+
+    char search_term[256] = {0};
+    int sel = 0;
+
+    while (1) {
+        printf("\033[H\033[J--- Sense Dictionary ---\n");
+        printf("Search: %s_\n", search_term);
+        printf("---------------------------\n");
+
+        int matches[512];
+        int match_count = 0;
+        char lower_search[256] = {0};
+        for(int i=0; search_term[i]; i++) lower_search[i] = (char)tolower(search_term[i]);
+
+        for (int i = 0; i < total_words && match_count < 512; i++) {
+            cJSON *item = cJSON_GetArrayItem(words_array, i);
+            const char *word = cJSON_GetObjectItemCaseSensitive(item, "word")->valuestring;
+            
+            char lower_word[256] = {0};
+            for(int j=0; word[j] && j < 255; j++) lower_word[j] = (char)tolower(word[j]);
+
+            if (strlen(lower_search) == 0 || strstr(lower_word, lower_search) != NULL) {
+                matches[match_count++] = i;
+            }
+        }
+
+        if (sel >= match_count) sel = (match_count > 0) ? match_count - 1 : 0;
+
+        if (match_count == 0) {
+            printf("  (No matching words)\n");
+        } else {
+            for (int i = 0; i < match_count && i < 15; i++) { // Show up to 15 results
+                cJSON *item = cJSON_GetArrayItem(words_array, matches[i]);
+                const char *word = cJSON_GetObjectItemCaseSensitive(item, "word")->valuestring;
+                if (i == sel) printf("> %s\n", word);
+                else printf("  %s\n", word);
+            }
+            if (match_count > 15) printf("  ... and %d more\n", match_count - 15);
+        }
+
+        fflush(stdout);
+        int key = read_key();
+
+        if (key == KEY_ESC) break;
+        else if (key == KEY_UP && sel > 0) sel--;
+        else if (key == KEY_DOWN && sel < match_count - 1) sel++;
+        else if (key == KEY_ENTER && match_count > 0) {
+            cJSON *item = cJSON_GetArrayItem(words_array, matches[sel]);
+            const char *word = cJSON_GetObjectItemCaseSensitive(item, "word")->valuestring;
+            const char *meaning = cJSON_GetObjectItemCaseSensitive(item, "meaning")->valuestring;
+            printf("\033[H\033[J--- Word Detail ---\n\nWord: %s\n\nMeaning:\n%s\n\nPress any key to return...", word, meaning);
+            fflush(stdout); read_key();
+        } else if (key == KEY_BACKSPACE) {
+            int slen = (int)strlen(search_term);
+            if (slen > 0) search_term[slen - 1] = '\0';
+            sel = 0;
+        } else if (key > 0 && key < 1000 && isprint(key)) {
+            int slen = (int)strlen(search_term);
+            if (slen < 254) {
+                search_term[slen] = (char)key;
+                search_term[slen + 1] = '\0';
+            }
+            sel = 0;
+        }
+    }
+
+    cJSON_Delete(dict_json);
+}
+
 void handle_address_manager(MenuNode *node) {
     if (strcmp(node->key, "contacts_list") == 0) {
         int count = get_contact_count();
@@ -830,6 +932,8 @@ int main() {
                             handle_file_manager(selected_node);
                         } else if (is_contacts) {
                             handle_address_manager(selected_node);
+                        } else if (strcmp(selected_node->key, "sense_dictionary") == 0) {
+                            handle_dictionary();
                         }
                     }
                 }
@@ -846,6 +950,8 @@ int main() {
                             handle_notepad(NULL, NULL);
                         } else if (strcmp(current_node->items[i]->key, "notepad_search") == 0) {
                             handle_notepad_search();
+                        } else if (strcmp(current_node->items[i]->key, "sense_dictionary") == 0) {
+                            handle_dictionary();
                         } else {
                             MenuNode *temp = current_node->items[i];
                             int is_settings = 0;

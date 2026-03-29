@@ -1,0 +1,10 @@
+{
+  "words": [
+    { "word": "Apple", "meaning": "A round fruit with red or green skin and a whitish interior." },
+    { "word": "Banana", "meaning": "A long curved fruit which grows in clusters and has soft pulpy flesh and yellow skin when ripe." },
+    { "word": "Computer", "meaning": "An electronic device for storing and processing data." },
+    { "word": "Dictionary", "meaning": "A book or electronic resource that lists the words of a language and gives their meaning." },
+    { "word": "Keyboard", "meaning": "A panel of keys that operate a computer or typewriter." },
+    { "word": "Programming", "meaning": "The process of writing computer programs." }
+  ]
+}
