@@ -1223,6 +1223,161 @@ void handle_joke() {
     }
 }
 
+void handle_weather() {
+    char *city = get_setting("city");
+    if (!city) city = strdup("Pune");
+
+    printf("\033[H\033[J--- Weather: %s ---\nFetching weather data...\n", city);
+    fflush(stdout);
+
+    char *encoded_city = url_encode(city);
+    char url[512];
+    snprintf(url, sizeof(url), "https://goweather.xyz/weather/%s", encoded_city);
+    free(encoded_city);
+
+    char cmd[1024];
+    snprintf(cmd, sizeof(cmd), "curl -s \"%s\"", url);
+
+    FILE *fp = popen(cmd, "r");
+    if (fp) {
+        char response[8192] = {0};
+        fread(response, 1, sizeof(response) - 1, fp);
+        pclose(fp);
+
+        cJSON *json = cJSON_Parse(response);
+        if (json) {
+            cJSON *temp = cJSON_GetObjectItemCaseSensitive(json, "temperature");
+            cJSON *wind = cJSON_GetObjectItemCaseSensitive(json, "wind");
+            cJSON *desc = cJSON_GetObjectItemCaseSensitive(json, "description");
+
+            printf("\033[H\033[J--- Weather: %s ---\n\n", city);
+            if (temp && cJSON_IsString(temp)) printf("Temperature: %s\n", temp->valuestring);
+            if (wind && cJSON_IsString(wind)) printf("Wind: %s\n", wind->valuestring);
+            if (desc && cJSON_IsString(desc)) printf("Description: %s\n", desc->valuestring);
+
+            cJSON *forecast = cJSON_GetObjectItemCaseSensitive(json, "forecast");
+            if (cJSON_IsArray(forecast)) {
+                printf("\nForecast:\n");
+                int count = cJSON_GetArraySize(forecast);
+                for (int i = 0; i < count; i++) {
+                    cJSON *item = cJSON_GetArrayItem(forecast, i);
+                    cJSON *f_day = cJSON_GetObjectItemCaseSensitive(item, "day");
+                    cJSON *f_temp = cJSON_GetObjectItemCaseSensitive(item, "temperature");
+                    cJSON *f_wind = cJSON_GetObjectItemCaseSensitive(item, "wind");
+                    printf("Day %s: %s, Wind %s\n", 
+                        f_day ? f_day->valuestring : "?", 
+                        f_temp ? f_temp->valuestring : "?", 
+                        f_wind ? f_wind->valuestring : "?");
+                }
+            }
+            cJSON_Delete(json);
+        } else {
+            printf("\nError parsing weather data.");
+        }
+    } else {
+        printf("\nFailed to connect to Weather API.");
+    }
+
+    printf("\nPress any key to go back...");
+    fflush(stdout);
+    read_key();
+    free(city);
+}
+
+void handle_set_city() {
+    char *current = get_setting("city");
+    printf("\033[H\033[J--- Set City ---\n");
+    printf("Current City: %s\n", current ? current : "Pune (Default)");
+    if (current) free(current);
+
+    char new_city[256];
+    get_user_input(new_city, sizeof(new_city), "Enter new city name");
+    if (strlen(new_city) > 0) {
+        save_setting("city", new_city);
+        printf("\nCity updated to '%s'! Press any key...", new_city);
+    } else {
+        printf("\nNo changes made. Press any key...");
+    }
+    fflush(stdout);
+    read_key();
+}
+
+void handle_news() {
+    printf("\033[H\033[J--- News ---\n");
+    printf("Fetching latest news...\n");
+    printf("\n(Placeholder: News feature coming soon!)\n");
+    printf("\nPress any key to go back...");
+    fflush(stdout);
+    read_key();
+}
+
+void handle_poems() {
+    printf("\033[H\033[J--- Poems ---\n");
+    printf("Fetching a random poem...\n");
+    
+    // Quick implementation using PoetryDB
+    const char *url = "https://poetrydb.org/random/1";
+    char cmd[512];
+    snprintf(cmd, sizeof(cmd), "curl -s \"%s\"", url);
+
+    FILE *fp = popen(cmd, "r");
+    if (fp) {
+        char response[16384] = {0};
+        fread(response, 1, sizeof(response) - 1, fp);
+        pclose(fp);
+
+        cJSON *json = cJSON_Parse(response);
+        if (json && cJSON_IsArray(json)) {
+            cJSON *item = cJSON_GetArrayItem(json, 0);
+            cJSON *title = cJSON_GetObjectItemCaseSensitive(item, "title");
+            cJSON *author = cJSON_GetObjectItemCaseSensitive(item, "author");
+            cJSON *lines = cJSON_GetObjectItemCaseSensitive(item, "lines");
+
+            if (cJSON_IsArray(lines)) {
+                int total_lines = cJSON_GetArraySize(lines);
+                int current_line = 0;
+                int POEM_PAGE_SIZE = 20;
+
+                while (current_line < total_lines) {
+                    printf("\033[H\033[J--- %s ---\nBy %s\n\n", 
+                        title ? title->valuestring : "Poem", 
+                        author ? author->valuestring : "Unknown");
+
+                    int end_line = current_line + POEM_PAGE_SIZE;
+                    if (end_line > total_lines) end_line = total_lines;
+
+                    for (int i = current_line; i < end_line; i++) {
+                        cJSON *line = cJSON_GetArrayItem(lines, i);
+                        printf("%s\n", line->valuestring);
+                    }
+
+                    if (end_line < total_lines) {
+                        printf("\n[Space: Next Page | Esc: Back]\n");
+                    } else {
+                        printf("\n[End of Poem. Press any key to go back...]\n");
+                    }
+                    fflush(stdout);
+
+                    int key = read_key();
+                    if (key == KEY_ESC) break;
+                    if (key == ' ' && end_line < total_lines) {
+                        current_line = end_line;
+                    } else if (end_line >= total_lines) {
+                        break;
+                    }
+                }
+            }
+            cJSON_Delete(json);
+        } else {
+            printf("\nError parsing poem data. Press any key...");
+            fflush(stdout); read_key();
+        }
+    } else {
+        printf("\nFailed to connect to Poem API. Press any key...");
+        fflush(stdout); read_key();
+    }
+}
+
 void handle_address_manager(MenuNode *node) {
     if (strcmp(node->key, "contacts_list") == 0) {
         int count = get_contact_count();
@@ -1449,7 +1604,11 @@ int main() {
                             temp = temp->parent;
                         }
                         if (is_settings) {
-                            handle_settings(selected_node, root);
+                            if (strcmp(selected_node->key, "set_city") == 0) {
+                                handle_set_city();
+                            } else {
+                                handle_settings(selected_node, root);
+                            }
                         } else if (is_fm) {
                             handle_file_manager(selected_node);
                         } else if (is_contacts) {
@@ -1464,6 +1623,12 @@ int main() {
                             handle_joke();
                         } else if (strcmp(selected_node->key, "calculator") == 0) {
                             handle_calculator();
+                        } else if (strcmp(selected_node->key, "weather") == 0) {
+                            handle_weather();
+                        } else if (strcmp(selected_node->key, "news") == 0) {
+                            handle_news();
+                        } else if (strcmp(selected_node->key, "poems") == 0) {
+                            handle_poems();
                         }
                     }
                 }
@@ -1492,6 +1657,12 @@ int main() {
                             handle_joke();
                         } else if (strcmp(current_node->items[i]->key, "calculator") == 0) {
                             handle_calculator();
+                        } else if (strcmp(current_node->items[i]->key, "weather") == 0) {
+                            handle_weather();
+                        } else if (strcmp(current_node->items[i]->key, "news") == 0) {
+                            handle_news();
+                        } else if (strcmp(current_node->items[i]->key, "poems") == 0) {
+                            handle_poems();
                         } else {
                             MenuNode *temp = current_node->items[i];
                             int is_settings = 0;
@@ -1504,7 +1675,11 @@ int main() {
                                 temp = temp->parent;
                             }
                             if (is_settings) {
-                                handle_settings(current_node->items[i], root);
+                                if (strcmp(current_node->items[i]->key, "set_city") == 0) {
+                                    handle_set_city();
+                                } else {
+                                    handle_settings(current_node->items[i], root);
+                                }
                             } else if (is_fm) {
                                 handle_file_manager(current_node->items[i]);
                             } else if (is_contacts) {

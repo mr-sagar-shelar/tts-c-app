@@ -7,12 +7,36 @@
       "key": "file_manager",
       "shortcut": "f",
       "items": [
-        { "title_key": "fm_browse", "key": "fm_browse", "shortcut": "b" },
-        { "title_key": "fm_search", "key": "fm_search", "shortcut": "s" },
-        { "title_key": "fm_new_folder", "key": "fm_new_folder", "shortcut": "n" },
-        { "title_key": "fm_new_file", "key": "fm_new_file", "shortcut": "f" },
-        { "title_key": "fm_rename", "key": "fm_rename", "shortcut": "r" },
-        { "title_key": "fm_delete", "key": "fm_delete", "shortcut": "d" }
+        {
+          "title_key": "fm_browse",
+          "key": "fm_browse",
+          "shortcut": "b"
+        },
+        {
+          "title_key": "fm_search",
+          "key": "fm_search",
+          "shortcut": "s"
+        },
+        {
+          "title_key": "fm_new_folder",
+          "key": "fm_new_folder",
+          "shortcut": "n"
+        },
+        {
+          "title_key": "fm_new_file",
+          "key": "fm_new_file",
+          "shortcut": "f"
+        },
+        {
+          "title_key": "fm_rename",
+          "key": "fm_rename",
+          "shortcut": "r"
+        },
+        {
+          "title_key": "fm_delete",
+          "key": "fm_delete",
+          "shortcut": "d"
+        }
       ]
     },
     {
@@ -25,12 +49,36 @@
           "key": "wp_file",
           "shortcut": "f",
           "items": [
-            { "title_key": "wp_new", "key": "wp_new", "shortcut": "n" },
-            { "title_key": "wp_open", "key": "wp_open", "shortcut": "o" },
-            { "title_key": "wp_save", "key": "wp_save", "shortcut": "s" },
-            { "title_key": "wp_save_as", "key": "wp_save_as", "shortcut": "a" },
-            { "title_key": "wp_print", "key": "wp_print", "shortcut": "p" },
-            { "title_key": "wp_exit", "key": "wp_exit", "shortcut": "z" }
+            {
+              "title_key": "wp_new",
+              "key": "wp_new",
+              "shortcut": "n"
+            },
+            {
+              "title_key": "wp_open",
+              "key": "wp_open",
+              "shortcut": "o"
+            },
+            {
+              "title_key": "wp_save",
+              "key": "wp_save",
+              "shortcut": "s"
+            },
+            {
+              "title_key": "wp_save_as",
+              "key": "wp_save_as",
+              "shortcut": "a"
+            },
+            {
+              "title_key": "wp_print",
+              "key": "wp_print",
+              "shortcut": "p"
+            },
+            {
+              "title_key": "wp_exit",
+              "key": "wp_exit",
+              "shortcut": "z"
+            }
           ]
         },
         {
@@ -38,14 +86,46 @@
           "key": "wp_edit",
           "shortcut": "e",
           "items": [
-            { "title_key": "wp_start_selection", "key": "wp_start_selection", "shortcut": "s" },
-            { "title_key": "wp_copy", "key": "wp_copy", "shortcut": "c" },
-            { "title_key": "wp_cut", "key": "wp_cut", "shortcut": "x" },
-            { "title_key": "wp_paste", "key": "wp_paste", "shortcut": "v" },
-            { "title_key": "wp_delete", "key": "wp_delete", "shortcut": "d" },
-            { "title_key": "wp_select_all", "key": "wp_select_all", "shortcut": "a" },
-            { "title_key": "wp_find", "key": "wp_find", "shortcut": "f" },
-            { "title_key": "wp_replace", "key": "wp_replace", "shortcut": "r" }
+            {
+              "title_key": "wp_start_selection",
+              "key": "wp_start_selection",
+              "shortcut": "s"
+            },
+            {
+              "title_key": "wp_copy",
+              "key": "wp_copy",
+              "shortcut": "c"
+            },
+            {
+              "title_key": "wp_cut",
+              "key": "wp_cut",
+              "shortcut": "x"
+            },
+            {
+              "title_key": "wp_paste",
+              "key": "wp_paste",
+              "shortcut": "v"
+            },
+            {
+              "title_key": "wp_delete",
+              "key": "wp_delete",
+              "shortcut": "d"
+            },
+            {
+              "title_key": "wp_select_all",
+              "key": "wp_select_all",
+              "shortcut": "a"
+            },
+            {
+              "title_key": "wp_find",
+              "key": "wp_find",
+              "shortcut": "f"
+            },
+            {
+              "title_key": "wp_replace",
+              "key": "wp_replace",
+              "shortcut": "r"
+            }
           ]
         },
         {
@@ -53,8 +133,16 @@
           "key": "wp_insert",
           "shortcut": "i",
           "items": [
-            { "title_key": "wp_insert_date_time", "key": "wp_insert_date_time", "shortcut": "d" },
-            { "title_key": "wp_insert_page_break", "key": "wp_insert_page_break", "shortcut": "p" }
+            {
+              "title_key": "wp_insert_date_time",
+              "key": "wp_insert_date_time",
+              "shortcut": "d"
+            },
+            {
+              "title_key": "wp_insert_page_break",
+              "key": "wp_insert_page_break",
+              "shortcut": "p"
+            }
           ]
         },
         {
@@ -62,9 +150,21 @@
           "key": "wp_format",
           "shortcut": "o",
           "items": [
-            { "title_key": "wp_font", "key": "wp_font", "shortcut": "f" },
-            { "title_key": "wp_paragraph", "key": "wp_paragraph", "shortcut": "p" },
-            { "title_key": "wp_style", "key": "wp_style", "shortcut": "s" }
+            {
+              "title_key": "wp_font",
+              "key": "wp_font",
+              "shortcut": "f"
+            },
+            {
+              "title_key": "wp_paragraph",
+              "key": "wp_paragraph",
+              "shortcut": "p"
+            },
+            {
+              "title_key": "wp_style",
+              "key": "wp_style",
+              "shortcut": "s"
+            }
           ]
         }
       ]
@@ -74,20 +174,48 @@
       "key": "notepad",
       "shortcut": "n",
       "items": [
-        { "title_key": "notepad_new", "key": "notepad_new", "shortcut": "n" },
-        { "title_key": "notepad_open", "key": "notepad_open", "shortcut": "o" },
-        { "title_key": "notepad_search", "key": "notepad_search", "shortcut": "s" }
+        {
+          "title_key": "notepad_new",
+          "key": "notepad_new",
+          "shortcut": "n"
+        },
+        {
+          "title_key": "notepad_open",
+          "key": "notepad_open",
+          "shortcut": "o"
+        },
+        {
+          "title_key": "notepad_search",
+          "key": "notepad_search",
+          "shortcut": "s"
+        }
       ]
     },
-    { "title_key": "email", "key": "email", "shortcut": "e" },
+    {
+      "title_key": "email",
+      "key": "email",
+      "shortcut": "e"
+    },
     {
       "title_key": "media",
       "key": "media",
       "shortcut": "m",
       "items": [
-        { "title_key": "media_player", "key": "media_player", "shortcut": "m" },
-        { "title_key": "fm_radio", "key": "fm_radio", "shortcut": "r" },
-        { "title_key": "daisy_player", "key": "daisy_player", "shortcut": "d" }
+        {
+          "title_key": "media_player",
+          "key": "media_player",
+          "shortcut": "m"
+        },
+        {
+          "title_key": "fm_radio",
+          "key": "fm_radio",
+          "shortcut": "r"
+        },
+        {
+          "title_key": "daisy_player",
+          "key": "daisy_player",
+          "shortcut": "d"
+        }
       ]
     },
     {
@@ -100,15 +228,43 @@
           "key": "address_manager",
           "shortcut": "a",
           "items": [
-            { "title_key": "contacts_list", "key": "contacts_list", "shortcut": "l" },
-            { "title_key": "contacts_search", "key": "contacts_search", "shortcut": "s" },
-            { "title_key": "contacts_add", "key": "contacts_add", "shortcut": "a" },
-            { "title_key": "contacts_edit", "key": "contacts_edit", "shortcut": "e" },
-            { "title_key": "contacts_delete", "key": "contacts_delete", "shortcut": "d" }
+            {
+              "title_key": "contacts_list",
+              "key": "contacts_list",
+              "shortcut": "l"
+            },
+            {
+              "title_key": "contacts_search",
+              "key": "contacts_search",
+              "shortcut": "s"
+            },
+            {
+              "title_key": "contacts_add",
+              "key": "contacts_add",
+              "shortcut": "a"
+            },
+            {
+              "title_key": "contacts_edit",
+              "key": "contacts_edit",
+              "shortcut": "e"
+            },
+            {
+              "title_key": "contacts_delete",
+              "key": "contacts_delete",
+              "shortcut": "d"
+            }
           ]
         },
-        { "title_key": "schedule_manager", "key": "schedule_manager", "shortcut": "s" },
-        { "title_key": "database_manager", "key": "database_manager", "shortcut": "d" }
+        {
+          "title_key": "schedule_manager",
+          "key": "schedule_manager",
+          "shortcut": "s"
+        },
+        {
+          "title_key": "database_manager",
+          "key": "database_manager",
+          "shortcut": "d"
+        }
       ]
     },
     {
@@ -116,9 +272,21 @@
       "key": "web_tools",
       "shortcut": "b",
       "items": [
-        { "title_key": "web_browser", "key": "web_browser", "shortcut": "b" },
-        { "title_key": "google_search", "key": "google_search", "shortcut": "g" },
-        { "title_key": "wiki_search", "key": "wiki_search", "shortcut": "w" }
+        {
+          "title_key": "web_browser",
+          "key": "web_browser",
+          "shortcut": "b"
+        },
+        {
+          "title_key": "google_search",
+          "key": "google_search",
+          "shortcut": "g"
+        },
+        {
+          "title_key": "wiki_search",
+          "key": "wiki_search",
+          "shortcut": "w"
+        }
       ]
     },
     {
@@ -126,14 +294,61 @@
       "key": "extras",
       "shortcut": "x",
       "items": [
-        { "title_key": "excel_viewer", "key": "excel_viewer", "shortcut": "e" },
-        { "title_key": "online_daisy", "key": "online_daisy", "shortcut": "o" },
-        { "title_key": "english_only_dictionary", "key": "english_only_dictionary", "shortcut": "n" },
-        { "title_key": "multi_lang_dictionary", "key": "multi_lang_dictionary", "shortcut": "m" },
-        { "title_key": "short_stories", "key": "short_stories", "shortcut": "h" },
-        { "title_key": "joke", "key": "joke", "shortcut": "j" },
-        { "title_key": "sense_dictionary", "key": "sense_dictionary", "shortcut": "s" },
-        { "title_key": "color_reader", "key": "color_reader", "shortcut": "c" }
+        {
+          "title_key": "excel_viewer",
+          "key": "excel_viewer",
+          "shortcut": "e"
+        },
+        {
+          "title_key": "online_daisy",
+          "key": "online_daisy",
+          "shortcut": "o"
+        },
+        {
+          "title_key": "english_only_dictionary",
+          "key": "english_only_dictionary",
+          "shortcut": "n"
+        },
+        {
+          "title_key": "multi_lang_dictionary",
+          "key": "multi_lang_dictionary",
+          "shortcut": "m"
+        },
+        {
+          "title_key": "short_stories",
+          "key": "short_stories",
+          "shortcut": "h"
+        },
+        {
+          "title_key": "joke",
+          "key": "joke",
+          "shortcut": "j"
+        },
+        {
+          "title_key": "weather",
+          "key": "weather",
+          "shortcut": "w"
+        },
+        {
+          "title_key": "news",
+          "key": "news",
+          "shortcut": "i"
+        },
+        {
+          "title_key": "poems",
+          "key": "poems",
+          "shortcut": "p"
+        },
+        {
+          "title_key": "sense_dictionary",
+          "key": "sense_dictionary",
+          "shortcut": "s"
+        },
+        {
+          "title_key": "color_reader",
+          "key": "color_reader",
+          "shortcut": "c"
+        }
       ]
     },
     {
@@ -141,13 +356,41 @@
       "key": "utilities",
       "shortcut": "u",
       "items": [
-        { "title_key": "calculator", "key": "calculator", "shortcut": "c" },
-        { "title_key": "bs_math", "key": "bs_math", "shortcut": "m" },
-        { "title_key": "world_clock", "key": "world_clock", "shortcut": "w" },
-        { "title_key": "compass", "key": "compass", "shortcut": "p" },
-        { "title_key": "display_time_date", "key": "display_time_date", "shortcut": "t" },
-        { "title_key": "alarm", "key": "alarm", "shortcut": "a" },
-        { "title_key": "terminal", "key": "terminal", "shortcut": "s" }
+        {
+          "title_key": "calculator",
+          "key": "calculator",
+          "shortcut": "c"
+        },
+        {
+          "title_key": "bs_math",
+          "key": "bs_math",
+          "shortcut": "m"
+        },
+        {
+          "title_key": "world_clock",
+          "key": "world_clock",
+          "shortcut": "w"
+        },
+        {
+          "title_key": "compass",
+          "key": "compass",
+          "shortcut": "p"
+        },
+        {
+          "title_key": "display_time_date",
+          "key": "display_time_date",
+          "shortcut": "t"
+        },
+        {
+          "title_key": "alarm",
+          "key": "alarm",
+          "shortcut": "a"
+        },
+        {
+          "title_key": "terminal",
+          "key": "terminal",
+          "shortcut": "s"
+        }
       ]
     },
     {
@@ -155,18 +398,67 @@
       "key": "settings",
       "shortcut": "s",
       "items": [
-        { "title_key": "set_time_date", "key": "set_time_date", "shortcut": "t" },
-        { "title_key": "setup_internet", "key": "setup_internet", "shortcut": "w" },
-        { "title_key": "bluetooth_manager", "key": "bluetooth_manager", "shortcut": "b" },
-        { "title_key": "menu_manager", "key": "menu_manager", "shortcut": "m" },
-        { "title_key": "global_options", "key": "global_options", "shortcut": "o" },
-        { "title_key": "android_settings", "key": "android_settings", "shortcut": "e" },
-        { "title_key": "language_switch", "key": "language_switch", "shortcut": "l" }
+        {
+          "title_key": "set_time_date",
+          "key": "set_time_date",
+          "shortcut": "t"
+        },
+        {
+          "title_key": "set_city",
+          "key": "set_city",
+          "shortcut": "c"
+        },
+        {
+          "title_key": "setup_internet",
+          "key": "setup_internet",
+          "shortcut": "w"
+        },
+        {
+          "title_key": "bluetooth_manager",
+          "key": "bluetooth_manager",
+          "shortcut": "b"
+        },
+        {
+          "title_key": "menu_manager",
+          "key": "menu_manager",
+          "shortcut": "m"
+        },
+        {
+          "title_key": "global_options",
+          "key": "global_options",
+          "shortcut": "o"
+        },
+        {
+          "title_key": "android_settings",
+          "key": "android_settings",
+          "shortcut": "e"
+        },
+        {
+          "title_key": "language_switch",
+          "key": "language_switch",
+          "shortcut": "l"
+        }
       ]
     },
-    { "title_key": "help", "key": "help", "shortcut": "h" },
-    { "title_key": "play_store", "key": "play_store", "shortcut": "p" },
-    { "title_key": "all_apps", "key": "all_apps", "shortcut": "a" },
-    { "title_key": "info", "key": "info", "shortcut": "i" }
+    {
+      "title_key": "help",
+      "key": "help",
+      "shortcut": "h"
+    },
+    {
+      "title_key": "play_store",
+      "key": "play_store",
+      "shortcut": "p"
+    },
+    {
+      "title_key": "all_apps",
+      "key": "all_apps",
+      "shortcut": "a"
+    },
+    {
+      "title_key": "info",
+      "key": "info",
+      "shortcut": "i"
+    }
   ]
 }
