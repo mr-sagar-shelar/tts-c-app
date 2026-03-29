@@ -93,7 +93,17 @@
       "key": "organizer",
       "shortcut": "o",
       "items": [
-        { "title_key": "address_manager", "key": "address_manager", "shortcut": "a" },
+        {
+          "title_key": "address_manager",
+          "key": "address_manager",
+          "shortcut": "a",
+          "items": [
+            { "title_key": "contacts_list", "key": "contacts_list", "shortcut": "l" },
+            { "title_key": "contacts_add", "key": "contacts_add", "shortcut": "a" },
+            { "title_key": "contacts_edit", "key": "contacts_edit", "shortcut": "e" },
+            { "title_key": "contacts_delete", "key": "contacts_delete", "shortcut": "d" }
+          ]
+        },
         { "title_key": "schedule_manager", "key": "schedule_manager", "shortcut": "s" },
         { "title_key": "database_manager", "key": "database_manager", "shortcut": "d" }
       ]

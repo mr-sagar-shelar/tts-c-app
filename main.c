@@ -8,6 +8,7 @@
 #include <sys/stat.h>
 #include "menu.h"
 #include "config.h"
+#include "contacts.h"
 
 #define USER_SPACE "UserSpace"
 
@@ -33,6 +34,7 @@ void set_conio_terminal_mode() {
 #define KEY_ENTER 1003
 #define KEY_ESC 1004
 #define KEY_BACKSPACE 127
+#define KEY_TAB 9
 
 int read_key() {
     char c;
@@ -67,6 +69,8 @@ int read_key() {
         return KEY_ENTER;
     } else if (c == 127 || c == 8) {
         return KEY_BACKSPACE;
+    } else if (c == 9) {
+        return KEY_TAB;
     }
     return (unsigned char)c;
 }
@@ -427,8 +431,139 @@ void handle_file_manager(MenuNode *node) {
     }
 }
 
+void contact_form(Contact *c, int is_edit) {
+    int field = 0;
+    const char *labels[] = {"First Name", "Last Name", "Phone", "Email", "Address", "Postal Code"};
+    char *buffers[] = {c->first_name, c->last_name, c->phone, c->email, c->address, c->postal_code};
+    int sizes[] = {128, 128, 64, 128, 256, 32};
+
+    while (1) {
+        printf("\033[H\033[J");
+        printf("--- %s Contact (Tab to navigate, Enter to Save, Esc to Cancel) ---\n", is_edit ? "Edit" : "Add");
+        for (int i = 0; i < 6; i++) {
+            if (i == field) printf("> %s: %s\n", labels[i], buffers[i]);
+            else printf("  %s: %s\n", labels[i], buffers[i]);
+        }
+        fflush(stdout);
+
+        int key = read_key();
+        if (key == KEY_TAB || key == KEY_DOWN) {
+            field = (field + 1) % 6;
+        } else if (key == KEY_UP) {
+            field = (field + 5) % 6;
+        } else if (key == KEY_ENTER) {
+            if (is_edit) {
+                // Already updated in buffers
+            }
+            return; // Caller will save
+        } else if (key == KEY_ESC) {
+            memset(c, 0, sizeof(Contact));
+            return;
+        } else if (key == KEY_BACKSPACE) {
+            int len = strlen(buffers[field]);
+            if (len > 0) buffers[field][len-1] = '\0';
+        } else if (key > 0 && key < 1000) {
+            int len = strlen(buffers[field]);
+            if (len < sizes[field] - 1) {
+                buffers[field][len] = (char)key;
+                buffers[field][len+1] = '\0';
+            }
+        }
+    }
+}
+
+void handle_address_manager(MenuNode *node) {
+    if (strcmp(node->key, "contacts_list") == 0) {
+        int count = get_contact_count();
+        if (count == 0) {
+            printf("\033[H\033[J--- Contacts ---\nNo contacts found. Press any key...");
+            fflush(stdout); read_key();
+            return;
+        }
+        int sel = 0;
+        while (1) {
+            printf("\033[H\033[J--- Contacts List ---\n");
+            for (int i = 0; i < count; i++) {
+                Contact *c = get_contact(i);
+                if (i == sel) printf("> %s %s (%s)\n", c->first_name, c->last_name, c->phone);
+                else printf("  %s %s (%s)\n", c->first_name, c->last_name, c->phone);
+            }
+            fflush(stdout);
+            int key = read_key();
+            if (key == KEY_UP && sel > 0) sel--;
+            else if (key == KEY_DOWN && sel < count - 1) sel++;
+            else if (key == KEY_ENTER) {
+                Contact *c = get_contact(sel);
+                printf("\033[H\033[J--- Contact Details ---\n");
+                printf("Name: %s %s\nPhone: %s\nEmail: %s\nAddress: %s\nPostal: %s\n\nPress any key...", 
+                    c->first_name, c->last_name, c->phone, c->email, c->address, c->postal_code);
+                fflush(stdout); read_key();
+            } else if (key == KEY_ESC) break;
+        }
+    } else if (strcmp(node->key, "contacts_add") == 0) {
+        Contact c; memset(&c, 0, sizeof(Contact));
+        contact_form(&c, 0);
+        if (strlen(c.first_name) > 0 || strlen(c.last_name) > 0) {
+            add_contact(&c);
+            printf("\nContact added! Press any key..."); fflush(stdout); read_key();
+        }
+    } else if (strcmp(node->key, "contacts_edit") == 0) {
+        int count = get_contact_count();
+        if (count == 0) return;
+        int sel = 0;
+        while (1) {
+            printf("\033[H\033[J--- Select Contact to Edit ---\n");
+            for (int i = 0; i < count; i++) {
+                Contact *c = get_contact(i);
+                if (i == sel) printf("> %s %s\n", c->first_name, c->last_name);
+                else printf("  %s %s\n", c->first_name, c->last_name);
+            }
+            fflush(stdout);
+            int key = read_key();
+            if (key == KEY_UP && sel > 0) sel--;
+            else if (key == KEY_DOWN && sel < count - 1) sel++;
+            else if (key == KEY_ENTER) {
+                Contact *c = get_contact(sel);
+                Contact updated = *c;
+                contact_form(&updated, 1);
+                if (strlen(updated.first_name) > 0 || strlen(updated.last_name) > 0) {
+                    edit_contact(sel, &updated);
+                    printf("\nContact updated! Press any key..."); fflush(stdout); read_key();
+                }
+                break;
+            } else if (key == KEY_ESC) break;
+        }
+    } else if (strcmp(node->key, "contacts_delete") == 0) {
+        int count = get_contact_count();
+        if (count == 0) return;
+        int sel = 0;
+        while (1) {
+            printf("\033[H\033[J--- Select Contact to Delete ---\n");
+            for (int i = 0; i < count; i++) {
+                Contact *c = get_contact(i);
+                if (i == sel) printf("> %s %s\n", c->first_name, c->last_name);
+                else printf("  %s %s\n", c->first_name, c->last_name);
+            }
+            fflush(stdout);
+            int key = read_key();
+            if (key == KEY_UP && sel > 0) sel--;
+            else if (key == KEY_DOWN && sel < count - 1) sel++;
+            else if (key == KEY_ENTER) {
+                printf("\nDelete this contact? (y/n)"); fflush(stdout);
+                int k = read_key();
+                if (k == 'y' || k == 'Y') {
+                    delete_contact(sel);
+                    printf("\nDeleted. Press any key..."); fflush(stdout); read_key();
+                }
+                break;
+            } else if (key == KEY_ESC) break;
+        }
+    }
+}
+
 int main() {
     init_config();
+    init_contacts();
     mkdir(USER_SPACE, 0777);
     MenuNode *root = load_menu_from_json("menu.json");
     if (!root) {
@@ -502,15 +637,19 @@ int main() {
                         MenuNode *temp = selected_node;
                         int is_settings = 0;
                         int is_fm = 0;
+                        int is_contacts = 0;
                         while (temp) {
                             if (strcmp(temp->key, "settings") == 0) is_settings = 1;
                             if (strcmp(temp->key, "file_manager") == 0) is_fm = 1;
+                            if (strcmp(temp->key, "address_manager") == 0) is_contacts = 1;
                             temp = temp->parent;
                         }
                         if (is_settings) {
                             handle_settings(selected_node, root);
                         } else if (is_fm) {
                             handle_file_manager(selected_node);
+                        } else if (is_contacts) {
+                            handle_address_manager(selected_node);
                         }
                     }
                 }
@@ -529,15 +668,19 @@ int main() {
                             MenuNode *temp = current_node->items[i];
                             int is_settings = 0;
                             int is_fm = 0;
+                            int is_contacts = 0;
                             while (temp) {
                                 if (strcmp(temp->key, "settings") == 0) is_settings = 1;
                                 if (strcmp(temp->key, "file_manager") == 0) is_fm = 1;
+                                if (strcmp(temp->key, "address_manager") == 0) is_contacts = 1;
                                 temp = temp->parent;
                             }
                             if (is_settings) {
                                 handle_settings(current_node->items[i], root);
                             } else if (is_fm) {
                                 handle_file_manager(current_node->items[i]);
+                            } else if (is_contacts) {
+                                handle_address_manager(current_node->items[i]);
                             }
                         }
                     }
@@ -549,5 +692,6 @@ int main() {
 
     free_menu(root);
     cleanup_config();
+    cleanup_contacts();
     return 0;
 }
