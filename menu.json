@@ -128,6 +128,7 @@
       "items": [
         { "title_key": "excel_viewer", "key": "excel_viewer", "shortcut": "e" },
         { "title_key": "online_daisy", "key": "online_daisy", "shortcut": "o" },
+        { "title_key": "online_dictionary", "key": "online_dictionary", "shortcut": "n" },
         { "title_key": "sense_dictionary", "key": "sense_dictionary", "shortcut": "s" },
         { "title_key": "color_reader", "key": "color_reader", "shortcut": "c" }
       ]

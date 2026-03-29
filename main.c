@@ -314,7 +314,7 @@ void handle_settings(MenuNode *node, MenuNode *root) {
         printf("--- %s ---\n", node->title);
         printf("Current Language: %s\n", current_lang);
         printf("\n1. English (en)\n");
-        printf("2. Hindi (hn)\n");
+        printf("2. Hindi (hi)\n");
         printf("\nSelect (1 or 2), or Esc to go back.");
         fflush(stdout);
 
@@ -325,8 +325,8 @@ void handle_settings(MenuNode *node, MenuNode *root) {
                 set_language(root, "en");
                 break;
             } else if (key == '2') {
-                save_setting("language", "hn");
-                set_language(root, "hn");
+                save_setting("language", "hi");
+                set_language(root, "hi");
                 break;
             } else if (key == KEY_ESC) {
                 break;
@@ -702,6 +702,153 @@ void handle_dictionary() {
     cJSON_Delete(dict_json);
 }
 
+void handle_online_dictionary() {
+    char word[256];
+    get_user_input(word, sizeof(word), "Enter word to search online");
+    if (strlen(word) == 0) return;
+
+    char *lang = get_setting("language");
+    char api_lang[16] = "en";
+    if (lang) {
+        if (strcmp(lang, "hn") == 0 || strcmp(lang, "hi") == 0) {
+            strcpy(api_lang, "hi");
+        } else {
+            strncpy(api_lang, lang, sizeof(api_lang) - 1);
+        }
+        free(lang);
+    }
+
+    printf("\033[H\033[J--- Online Dictionary ---\nSearching for '%s' in %s...\n", word, api_lang);
+    fflush(stdout);
+
+    char url[512];
+    snprintf(url, sizeof(url), "https://api.dictionaryapi.dev/api/v2/entries/%s/%s", api_lang, word);
+
+    char cmd[1024];
+    snprintf(cmd, sizeof(cmd), "curl -s \"%s\"", url);
+
+    FILE *fp = popen(cmd, "r");
+    if (!fp) {
+        printf("Failed to run curl command.\nPress any key..."); fflush(stdout); read_key();
+        return;
+    }
+
+    char *response = NULL;
+    size_t response_len = 0;
+    size_t response_size = 4096;
+    response = (char *)malloc(response_size);
+    
+    char buffer[1024];
+    while (fgets(buffer, sizeof(buffer), fp) != NULL) {
+        size_t len = strlen(buffer);
+        if (response_len + len + 1 > response_size) {
+            response_size *= 2;
+            response = (char *)realloc(response, response_size);
+        }
+        strcpy(response + response_len, buffer);
+        response_len += len;
+    }
+    pclose(fp);
+
+    if (response_len == 0) {
+        printf("\nNo response from server. Check internet connection.\nPress any key...");
+        fflush(stdout); read_key();
+        free(response);
+        return;
+    }
+
+    cJSON *json = cJSON_Parse(response);
+    free(response);
+
+    if (!json) {
+        printf("\nError parsing JSON response.\nPress any key...");
+        fflush(stdout); read_key();
+        return;
+    }
+
+    // Check if error response (not an array)
+    if (!cJSON_IsArray(json)) {
+        cJSON *title = cJSON_GetObjectItemCaseSensitive(json, "title");
+        cJSON *message = cJSON_GetObjectItemCaseSensitive(json, "message");
+        printf("\033[H\033[J--- Online Dictionary ---\n\n");
+        if (title && cJSON_IsString(title)) printf("%s\n\n", title->valuestring);
+        if (message && cJSON_IsString(message)) printf("%s\n", message->valuestring);
+        printf("\nPress any key to go back...");
+        fflush(stdout); read_key();
+        cJSON_Delete(json);
+        return;
+    }
+
+    // Parse successful response
+    cJSON *first_entry = cJSON_GetArrayItem(json, 0);
+    cJSON *word_node = cJSON_GetObjectItemCaseSensitive(first_entry, "word");
+    cJSON *phonetics = cJSON_GetObjectItemCaseSensitive(first_entry, "phonetics");
+    cJSON *meanings = cJSON_GetObjectItemCaseSensitive(first_entry, "meanings");
+
+    char audio_url[1024] = {0};
+    if (cJSON_IsArray(phonetics)) {
+        int phonetics_count = cJSON_GetArraySize(phonetics);
+        for (int i = 0; i < phonetics_count; i++) {
+            cJSON *p = cJSON_GetArrayItem(phonetics, i);
+            cJSON *a = cJSON_GetObjectItemCaseSensitive(p, "audio");
+            if (a && cJSON_IsString(a) && strlen(a->valuestring) > 0) {
+                strncpy(audio_url, a->valuestring, sizeof(audio_url) - 1);
+                break;
+            }
+        }
+    }
+
+    printf("\033[H\033[J--- Online Dictionary: %s ---\n\n", word_node && cJSON_IsString(word_node) ? word_node->valuestring : word);
+    
+    if (cJSON_IsArray(meanings)) {
+        int meanings_count = cJSON_GetArraySize(meanings);
+        for (int i = 0; i < meanings_count && i < 3; i++) { // Show up to 3 meanings
+            cJSON *m = cJSON_GetArrayItem(meanings, i);
+            cJSON *pos = cJSON_GetObjectItemCaseSensitive(m, "partOfSpeech");
+            cJSON *defs = cJSON_GetObjectItemCaseSensitive(m, "definitions");
+            
+            if (pos && cJSON_IsString(pos)) {
+                printf("[%s]\n", pos->valuestring);
+            }
+            if (cJSON_IsArray(defs)) {
+                cJSON *first_def = cJSON_GetArrayItem(defs, 0);
+                cJSON *def_text = cJSON_GetObjectItemCaseSensitive(first_def, "definition");
+                if (def_text && cJSON_IsString(def_text)) {
+                    printf("  - %s\n\n", def_text->valuestring);
+                }
+            }
+        }
+    }
+
+    if (strlen(audio_url) > 0) {
+        printf("Press 'p' to play audio, Esc to go back.");
+    } else {
+        printf("Press any key to go back...");
+    }
+    fflush(stdout);
+
+    while (1) {
+        int key = read_key();
+        if (key == KEY_ESC) {
+            break;
+        } else if (key == 'p' || key == 'P') {
+            if (strlen(audio_url) > 0) {
+                printf("\nPlaying audio...\n");
+                fflush(stdout);
+                char play_cmd[1024];
+                snprintf(play_cmd, sizeof(play_cmd), "curl -s \"%s\" > /tmp/dict_audio.mp3 && afplay /tmp/dict_audio.mp3", audio_url);
+                system(play_cmd);
+                printf("Done. Press Esc to go back or 'p' to replay.");
+                fflush(stdout);
+            }
+        } else if (strlen(audio_url) == 0) {
+            break; // Exit on any key if no audio
+        }
+    }
+
+    cJSON_Delete(json);
+}
+
 void handle_address_manager(MenuNode *node) {
     if (strcmp(node->key, "contacts_list") == 0) {
         int count = get_contact_count();
@@ -934,6 +1081,8 @@ int main() {
                             handle_address_manager(selected_node);
                         } else if (strcmp(selected_node->key, "sense_dictionary") == 0) {
                             handle_dictionary();
+                        } else if (strcmp(selected_node->key, "online_dictionary") == 0) {
+                            handle_online_dictionary();
                         }
                     }
                 }
@@ -952,6 +1101,8 @@ int main() {
                             handle_notepad_search();
                         } else if (strcmp(current_node->items[i]->key, "sense_dictionary") == 0) {
                             handle_dictionary();
+                        } else if (strcmp(current_node->items[i]->key, "online_dictionary") == 0) {
+                            handle_online_dictionary();
                         } else {
                             MenuNode *temp = current_node->items[i];
                             int is_settings = 0;
