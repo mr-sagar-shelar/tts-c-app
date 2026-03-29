@@ -867,7 +867,7 @@ void handle_multi_lang_dictionary() {
     char *lang = get_setting("language");
     char api_lang[16] = "en";
     if (lang) {
-        if (strcmp(lang, "hn") == 0 || strcmp(lang, "hi") == 0) {
+        if (strcmp(lang, "hi") == 0 || strcmp(lang, "hi") == 0) {
             strcpy(api_lang, "hi");
         } else {
             strncpy(api_lang, lang, sizeof(api_lang) - 1);
@@ -1175,6 +1175,54 @@ void handle_calculator() {
     }
 }
 
+void handle_joke() {
+    int fetch_new = 1;
+    char joke_text[2048] = {0};
+
+    while (1) {
+        if (fetch_new) {
+            printf("\033[H\033[J--- Joke ---\nFetching a new joke...\n");
+            fflush(stdout);
+
+            const char *url = "https://v2.jokeapi.dev/joke/Any?format=json&type=single&lang=en&amount=1";
+            char cmd[512];
+            snprintf(cmd, sizeof(cmd), "curl -s \"%s\"", url);
+
+            FILE *fp = popen(cmd, "r");
+            if (fp) {
+                char response[4096] = {0};
+                fread(response, 1, sizeof(response) - 1, fp);
+                pclose(fp);
+
+                cJSON *json = cJSON_Parse(response);
+                if (json) {
+                    cJSON *joke_node = cJSON_GetObjectItemCaseSensitive(json, "joke");
+                    if (joke_node && cJSON_IsString(joke_node)) {
+                        strncpy(joke_text, joke_node->valuestring, sizeof(joke_text) - 1);
+                    } else {
+                        strcpy(joke_text, "Failed to parse joke.");
+                    }
+                    cJSON_Delete(json);
+                } else {
+                    strcpy(joke_text, "Error parsing API response.");
+                }
+            } else {
+                strcpy(joke_text, "Failed to connect to Joke API.");
+            }
+            fetch_new = 0;
+        }
+
+        printf("\033[H\033[J--- Joke ---\n\n%s\n\n", joke_text);
+        printf("------------------------------------------\n");
+        printf("[Space: New Joke | Esc: Back]\n");
+        fflush(stdout);
+
+        int key = read_key();
+        if (key == KEY_ESC) break;
+        else if (key == ' ') fetch_new = 1;
+    }
+}
+
 void handle_address_manager(MenuNode *node) {
     if (strcmp(node->key, "contacts_list") == 0) {
         int count = get_contact_count();
@@ -1412,6 +1460,8 @@ int main() {
                             handle_multi_lang_dictionary();
                         } else if (strcmp(selected_node->key, "short_stories") == 0) {
                             handle_short_stories();
+                        } else if (strcmp(selected_node->key, "joke") == 0) {
+                            handle_joke();
                         } else if (strcmp(selected_node->key, "calculator") == 0) {
                             handle_calculator();
                         }
@@ -1438,6 +1488,8 @@ int main() {
                             handle_multi_lang_dictionary();
                         } else if (strcmp(current_node->items[i]->key, "short_stories") == 0) {
                             handle_short_stories();
+                        } else if (strcmp(current_node->items[i]->key, "joke") == 0) {
+                            handle_joke();
                         } else if (strcmp(current_node->items[i]->key, "calculator") == 0) {
                             handle_calculator();
                         } else {
