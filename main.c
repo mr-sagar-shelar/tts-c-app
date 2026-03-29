@@ -1113,6 +1113,68 @@ void handle_short_stories() {
     cJSON_Delete(json);
 }
 
+void handle_calculator() {
+    double result = 0;
+    char input[64];
+    int first_op = 1;
+
+    while (1) {
+        printf("\033[H\033[J--- Calculator ---\n");
+        if (!first_op) {
+            printf("Current Result: %g\n", result);
+        } else {
+            printf("Ready for new calculation.\n");
+        }
+        printf("---------------------------\n");
+        printf("[Esc: Exit | 'c': Clear | '=': Final Result]\n");
+        fflush(stdout);
+
+        if (first_op) {
+            get_user_input(input, sizeof(input), "Enter first number");
+            if (strlen(input) == 0) return;
+            result = atof(input);
+            first_op = 0;
+            continue;
+        }
+
+        get_user_input(input, sizeof(input), "Enter operator (+, -, *, /) or '=' or 'c'");
+        if (strlen(input) == 0) continue;
+        char op = input[0];
+
+        if (op == '=') {
+            printf("\nFinal Result: %g\nPress any key to start over...", result);
+            fflush(stdout);
+            read_key();
+            first_op = 1;
+            continue;
+        } else if (tolower(op) == 'c') {
+            first_op = 1;
+            continue;
+        }
+
+        get_user_input(input, sizeof(input), "Enter next number");
+        if (strlen(input) == 0) continue;
+        double next_num = atof(input);
+
+        switch (op) {
+            case '+': result += next_num; break;
+            case '-': result -= next_num; break;
+            case '*': result *= next_num; break;
+            case '/': 
+                if (next_num != 0) result /= next_num; 
+                else {
+                    printf("\nError: Division by zero!\nPress any key...");
+                    fflush(stdout); read_key();
+                }
+                break;
+            default:
+                printf("\nInvalid operator! Use +, -, *, or /.\nPress any key...");
+                fflush(stdout); read_key();
+                break;
+        }
+    }
+}
+
 void handle_address_manager(MenuNode *node) {
     if (strcmp(node->key, "contacts_list") == 0) {
         int count = get_contact_count();
@@ -1350,6 +1412,8 @@ int main() {
                             handle_multi_lang_dictionary();
                         } else if (strcmp(selected_node->key, "short_stories") == 0) {
                             handle_short_stories();
+                        } else if (strcmp(selected_node->key, "calculator") == 0) {
+                            handle_calculator();
                         }
                     }
                 }
@@ -1374,6 +1438,8 @@ int main() {
                             handle_multi_lang_dictionary();
                         } else if (strcmp(current_node->items[i]->key, "short_stories") == 0) {
                             handle_short_stories();
+                        } else if (strcmp(current_node->items[i]->key, "calculator") == 0) {
+                            handle_calculator();
                         } else {
                             MenuNode *temp = current_node->items[i];
                             int is_settings = 0;
