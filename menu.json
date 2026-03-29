@@ -130,6 +130,7 @@
         { "title_key": "online_daisy", "key": "online_daisy", "shortcut": "o" },
         { "title_key": "english_only_dictionary", "key": "english_only_dictionary", "shortcut": "n" },
         { "title_key": "multi_lang_dictionary", "key": "multi_lang_dictionary", "shortcut": "m" },
+        { "title_key": "short_stories", "key": "short_stories", "shortcut": "h" },
         { "title_key": "sense_dictionary", "key": "sense_dictionary", "shortcut": "s" },
         { "title_key": "color_reader", "key": "color_reader", "shortcut": "c" }
       ]

@@ -994,6 +994,125 @@ void handle_multi_lang_dictionary() {
     cJSON_Delete(json);
 }
 
+void handle_short_stories() {
+    const char *story_file = "Downloads/ShortStories.json";
+    char *data = NULL;
+    FILE *f = fopen(story_file, "rb");
+
+    if (f) {
+        printf("\033[H\033[J--- Short Stories ---\nLoading stories from cache...\n");
+        fflush(stdout);
+        fseek(f, 0, SEEK_END);
+        long len = ftell(f);
+        fseek(f, 0, SEEK_SET);
+        data = (char *)malloc(len + 1);
+        fread(data, 1, len, f);
+        data[len] = '\0';
+        fclose(f);
+    } else {
+        printf("\033[H\033[J--- Short Stories ---\nDownloading stories...\n");
+        fflush(stdout);
+
+        const char *url = "https://shortstories-api.onrender.com/stories";
+        char cmd[256];
+        snprintf(cmd, sizeof(cmd), "curl -s \"%s\"", url);
+
+        FILE *fp = popen(cmd, "r");
+        if (!fp) {
+            printf("Failed to fetch stories.\nPress any key..."); fflush(stdout); read_key();
+            return;
+        }
+
+        size_t response_len = 0;
+        size_t response_size = 16384;
+        data = (char *)malloc(response_size);
+        
+        char buffer[4096];
+        while (fgets(buffer, sizeof(buffer), fp) != NULL) {
+            size_t len = strlen(buffer);
+            if (response_len + len + 1 > response_size) {
+                response_size *= 2;
+                data = (char *)realloc(data, response_size);
+            }
+            strcpy(data + response_len, buffer);
+            response_len += len;
+        }
+        pclose(fp);
+
+        if (response_len == 0) {
+            printf("\nNo response from server. Check internet connection.\nPress any key...");
+            fflush(stdout); read_key();
+            free(data);
+            return;
+        }
+
+        // Save to cache
+        f = fopen(story_file, "wb");
+        if (f) {
+            fwrite(data, 1, response_len, f);
+            fclose(f);
+        }
+    }
+
+    cJSON *json = cJSON_Parse(data);
+    free(data);
+
+    if (!json || !cJSON_IsArray(json)) {
+        printf("\nError parsing stories data.\nPress any key...");
+        fflush(stdout); read_key();
+        if (json) cJSON_Delete(json);
+        return;
+    }
+
+    int story_count = cJSON_GetArraySize(json);
+    int sel = 0;
+    int STORY_PAGE_SIZE = 10;
+
+    while (1) {
+        int start_idx = (sel / STORY_PAGE_SIZE) * STORY_PAGE_SIZE;
+        int end_idx = start_idx + STORY_PAGE_SIZE;
+        if (end_idx > story_count) end_idx = story_count;
+        int total_pages = (story_count + STORY_PAGE_SIZE - 1) / STORY_PAGE_SIZE;
+        int current_page = (start_idx / STORY_PAGE_SIZE) + 1;
+
+        printf("\033[H\033[J--- Short Stories (Page %d of %d) ---\n", current_page, total_pages);
+        for (int i = start_idx; i < end_idx; i++) {
+            cJSON *story_obj = cJSON_GetArrayItem(json, i);
+            cJSON *title_node = cJSON_GetObjectItemCaseSensitive(story_obj, "title");
+            if (i == sel) printf("> %s\n", title_node ? title_node->valuestring : "Unknown Title");
+            else printf("  %s\n", title_node ? title_node->valuestring : "Unknown Title");
+        }
+        if (end_idx < story_count) printf("  ... (Next page below) ...\n");
+        if (start_idx > 0) printf("  ... (Previous page above) ...\n");
+        
+        printf("\n[Arrows: Navigate | Enter: Read | Esc: Back]\n");
+        fflush(stdout);
+
+        int key = read_key();
+        if (key == KEY_ESC) break;
+        else if (key == KEY_UP && sel > 0) sel--;
+        else if (key == KEY_DOWN && sel < story_count - 1) sel++;
+        else if (key == KEY_ENTER) {
+            cJSON *story_obj = cJSON_GetArrayItem(json, sel);
+            cJSON *title_node = cJSON_GetObjectItemCaseSensitive(story_obj, "title");
+            cJSON *content_node = cJSON_GetObjectItemCaseSensitive(story_obj, "story");
+            cJSON *moral_node = cJSON_GetObjectItemCaseSensitive(story_obj, "moral");
+            
+            printf("\033[H\033[J--- %s ---\n\n", title_node ? title_node->valuestring : "Story");
+            if (content_node) {
+                printf("%s\n", content_node->valuestring);
+            }
+            if (moral_node) {
+                printf("\n\nMoral: %s\n", moral_node->valuestring);
+            }
+            printf("\n\nPress any key to go back...");
+            fflush(stdout); read_key();
+        }
+    }
+
+    cJSON_Delete(json);
+}
+
 void handle_address_manager(MenuNode *node) {
     if (strcmp(node->key, "contacts_list") == 0) {
         int count = get_contact_count();
@@ -1137,6 +1256,7 @@ int main() {
     init_config();
     init_contacts();
     mkdir(USER_SPACE, 0777);
+    mkdir("Downloads", 0777);
     MenuNode *root = load_menu_from_json("menu.json");
     if (!root) {
         fprintf(stderr, "Failed to load menu.json\n");
@@ -1228,6 +1348,8 @@ int main() {
                             handle_english_only_dictionary();
                         } else if (strcmp(selected_node->key, "multi_lang_dictionary") == 0) {
                             handle_multi_lang_dictionary();
+                        } else if (strcmp(selected_node->key, "short_stories") == 0) {
+                            handle_short_stories();
                         }
                     }
                 }
@@ -1250,6 +1372,8 @@ int main() {
                             handle_english_only_dictionary();
                         } else if (strcmp(current_node->items[i]->key, "multi_lang_dictionary") == 0) {
                             handle_multi_lang_dictionary();
+                        } else if (strcmp(current_node->items[i]->key, "short_stories") == 0) {
+                            handle_short_stories();
                         } else {
                             MenuNode *temp = current_node->items[i];
                             int is_settings = 0;
