@@ -1,0 +1,110 @@
+{
+  "title": "Home Screen",
+  "items": [
+    {
+      "title": "Editor",
+      "items": [
+        {
+          "title": "File",
+          "items": [
+            { "title": "New" },
+            { "title": "Open" },
+            { "title": "Save" },
+            { "title": "Save as" },
+            { "title": "Exit" }
+          ]
+        },
+        {
+          "title": "Edit",
+          "items": [
+            { "title": "Start Selection" },
+            { "title": "Copy" },
+            { "title": "Cut" },
+            { "title": "Paste" },
+            { "title": "Delete" },
+            { "title": "Select all" }
+          ]
+        },
+        {
+          "title": "Read",
+          "items": [
+            { "title": "Read selected text" },
+            { "title": "Read from beginning to cursor" },
+            { "title": "Read from cursor to end" },
+            { "title": "Read current sentence" },
+            { "title": "Read current line" },
+            { "title": "Read current word" },
+            { "title": "Read current character" }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "File Manager",
+      "items": [
+        {
+          "title": "File",
+          "items": [
+            { "title": "Open" },
+            { "title": "Rename" },
+            { "title": "Delete" },
+            { "title": "New Folder" },
+            { "title": "Search" },
+            { "title": "Properties" },
+            { "title": "Exit" }
+          ]
+        },
+        {
+          "title": "Edit",
+          "items": [
+            { "title": "Mark/Unmark" },
+            { "title": "Cut" },
+            { "title": "Copy" },
+            { "title": "Paste" },
+            { "title": "Select All" }
+          ]
+        }
+      ]
+    },
+    { "title": "Reader" },
+    { "title": "Online Services / Newspapers" },
+    { "title": "Media Player" },
+    { "title": "Podcast" },
+    { "title": "Internet Radio" },
+    {
+      "title": "Utilities",
+      "items": [
+        { "title": "Check Battery Status" },
+        { "title": "Check Current Time" },
+        { "title": "Check Current Date" },
+        { "title": "Calculator" },
+        {
+          "title": "Calendar",
+          "items": [
+            { "title": "New event" },
+            { "title": "Go to date" },
+            { "title": "Exit" }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Settings",
+      "items": [
+        {
+          "title": "Speech Options",
+          "items": [
+            { "title": "Engine" },
+            { "title": "Language" },
+            { "title": "Voice" },
+            { "title": "Rate" },
+            { "title": "Pitch" },
+            { "title": "Volume" }
+          ]
+        }
+      ]
+    },
+    { "title": "Help" },
+    { "title": "Remote Mode" }
+  ]
+}
