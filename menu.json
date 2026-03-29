@@ -2,89 +2,192 @@
   "title": "Home Screen",
   "items": [
     {
-      "title": "Editor",
-      "items": [
-        {
-          "title": "File",
-          "items": [
-            { "title": "New" },
-            { "title": "Open" },
-            { "title": "Save" },
-            { "title": "Save as" },
-            { "title": "Exit" }
-          ]
-        },
-        {
-          "title": "Edit",
-          "items": [
-            { "title": "Start Selection" },
-            { "title": "Copy" },
-            { "title": "Cut" },
-            { "title": "Paste" },
-            { "title": "Delete" },
-            { "title": "Select all" }
-          ]
-        },
-        {
-          "title": "Read",
-          "items": [
-            { "title": "Read selected text" },
-            { "title": "Read from beginning to cursor" },
-            { "title": "Read from cursor to end" },
-            { "title": "Read current sentence" },
-            { "title": "Read current line" },
-            { "title": "Read current word" },
-            { "title": "Read current character" }
-          ]
-        }
-      ]
-    },
-    {
       "title": "File Manager",
       "items": [
         {
+          "title": "Flashdisk"
+        },
+        {
+          "title": "SD Card"
+        },
+        {
+          "title": "USB Drive"
+        },
+        {
+          "title": "Google Drive"
+        }
+      ]
+    },
+    {
+      "title": "Word Processor",
+      "items": [
+        {
           "title": "File",
           "items": [
-            { "title": "Open" },
-            { "title": "Rename" },
-            { "title": "Delete" },
-            { "title": "New Folder" },
-            { "title": "Search" },
-            { "title": "Properties" },
-            { "title": "Exit" }
+            {
+              "title": "New"
+            },
+            {
+              "title": "Open"
+            },
+            {
+              "title": "Save"
+            },
+            {
+              "title": "Save As"
+            },
+            {
+              "title": "Print"
+            },
+            {
+              "title": "Exit"
+            }
           ]
         },
         {
           "title": "Edit",
           "items": [
-            { "title": "Mark/Unmark" },
-            { "title": "Cut" },
-            { "title": "Copy" },
-            { "title": "Paste" },
-            { "title": "Select All" }
+            {
+              "title": "Start Selection"
+            },
+            {
+              "title": "Copy"
+            },
+            {
+              "title": "Cut"
+            },
+            {
+              "title": "Paste"
+            },
+            {
+              "title": "Delete"
+            },
+            {
+              "title": "Select All"
+            },
+            {
+              "title": "Find"
+            },
+            {
+              "title": "Replace"
+            }
+          ]
+        },
+        {
+          "title": "Insert",
+          "items": [
+            {
+              "title": "Date and Time"
+            },
+            {
+              "title": "Page Break"
+            }
+          ]
+        },
+        {
+          "title": "Format",
+          "items": [
+            {
+              "title": "Font"
+            },
+            {
+              "title": "Paragraph"
+            },
+            {
+              "title": "Style"
+            }
           ]
         }
       ]
     },
-    { "title": "Reader" },
-    { "title": "Online Services / Newspapers" },
-    { "title": "Media Player" },
-    { "title": "Podcast" },
-    { "title": "Internet Radio" },
+    {
+      "title": "Notepad"
+    },
+    {
+      "title": "Email"
+    },
+    {
+      "title": "Media",
+      "items": [
+        {
+          "title": "Media Player"
+        },
+        {
+          "title": "FM Radio"
+        },
+        {
+          "title": "DAISY Player"
+        }
+      ]
+    },
+    {
+      "title": "Organizer",
+      "items": [
+        {
+          "title": "Address Manager"
+        },
+        {
+          "title": "Schedule Manager"
+        },
+        {
+          "title": "Database Manager"
+        }
+      ]
+    },
+    {
+      "title": "Web Tools",
+      "items": [
+        {
+          "title": "Web Browser"
+        },
+        {
+          "title": "Google Search"
+        },
+        {
+          "title": "Wiki Search"
+        }
+      ]
+    },
+    {
+      "title": "Extras",
+      "items": [
+        {
+          "title": "Excel Viewer"
+        },
+        {
+          "title": "Online DAISY"
+        },
+        {
+          "title": "Sense Dictionary"
+        },
+        {
+          "title": "Color Reader"
+        }
+      ]
+    },
     {
       "title": "Utilities",
       "items": [
-        { "title": "Check Battery Status" },
-        { "title": "Check Current Time" },
-        { "title": "Check Current Date" },
-        { "title": "Calculator" },
         {
-          "title": "Calendar",
-          "items": [
-            { "title": "New event" },
-            { "title": "Go to date" },
-            { "title": "Exit" }
-          ]
+          "title": "Calculator"
+        },
+        {
+          "title": "BrailleSense Math"
+        },
+        {
+          "title": "World Clock"
+        },
+        {
+          "title": "Compass"
+        },
+        {
+          "title": "Display Time and Date"
+        },
+        {
+          "title": "Wake-up Alarm"
+        },
+        {
+          "title": "Terminal for Screen Reader"
         }
       ]
     },
@@ -92,19 +195,36 @@
       "title": "Settings",
       "items": [
         {
-          "title": "Speech Options",
-          "items": [
-            { "title": "Engine" },
-            { "title": "Language" },
-            { "title": "Voice" },
-            { "title": "Rate" },
-            { "title": "Pitch" },
-            { "title": "Volume" }
-          ]
+          "title": "Set Time and Date"
+        },
+        {
+          "title": "Setup Internet"
+        },
+        {
+          "title": "Bluetooth Manager"
+        },
+        {
+          "title": "Menu Manager"
+        },
+        {
+          "title": "Global Options"
+        },
+        {
+          "title": "Android System Settings"
         }
       ]
     },
-    { "title": "Help" },
-    { "title": "Remote Mode" }
+    {
+      "title": "Help"
+    },
+    {
+      "title": "Play Store"
+    },
+    {
+      "title": "All Apps"
+    },
+    {
+      "title": "Information"
+    }
   ]
 }
