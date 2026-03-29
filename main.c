@@ -360,6 +360,132 @@ void handle_settings(MenuNode *node, MenuNode *root) {
     }
 }
 
+typedef struct {
+    char path[1024];
+    int is_dir;
+} SearchResult;
+
+void recursive_file_search(const char *base_path, const char *pattern, SearchResult *results, int *count, int max_results) {
+    DIR *dir = opendir(base_path);
+    if (!dir) return;
+
+    struct dirent *entry;
+    while ((entry = readdir(dir)) != NULL && *count < max_results) {
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) continue;
+
+        char full_path[1024];
+        snprintf(full_path, sizeof(full_path), "%s/%s", base_path, entry->d_name);
+
+        // Case-insensitive search
+        char lower_name[256] = {0}, lower_pattern[256] = {0};
+        for(int i=0; entry->d_name[i] && i < 255; i++) lower_name[i] = tolower(entry->d_name[i]);
+        for(int i=0; pattern[i] && i < 255; i++) lower_pattern[i] = tolower(pattern[i]);
+
+        if (strstr(lower_name, lower_pattern) != NULL) {
+            strncpy(results[*count].path, full_path, 1023);
+            struct stat st;
+            if (stat(full_path, &st) == 0) {
+                results[*count].is_dir = S_ISDIR(st.st_mode);
+            }
+            (*count)++;
+        }
+
+        struct stat st;
+        if (stat(full_path, &st) == 0 && S_ISDIR(st.st_mode)) {
+            recursive_file_search(full_path, pattern, results, count, max_results);
+        }
+    }
+    closedir(dir);
+}
+
+void handle_fm_search() {
+    char query[256];
+    get_user_input(query, sizeof(query), "Enter search term");
+    if (strlen(query) == 0) return;
+
+    SearchResult results[100];
+    int count = 0;
+    recursive_file_search(USER_SPACE, query, results, &count, 100);
+
+    if (count == 0) {
+        printf("\nNo results found. Press any key..."); fflush(stdout); read_key();
+        return;
+    }
+
+    int sel = 0;
+    while (1) {
+        printf("\033[H\033[J--- Search Results: %s ---\n", query);
+        for (int i = 0; i < count; i++) {
+            if (i == sel) printf("> [%s] %s\n", results[i].is_dir ? "DIR" : "FILE", results[i].path);
+            else printf("  [%s] %s\n", results[i].is_dir ? "DIR" : "FILE", results[i].path);
+        }
+        fflush(stdout);
+        int key = read_key();
+        if (key == KEY_UP && sel > 0) sel--;
+        else if (key == KEY_DOWN && sel < count - 1) sel++;
+        else if (key == KEY_ENTER) {
+            if (results[sel].is_dir) {
+                char *path = file_navigator(results[sel].path, 0);
+                if (path) {
+                    struct stat st;
+                    if (stat(path, &st) == 0 && S_ISREG(st.st_mode)) {
+                        handle_file_viewer(path);
+                    }
+                    free(path);
+                }
+            } else {
+                handle_file_viewer(results[sel].path);
+            }
+            break;
+        } else if (key == KEY_ESC) break;
+    }
+}
+
+void handle_notepad_search() {
+    char query[256];
+    get_user_input(query, sizeof(query), "Enter search term");
+    if (strlen(query) == 0) return;
+
+    SearchResult results[100];
+    int count = 0;
+    recursive_file_search(USER_SPACE, query, results, &count, 100);
+
+    // Filter results to show files only? Or let user pick. Notepad usually opens files.
+    if (count == 0) {
+        printf("\nNo results found. Press any key..."); fflush(stdout); read_key();
+        return;
+    }
+
+    int sel = 0;
+    while (1) {
+        printf("\033[H\033[J--- Notepad: Open Search: %s ---\n", query);
+        for (int i = 0; i < count; i++) {
+            if (i == sel) printf("> [%s] %s\n", results[i].is_dir ? "DIR" : "FILE", results[i].path);
+            else printf("  [%s] %s\n", results[i].is_dir ? "DIR" : "FILE", results[i].path);
+        }
+        fflush(stdout);
+        int key = read_key();
+        if (key == KEY_UP && sel > 0) sel--;
+        else if (key == KEY_DOWN && sel < count - 1) sel++;
+        else if (key == KEY_ENTER) {
+            if (results[sel].is_dir) {
+                printf("\nCannot open a directory in Notepad. Press any key..."); fflush(stdout); read_key();
+            } else {
+                FILE *f = fopen(results[sel].path, "r");
+                if (f) {
+                    char content[4096] = {0};
+                    fread(content, 1, sizeof(content)-1, f);
+                    fclose(f);
+                    handle_notepad(content, results[sel].path);
+                } else {
+                    printf("\nError opening file. Press any key..."); fflush(stdout); read_key();
+                }
+                break;
+            }
+        } else if (key == KEY_ESC) break;
+    }
+}
+
 void handle_file_manager(MenuNode *node) {
     if (strcmp(node->key, "fm_browse") == 0) {
         char *path = file_navigator(USER_SPACE, 0);
@@ -370,6 +496,8 @@ void handle_file_manager(MenuNode *node) {
             }
             free(path);
         }
+    } else if (strcmp(node->key, "fm_search") == 0) {
+        handle_fm_search();
     } else if (strcmp(node->key, "fm_new_folder") == 0) {
         char *dir = file_navigator(USER_SPACE, 1);
         if (dir) {
@@ -500,6 +628,56 @@ void handle_address_manager(MenuNode *node) {
                 fflush(stdout); read_key();
             } else if (key == KEY_ESC) break;
         }
+    } else if (strcmp(node->key, "contacts_search") == 0) {
+        char query[256];
+        get_user_input(query, sizeof(query), "Enter search term");
+        if (strlen(query) == 0) return;
+
+        int total_count = get_contact_count();
+        int matches[256];
+        int match_count = 0;
+
+        char lower_query[256] = {0};
+        for(int i=0; query[i] && i < 255; i++) lower_query[i] = tolower(query[i]);
+
+        for (int i = 0; i < total_count && match_count < 256; i++) {
+            Contact *c = get_contact(i);
+            char full_data[1024];
+            snprintf(full_data, sizeof(full_data), "%s %s %s %s %s %s", 
+                c->first_name, c->last_name, c->phone, c->email, c->address, c->postal_code);
+            
+            for(int j=0; full_data[j]; j++) full_data[j] = tolower(full_data[j]);
+
+            if (strstr(full_data, lower_query) != NULL) {
+                matches[match_count++] = i;
+            }
+        }
+
+        if (match_count == 0) {
+            printf("\nNo contacts found. Press any key..."); fflush(stdout); read_key();
+            return;
+        }
+
+        int sel = 0;
+        while (1) {
+            printf("\033[H\033[J--- Search Results: %s ---\n", query);
+            for (int i = 0; i < match_count; i++) {
+                Contact *c = get_contact(matches[i]);
+                if (i == sel) printf("> %s %s (%s)\n", c->first_name, c->last_name, c->phone);
+                else printf("  %s %s (%s)\n", c->first_name, c->last_name, c->phone);
+            }
+            fflush(stdout);
+            int key = read_key();
+            if (key == KEY_UP && sel > 0) sel--;
+            else if (key == KEY_DOWN && sel < match_count - 1) sel++;
+            else if (key == KEY_ENTER) {
+                Contact *c = get_contact(matches[sel]);
+                printf("\033[H\033[J--- Contact Details ---\n");
+                printf("Name: %s %s\nPhone: %s\nEmail: %s\nAddress: %s\nPostal: %s\n\nPress any key...", 
+                    c->first_name, c->last_name, c->phone, c->email, c->address, c->postal_code);
+                fflush(stdout); read_key();
+            } else if (key == KEY_ESC) break;
+        }
     } else if (strcmp(node->key, "contacts_add") == 0) {
         Contact c; memset(&c, 0, sizeof(Contact));
         contact_form(&c, 0);
@@ -615,6 +793,8 @@ int main() {
                 } else {
                     if (strcmp(selected_node->key, "notepad_new") == 0) {
                         handle_notepad(NULL, NULL);
+                    } else if (strcmp(selected_node->key, "notepad_search") == 0) {
+                        handle_notepad_search();
                     } else if (strcmp(selected_node->key, "notepad_open") == 0 || strcmp(selected_node->key, "wp_open") == 0) {
                         char *selected_path = file_navigator(USER_SPACE, 0);
                         if (selected_path) {
@@ -664,6 +844,8 @@ int main() {
                     } else {
                         if (strcmp(current_node->items[i]->key, "notepad_new") == 0) {
                             handle_notepad(NULL, NULL);
+                        } else if (strcmp(current_node->items[i]->key, "notepad_search") == 0) {
+                            handle_notepad_search();
                         } else {
                             MenuNode *temp = current_node->items[i];
                             int is_settings = 0;

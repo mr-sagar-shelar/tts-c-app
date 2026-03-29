@@ -8,6 +8,7 @@
       "shortcut": "f",
       "items": [
         { "title_key": "fm_browse", "key": "fm_browse", "shortcut": "b" },
+        { "title_key": "fm_search", "key": "fm_search", "shortcut": "s" },
         { "title_key": "fm_new_folder", "key": "fm_new_folder", "shortcut": "n" },
         { "title_key": "fm_new_file", "key": "fm_new_file", "shortcut": "f" },
         { "title_key": "fm_rename", "key": "fm_rename", "shortcut": "r" },
@@ -74,7 +75,8 @@
       "shortcut": "n",
       "items": [
         { "title_key": "notepad_new", "key": "notepad_new", "shortcut": "n" },
-        { "title_key": "notepad_open", "key": "notepad_open", "shortcut": "o" }
+        { "title_key": "notepad_open", "key": "notepad_open", "shortcut": "o" },
+        { "title_key": "notepad_search", "key": "notepad_search", "shortcut": "s" }
       ]
     },
     { "title_key": "email", "key": "email", "shortcut": "e" },
@@ -99,6 +101,7 @@
           "shortcut": "a",
           "items": [
             { "title_key": "contacts_list", "key": "contacts_list", "shortcut": "l" },
+            { "title_key": "contacts_search", "key": "contacts_search", "shortcut": "s" },
             { "title_key": "contacts_add", "key": "contacts_add", "shortcut": "a" },
             { "title_key": "contacts_edit", "key": "contacts_edit", "shortcut": "e" },
             { "title_key": "contacts_delete", "key": "contacts_delete", "shortcut": "d" }

@@ -2,6 +2,7 @@
   "main_menu": "Braille Sense 6 Main Menu",
   "file_manager": "File Manager",
   "fm_browse": "Browse Files",
+  "fm_search": "Search Files",
   "fm_new_folder": "New Folder",
   "fm_new_file": "New File",
   "fm_rename": "Rename",

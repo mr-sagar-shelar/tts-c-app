@@ -6,5 +6,13 @@
 		"email": "sai@gmail.com",
 		"address": "3839, 909494 Nigdi",
 		"postal_code": "412191"
+	},
+	{
+		"first_name": "jane",
+		"last_name": "doe",
+		"phone": "9999999999",
+		"email": "jane@example.com",
+		"address": "123 Main St",
+		"postal_code": "10001"
 	}
 ]
