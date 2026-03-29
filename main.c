@@ -4,8 +4,12 @@
 #include <unistd.h>
 #include <string.h>
 #include <ctype.h>
+#include <dirent.h>
+#include <sys/stat.h>
 #include "menu.h"
 #include "config.h"
+
+#define USER_SPACE "UserSpace"
 
 struct termios original_termios;
 
@@ -28,6 +32,7 @@ void set_conio_terminal_mode() {
 #define KEY_DOWN 1002
 #define KEY_ENTER 1003
 #define KEY_ESC 1004
+#define KEY_BACKSPACE 127
 
 int read_key() {
     char c;
@@ -60,6 +65,8 @@ int read_key() {
         return KEY_ESC;
     } else if (c == 10 || c == 13) {
         return KEY_ENTER;
+    } else if (c == 127 || c == 8) {
+        return KEY_BACKSPACE;
     }
     return (unsigned char)c;
 }
@@ -71,6 +78,226 @@ void get_user_input(char *buffer, int size, const char *prompt) {
         buffer[strcspn(buffer, "\n")] = 0;
     }
     set_conio_terminal_mode();
+}
+
+typedef struct {
+    char name[256];
+    int is_dir;
+} FileEntry;
+
+char* file_navigator(const char *start_path, int select_dir_only) {
+    char current_path[1024];
+    char abs_base[1024];
+    realpath(USER_SPACE, abs_base);
+    
+    if (start_path && strlen(start_path) > 0) {
+        strcpy(current_path, start_path);
+    } else {
+        strcpy(current_path, USER_SPACE);
+    }
+
+    while (1) {
+        DIR *dir = opendir(current_path);
+        if (!dir) return NULL;
+
+        FileEntry entries[256];
+        int count = 0;
+
+        // Only show parent directory if we are not at USER_SPACE
+        char abs_current[1024];
+        realpath(current_path, abs_current);
+        
+        if (strcmp(abs_current, abs_base) != 0) {
+            strcpy(entries[count].name, "..");
+            entries[count].is_dir = 1;
+            count++;
+        }
+
+        struct dirent *entry;
+        while ((entry = readdir(dir)) != NULL && count < 256) {
+            if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) continue;
+            
+            strncpy(entries[count].name, entry->d_name, 255);
+            
+            char full_path[2048];
+            snprintf(full_path, sizeof(full_path), "%s/%s", current_path, entry->d_name);
+            struct stat st;
+            stat(full_path, &st);
+            entries[count].is_dir = S_ISDIR(st.st_mode);
+            count++;
+        }
+        closedir(dir);
+
+        int selected = 0;
+        int confirmed = 0;
+        while (!confirmed) {
+            printf("\033[H\033[J");
+            printf("--- Navigator: %s ---\n", current_path);
+            if (select_dir_only) printf("[Press SPACE to select current directory]\n");
+            printf("--------------------------------------------\n");
+            if (count == 0) {
+                printf("  (Empty directory)\n");
+            }
+            for (int i = 0; i < count; i++) {
+                if (i == selected) printf("> [%s] %s\n", entries[i].is_dir ? "DIR" : "FILE", entries[i].name);
+                else printf("  [%s] %s\n", entries[i].is_dir ? "DIR" : "FILE", entries[i].name);
+            }
+            fflush(stdout);
+
+            int key = read_key();
+            if (key == KEY_UP && selected > 0) selected--;
+            else if (key == KEY_DOWN && selected < count - 1) selected++;
+            else if (key == KEY_ENTER && count > 0) confirmed = 1;
+            else if (key == KEY_ESC) return NULL;
+            else if (key == ' ' && select_dir_only) {
+                return strdup(current_path);
+            }
+        }
+
+        if (strcmp(entries[selected].name, "..") == 0) {
+            char *last_slash = strrchr(current_path, '/');
+            if (last_slash && last_slash != current_path) {
+                *last_slash = '\0';
+            } else {
+                // Should not happen due to check above, but for safety:
+                strcpy(current_path, USER_SPACE);
+            }
+        } else {
+            char next_path[2048];
+            snprintf(next_path, sizeof(next_path), "%s/%s", current_path, entries[selected].name);
+            if (entries[selected].is_dir) {
+                strcpy(current_path, next_path);
+            } else {
+                if (!select_dir_only) return strdup(next_path);
+            }
+        }
+    }
+}
+
+void handle_notepad_save(const char *buffer, char *filename) {
+    if (strlen(filename) == 0) {
+        printf("\nSelect target directory for saving...");
+        fflush(stdout);
+        sleep(1);
+        char *dir_path = file_navigator(USER_SPACE, 1);
+        if (dir_path) {
+            char name[256];
+            get_user_input(name, 256, "Enter filename");
+            if (strlen(name) > 0) {
+                snprintf(filename, 256, "%s/%s", dir_path, name);
+            }
+            free(dir_path);
+        }
+    }
+    if (strlen(filename) > 0) {
+        FILE *f = fopen(filename, "w");
+        if (f) {
+            fputs(buffer, f);
+            fclose(f);
+            printf("\nFile saved as '%s'.", filename);
+        } else {
+            printf("\nError saving file.");
+        }
+    }
+}
+
+void handle_notepad(const char *initial_content, const char *initial_filename) {
+    char buffer[4096] = {0};
+    char current_filename[256] = {0};
+    if (initial_content) strncpy(buffer, initial_content, sizeof(buffer)-1);
+    if (initial_filename) strncpy(current_filename, initial_filename, sizeof(current_filename)-1);
+    
+    int pos = strlen(buffer);
+    
+    while (1) {
+        printf("\033[H\033[J");
+        printf("--- Notepad: %s ---\n", strlen(current_filename) > 0 ? current_filename : "Untitled");
+        printf("Type text. Press Enter for Menu, Esc to Exit without saving.\n");
+        printf("----------------------------------------------------------\n");
+        printf("%s", buffer);
+        fflush(stdout);
+
+        int in_menu = 0;
+        while (!in_menu) {
+            int key = read_key();
+            if (key == KEY_ESC) {
+                return;
+            } else if (key == KEY_ENTER) {
+                in_menu = 1;
+            } else if (key == KEY_BACKSPACE) {
+                if (pos > 0) {
+                    pos--;
+                    buffer[pos] = 0;
+                    printf("\b \b");
+                    fflush(stdout);
+                }
+            } else if (key > 0 && key < 1000) {
+                if (pos < (int)sizeof(buffer) - 1) {
+                    buffer[pos++] = (char)key;
+                    printf("%c", (char)key);
+                    fflush(stdout);
+                }
+            }
+        }
+
+        int menu_sel = 0;
+        const char *options[] = {"Save", "Save As", "Exit to Editor", "Close Without Saving"};
+        int num_options = 4;
+
+        while (in_menu) {
+            printf("\033[H\033[J");
+            printf("--- Notepad Menu ---\n");
+            for (int i = 0; i < num_options; i++) {
+                if (i == menu_sel) printf("> %s\n", options[i]);
+                else printf("  %s\n", options[i]);
+            }
+            fflush(stdout);
+
+            int key = read_key();
+            if (key == KEY_UP) {
+                if (menu_sel > 0) menu_sel--;
+            } else if (key == KEY_DOWN) {
+                if (menu_sel < num_options - 1) menu_sel++;
+            } else if (key == KEY_ENTER) {
+                if (menu_sel == 0) { // Save
+                    handle_notepad_save(buffer, current_filename);
+                    printf("\nPress any key to continue..."); fflush(stdout); read_key();
+                    in_menu = 0;
+                } else if (menu_sel == 1) { // Save As
+                    char new_name[256] = {0};
+                    handle_notepad_save(buffer, new_name);
+                    if (strlen(new_name) > 0) strcpy(current_filename, new_name);
+                    printf("\nPress any key to continue..."); fflush(stdout); read_key();
+                    in_menu = 0;
+                } else if (menu_sel == 2) { // Exit to Editor
+                    in_menu = 0;
+                } else if (menu_sel == 3) { // Close
+                    return;
+                }
+            } else if (key == KEY_ESC) {
+                in_menu = 0;
+            }
+        }
+    }
+}
+
+void handle_file_viewer(const char *filename) {
+    FILE *f = fopen(filename, "r");
+    printf("\033[H\033[J");
+    printf("--- File Viewer: %s ---\n", filename);
+    printf("----------------------------------\n");
+    if (!f) {
+        printf("Error: Could not open file.\n");
+    } else {
+        char line[256];
+        while (fgets(line, sizeof(line), f)) {
+            printf("%s", line);
+        }
+        fclose(f);
+    }
+    printf("\n\nPress any key to go back...");
+    fflush(stdout);
+    read_key();
 }
 
 void handle_settings(MenuNode *node, MenuNode *root) {
@@ -178,32 +405,28 @@ int main() {
                     current_node = selected_node;
                     selected_index = 0;
                 } else {
-                    MenuNode *temp = selected_node;
-                    int is_settings = 0;
-                    while (temp) {
-                        if (strcmp(temp->key, "settings") == 0) {
-                            is_settings = 1;
-                            break;
+                    if (strcmp(selected_node->key, "notepad_new") == 0) {
+                        handle_notepad(NULL, NULL);
+                    } else if (strcmp(selected_node->key, "notepad_open") == 0 || strcmp(selected_node->key, "wp_open") == 0 || strcmp(selected_node->key, "flashdisk") == 0) {
+                        char *selected_path = file_navigator(USER_SPACE, 0);
+                        if (selected_path) {
+                            if (strcmp(selected_node->key, "notepad_open") == 0) {
+                                FILE *f = fopen(selected_path, "r");
+                                if (f) {
+                                    char content[4096] = {0};
+                                    fread(content, 1, sizeof(content)-1, f);
+                                    fclose(f);
+                                    handle_notepad(content, selected_path);
+                                } else {
+                                    printf("\nError opening file. Press any key..."); fflush(stdout); read_key();
+                                }
+                            } else {
+                                handle_file_viewer(selected_path);
+                            }
+                            free(selected_path);
                         }
-                        temp = temp->parent;
-                    }
-                    if (is_settings) {
-                        handle_settings(selected_node, root);
-                    }
-                }
-            }
-        } else if (key > 0 && key < 1000) {
-            // Check for shortcut
-            for (int i = 0; i < current_node->num_items; i++) {
-                if (current_node->items[i]->shortcut == tolower(key)) {
-                    selected_index = i;
-                    // Auto-enter if it has items
-                    if (current_node->items[i]->num_items > 0) {
-                        current_node = current_node->items[i];
-                        selected_index = 0;
                     } else {
-                        // Check if it's a setting
-                        MenuNode *temp = current_node->items[i];
+                        MenuNode *temp = selected_node;
                         int is_settings = 0;
                         while (temp) {
                             if (strcmp(temp->key, "settings") == 0) {
@@ -213,7 +436,34 @@ int main() {
                             temp = temp->parent;
                         }
                         if (is_settings) {
-                            handle_settings(current_node->items[i], root);
+                            handle_settings(selected_node, root);
+                        }
+                    }
+                }
+            }
+        } else if (key > 0 && key < 1000) {
+            for (int i = 0; i < current_node->num_items; i++) {
+                if (current_node->items[i]->shortcut == tolower(key)) {
+                    selected_index = i;
+                    if (current_node->items[i]->num_items > 0) {
+                        current_node = current_node->items[i];
+                        selected_index = 0;
+                    } else {
+                        if (strcmp(current_node->items[i]->key, "notepad_new") == 0) {
+                            handle_notepad(NULL, NULL);
+                        } else {
+                            MenuNode *temp = current_node->items[i];
+                            int is_settings = 0;
+                            while (temp) {
+                                if (strcmp(temp->key, "settings") == 0) {
+                                    is_settings = 1;
+                                    break;
+                                }
+                                temp = temp->parent;
+                            }
+                            if (is_settings) {
+                                handle_settings(current_node->items[i], root);
+                            }
                         }
                     }
                     break;

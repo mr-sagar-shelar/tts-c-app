@@ -67,7 +67,15 @@
         }
       ]
     },
-    { "title_key": "notepad", "key": "notepad", "shortcut": "n" },
+    {
+      "title_key": "notepad",
+      "key": "notepad",
+      "shortcut": "n",
+      "items": [
+        { "title_key": "notepad_new", "key": "notepad_new", "shortcut": "n" },
+        { "title_key": "notepad_open", "key": "notepad_open", "shortcut": "o" }
+      ]
+    },
     { "title_key": "email", "key": "email", "shortcut": "e" },
     {
       "title_key": "media",
