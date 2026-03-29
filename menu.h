@@ -8,6 +8,7 @@
 
 typedef struct MenuNode {
     char *title;
+    char *key;
     struct MenuNode **items;
     int num_items;
     struct MenuNode *parent;

@@ -5,7 +5,9 @@ static MenuNode* parse_json_to_menu(cJSON *json, MenuNode *parent) {
 
     MenuNode *node = (MenuNode*)malloc(sizeof(MenuNode));
     cJSON *title = cJSON_GetObjectItemCaseSensitive(json, "title");
+    cJSON *key = cJSON_GetObjectItemCaseSensitive(json, "key");
     node->title = title ? strdup(title->valuestring) : strdup("Untitled");
+    node->key = key ? strdup(key->valuestring) : strdup("no_key");
     node->parent = parent;
     node->items = NULL;
     node->num_items = 0;
@@ -53,6 +55,7 @@ void free_menu(MenuNode *node) {
     }
     free(node->items);
     free(node->title);
+    free(node->key);
     free(node);
 }
 

@@ -1,230 +1,133 @@
 {
-  "title": "Home Screen",
+  "title": "Braille Sense 6 Main Menu",
+  "key": "main_menu",
   "items": [
     {
       "title": "File Manager",
+      "key": "file_manager",
       "items": [
-        {
-          "title": "Flashdisk"
-        },
-        {
-          "title": "SD Card"
-        },
-        {
-          "title": "USB Drive"
-        },
-        {
-          "title": "Google Drive"
-        }
+        { "title": "Flashdisk", "key": "flashdisk" },
+        { "title": "SD Card", "key": "sd_card" },
+        { "title": "USB Drive", "key": "usb_drive" },
+        { "title": "Google Drive", "key": "google_drive" }
       ]
     },
     {
       "title": "Word Processor",
+      "key": "word_processor",
       "items": [
         {
           "title": "File",
+          "key": "wp_file",
           "items": [
-            {
-              "title": "New"
-            },
-            {
-              "title": "Open"
-            },
-            {
-              "title": "Save"
-            },
-            {
-              "title": "Save As"
-            },
-            {
-              "title": "Print"
-            },
-            {
-              "title": "Exit"
-            }
+            { "title": "New", "key": "wp_new" },
+            { "title": "Open", "key": "wp_open" },
+            { "title": "Save", "key": "wp_save" },
+            { "title": "Save As", "key": "wp_save_as" },
+            { "title": "Print", "key": "wp_print" },
+            { "title": "Exit", "key": "wp_exit" }
           ]
         },
         {
           "title": "Edit",
+          "key": "wp_edit",
           "items": [
-            {
-              "title": "Start Selection"
-            },
-            {
-              "title": "Copy"
-            },
-            {
-              "title": "Cut"
-            },
-            {
-              "title": "Paste"
-            },
-            {
-              "title": "Delete"
-            },
-            {
-              "title": "Select All"
-            },
-            {
-              "title": "Find"
-            },
-            {
-              "title": "Replace"
-            }
+            { "title": "Start Selection", "key": "wp_start_selection" },
+            { "title": "Copy", "key": "wp_copy" },
+            { "title": "Cut", "key": "wp_cut" },
+            { "title": "Paste", "key": "wp_paste" },
+            { "title": "Delete", "key": "wp_delete" },
+            { "title": "Select All", "key": "wp_select_all" },
+            { "title": "Find", "key": "wp_find" },
+            { "title": "Replace", "key": "wp_replace" }
           ]
         },
         {
           "title": "Insert",
+          "key": "wp_insert",
           "items": [
-            {
-              "title": "Date and Time"
-            },
-            {
-              "title": "Page Break"
-            }
+            { "title": "Date and Time", "key": "wp_insert_date_time" },
+            { "title": "Page Break", "key": "wp_insert_page_break" }
           ]
         },
         {
           "title": "Format",
+          "key": "wp_format",
           "items": [
-            {
-              "title": "Font"
-            },
-            {
-              "title": "Paragraph"
-            },
-            {
-              "title": "Style"
-            }
+            { "title": "Font", "key": "wp_font" },
+            { "title": "Paragraph", "key": "wp_paragraph" },
+            { "title": "Style", "key": "wp_style" }
           ]
         }
       ]
     },
-    {
-      "title": "Notepad"
-    },
-    {
-      "title": "Email"
-    },
+    { "title": "Notepad", "key": "notepad" },
+    { "title": "Email", "key": "email" },
     {
       "title": "Media",
+      "key": "media",
       "items": [
-        {
-          "title": "Media Player"
-        },
-        {
-          "title": "FM Radio"
-        },
-        {
-          "title": "DAISY Player"
-        }
+        { "title": "Media Player", "key": "media_player" },
+        { "title": "FM Radio", "key": "fm_radio" },
+        { "title": "DAISY Player", "key": "daisy_player" }
       ]
     },
     {
       "title": "Organizer",
+      "key": "organizer",
       "items": [
-        {
-          "title": "Address Manager"
-        },
-        {
-          "title": "Schedule Manager"
-        },
-        {
-          "title": "Database Manager"
-        }
+        { "title": "Address Manager", "key": "address_manager" },
+        { "title": "Schedule Manager", "key": "schedule_manager" },
+        { "title": "Database Manager", "key": "database_manager" }
       ]
     },
     {
       "title": "Web Tools",
+      "key": "web_tools",
       "items": [
-        {
-          "title": "Web Browser"
-        },
-        {
-          "title": "Google Search"
-        },
-        {
-          "title": "Wiki Search"
-        }
+        { "title": "Web Browser", "key": "web_browser" },
+        { "title": "Google Search", "key": "google_search" },
+        { "title": "Wiki Search", "key": "wiki_search" }
       ]
     },
     {
       "title": "Extras",
+      "key": "extras",
       "items": [
-        {
-          "title": "Excel Viewer"
-        },
-        {
-          "title": "Online DAISY"
-        },
-        {
-          "title": "Sense Dictionary"
-        },
-        {
-          "title": "Color Reader"
-        }
+        { "title": "Excel Viewer", "key": "excel_viewer" },
+        { "title": "Online DAISY", "key": "online_daisy" },
+        { "title": "Sense Dictionary", "key": "sense_dictionary" },
+        { "title": "Color Reader", "key": "color_reader" }
       ]
     },
     {
       "title": "Utilities",
+      "key": "utilities",
       "items": [
-        {
-          "title": "Calculator"
-        },
-        {
-          "title": "BrailleSense Math"
-        },
-        {
-          "title": "World Clock"
-        },
-        {
-          "title": "Compass"
-        },
-        {
-          "title": "Display Time and Date"
-        },
-        {
-          "title": "Wake-up Alarm"
-        },
-        {
-          "title": "Terminal for Screen Reader"
-        }
+        { "title": "Calculator", "key": "calculator" },
+        { "title": "BrailleSense Math", "key": "bs_math" },
+        { "title": "World Clock", "key": "world_clock" },
+        { "title": "Compass", "key": "compass" },
+        { "title": "Display Time and Date", "key": "display_time_date" },
+        { "title": "Wake-up Alarm", "key": "alarm" },
+        { "title": "Terminal for Screen Reader", "key": "terminal" }
       ]
     },
     {
       "title": "Settings",
+      "key": "settings",
       "items": [
-        {
-          "title": "Set Time and Date"
-        },
-        {
-          "title": "Setup Internet"
-        },
-        {
-          "title": "Bluetooth Manager"
-        },
-        {
-          "title": "Menu Manager"
-        },
-        {
-          "title": "Global Options"
-        },
-        {
-          "title": "Android System Settings"
-        }
+        { "title": "Set Time and Date", "key": "set_time_date" },
+        { "title": "Setup Internet", "key": "setup_internet" },
+        { "title": "Bluetooth Manager", "key": "bluetooth_manager" },
+        { "title": "Menu Manager", "key": "menu_manager" },
+        { "title": "Global Options", "key": "global_options" },
+        { "title": "Android System Settings", "key": "android_settings" }
       ]
     },
-    {
-      "title": "Help"
-    },
-    {
-      "title": "Play Store"
-    },
-    {
-      "title": "All Apps"
-    },
-    {
-      "title": "Information"
-    }
+    { "title": "Help", "key": "help" },
+    { "title": "Play Store", "key": "play_store" },
+    { "title": "All Apps", "key": "all_apps" },
+    { "title": "Information", "key": "info" }
   ]
 }

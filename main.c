@@ -2,7 +2,9 @@
 #include <stdlib.h>
 #include <termios.h>
 #include <unistd.h>
+#include <string.h>
 #include "menu.h"
+#include "config.h"
 
 struct termios original_termios;
 
@@ -40,7 +42,7 @@ int read_key() {
 
         char seq[2];
         int n = read(STDIN_FILENO, &seq[0], 1);
-        if (n == 0) {
+        if (n <= 0) {
             tcsetattr(STDIN_FILENO, TCSANOW, &work_termios);
             return KEY_ESC;
         }
@@ -58,10 +60,46 @@ int read_key() {
     } else if (c == 10 || c == 13) {
         return KEY_ENTER;
     }
-    return c;
+    return (unsigned char)c;
+}
+
+void get_user_input(char *buffer, int size, const char *prompt) {
+    reset_terminal_mode();
+    printf("\n%s: ", prompt);
+    if (fgets(buffer, size, stdin)) {
+        buffer[strcspn(buffer, "\n")] = 0;
+    }
+    set_conio_terminal_mode();
+}
+
+void handle_settings(MenuNode *node) {
+    char *current_val = get_setting(node->key);
+    printf("\033[H\033[J");
+    printf("--- %s ---\n", node->title);
+    printf("Current Value: %s\n", current_val ? current_val : "Not set");
+    if (current_val) free(current_val);
+    
+    printf("\nPress Enter to change or Esc to go back.");
+    fflush(stdout);
+
+    while (1) {
+        int key = read_key();
+        if (key == KEY_ENTER) {
+            char new_val[256];
+            get_user_input(new_val, sizeof(new_val), "Enter new value");
+            save_setting(node->key, new_val);
+            printf("\nValue saved! Press any key to continue...");
+            fflush(stdout);
+            read_key();
+            break;
+        } else if (key == KEY_ESC) {
+            break;
+        }
+    }
 }
 
 int main() {
+    init_config();
     MenuNode *root = load_menu_from_json("menu.json");
     if (!root) {
         fprintf(stderr, "Failed to load menu.json\n");
@@ -79,7 +117,6 @@ int main() {
         int key = read_key();
         if (key == KEY_ESC) {
             if (current_node->parent) {
-                // Find index of current_node in parent
                 MenuNode *parent = current_node->parent;
                 for (int i = 0; i < parent->num_items; i++) {
                     if (parent->items[i] == current_node) {
@@ -103,14 +140,25 @@ int main() {
                     current_node = selected_node;
                     selected_index = 0;
                 } else {
-                    // Action: for now just print it
-                    // printf("\nSelected: %s\n", selected_node->title);
-                    // sleep(1);
+                    // It's a leaf node, handle it as a setting if it's under Settings
+                    MenuNode *temp = selected_node;
+                    int is_settings = 0;
+                    while (temp) {
+                        if (strcmp(temp->key, "settings") == 0) {
+                            is_settings = 1;
+                            break;
+                        }
+                        temp = temp->parent;
+                    }
+                    if (is_settings) {
+                        handle_settings(selected_node);
+                    }
                 }
             }
         }
     }
 
     free_menu(root);
+    cleanup_config();
     return 0;
 }
