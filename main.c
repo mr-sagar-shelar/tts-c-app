@@ -1610,27 +1610,44 @@ int main() {
         print_menu(current_node, selected_index);
 
         int key = read_key();
+        
+        // Calculate visible items for current menu
+        MenuNode *visible_items[256];
+        int visible_count = 0;
+        char *lang = get_setting("language");
+        for (int i = 0; i < current_node->num_items; i++) {
+            if (is_menu_visible(current_node->items[i], lang)) {
+                visible_items[visible_count++] = current_node->items[i];
+            }
+        }
+
         if (key == KEY_ESC) {
             if (current_node->parent) {
                 MenuNode *parent = current_node->parent;
+                // Find index of current_node in parent's visible items
+                int parent_visible_idx = 0;
                 for (int i = 0; i < parent->num_items; i++) {
-                    if (parent->items[i] == current_node) {
-                        selected_index = i;
-                        break;
+                    if (is_menu_visible(parent->items[i], lang)) {
+                        if (parent->items[i] == current_node) {
+                            selected_index = parent_visible_idx;
+                            break;
+                        }
+                        parent_visible_idx++;
                     }
                 }
                 current_node = parent;
             } else {
                 printf("\nExiting...\n");
+                if (lang) free(lang);
                 break;
             }
         } else if (key == KEY_UP) {
             if (selected_index > 0) selected_index--;
         } else if (key == KEY_DOWN) {
-            if (selected_index < current_node->num_items - 1) selected_index++;
+            if (selected_index < visible_count - 1) selected_index++;
         } else if (key == KEY_ENTER) {
-            if (current_node->num_items > 0) {
-                MenuNode *selected_node = current_node->items[selected_index];
+            if (visible_count > 0) {
+                MenuNode *selected_node = visible_items[selected_index];
                 if (selected_node->num_items > 0) {
                     current_node = selected_node;
                     selected_index = 0;
@@ -1701,39 +1718,40 @@ int main() {
                 }
             }
         } else if (key > 0 && key < 1000) {
-            for (int i = 0; i < current_node->num_items; i++) {
-                if (current_node->items[i]->shortcut == tolower(key)) {
+            for (int i = 0; i < visible_count; i++) {
+                if (visible_items[i]->shortcut == tolower(key)) {
                     selected_index = i;
-                    if (current_node->items[i]->num_items > 0) {
-                        current_node = current_node->items[i];
+                    if (visible_items[i]->num_items > 0) {
+                        current_node = visible_items[i];
                         selected_index = 0;
                     } else {
-                        if (strcmp(current_node->items[i]->key, "notepad_new") == 0) {
+                        MenuNode *target = visible_items[i];
+                        if (strcmp(target->key, "notepad_new") == 0) {
                             handle_notepad(NULL, NULL);
-                        } else if (strcmp(current_node->items[i]->key, "notepad_search") == 0) {
+                        } else if (strcmp(target->key, "notepad_search") == 0) {
                             handle_notepad_search();
-                        } else if (strcmp(current_node->items[i]->key, "sense_dictionary") == 0) {
+                        } else if (strcmp(target->key, "sense_dictionary") == 0) {
                             handle_dictionary();
-                        } else if (strcmp(current_node->items[i]->key, "english_only_dictionary") == 0) {
+                        } else if (strcmp(target->key, "english_only_dictionary") == 0) {
                             handle_english_only_dictionary();
-                        } else if (strcmp(current_node->items[i]->key, "multi_lang_dictionary") == 0) {
+                        } else if (strcmp(target->key, "multi_lang_dictionary") == 0) {
                             handle_multi_lang_dictionary();
-                        } else if (strcmp(current_node->items[i]->key, "short_stories") == 0) {
+                        } else if (strcmp(target->key, "short_stories") == 0) {
                             handle_short_stories();
-                        } else if (strcmp(current_node->items[i]->key, "joke") == 0) {
+                        } else if (strcmp(target->key, "joke") == 0) {
                             handle_joke();
-                        } else if (strcmp(current_node->items[i]->key, "calculator") == 0) {
+                        } else if (strcmp(target->key, "calculator") == 0) {
                             handle_calculator();
-                        } else if (strcmp(current_node->items[i]->key, "weather") == 0) {
+                        } else if (strcmp(target->key, "weather") == 0) {
                             handle_weather();
-                        } else if (strcmp(current_node->items[i]->key, "current_time_date") == 0) {
+                        } else if (strcmp(target->key, "current_time_date") == 0) {
                             handle_current_time_date();
-                        } else if (strcmp(current_node->items[i]->key, "news") == 0) {
+                        } else if (strcmp(target->key, "news") == 0) {
                             handle_news();
-                        } else if (strcmp(current_node->items[i]->key, "poems") == 0) {
+                        } else if (strcmp(target->key, "poems") == 0) {
                             handle_poems();
                         } else {
-                            MenuNode *temp = current_node->items[i];
+                            MenuNode *temp = target;
                             int is_settings = 0;
                             int is_fm = 0;
                             int is_contacts = 0;
@@ -1744,15 +1762,15 @@ int main() {
                                 temp = temp->parent;
                             }
                             if (is_settings) {
-                                if (strcmp(current_node->items[i]->key, "set_city") == 0) {
+                                if (strcmp(target->key, "set_city") == 0) {
                                     handle_set_city();
                                 } else {
-                                    handle_settings(current_node->items[i], root);
+                                    handle_settings(target, root);
                                 }
                             } else if (is_fm) {
-                                handle_file_manager(current_node->items[i]);
+                                handle_file_manager(target);
                             } else if (is_contacts) {
-                                handle_address_manager(current_node->items[i]);
+                                handle_address_manager(target);
                             }
                         }
                     }
@@ -1760,6 +1778,7 @@ int main() {
                 }
             }
         }
+        if (lang) free(lang);
     }
 
     free_menu(root);

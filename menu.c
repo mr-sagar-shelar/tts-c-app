@@ -1,5 +1,20 @@
 #include "menu.h"
 
+static char *current_lang_code = NULL;
+
+int is_menu_visible(MenuNode *node, const char *current_lang) {
+    if (!node) return 0;
+    if (node->num_languages == 0) return 1;
+    if (!current_lang) return 1;
+
+    for (int i = 0; i < node->num_languages; i++) {
+        if (strcmp(node->languages[i], current_lang) == 0) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 static MenuNode* parse_json_to_menu(cJSON *json, MenuNode *parent) {
     if (!json) return NULL;
 
@@ -7,6 +22,7 @@ static MenuNode* parse_json_to_menu(cJSON *json, MenuNode *parent) {
     cJSON *title_key = cJSON_GetObjectItemCaseSensitive(json, "title_key");
     cJSON *key = cJSON_GetObjectItemCaseSensitive(json, "key");
     cJSON *shortcut = cJSON_GetObjectItemCaseSensitive(json, "shortcut");
+    cJSON *languages = cJSON_GetObjectItemCaseSensitive(json, "languages");
     
     node->title_key = title_key ? strdup(title_key->valuestring) : strdup("Untitled");
     node->key = key ? strdup(key->valuestring) : strdup("no_key");
@@ -15,6 +31,19 @@ static MenuNode* parse_json_to_menu(cJSON *json, MenuNode *parent) {
     node->parent = parent;
     node->items = NULL;
     node->num_items = 0;
+    node->languages = NULL;
+    node->num_languages = 0;
+
+    if (cJSON_IsArray(languages)) {
+        node->num_languages = cJSON_GetArraySize(languages);
+        if (node->num_languages > 0) {
+            node->languages = (char**)malloc(node->num_languages * sizeof(char*));
+            for (int i = 0; i < node->num_languages; i++) {
+                cJSON *lang = cJSON_GetArrayItem(languages, i);
+                node->languages[i] = strdup(lang->valuestring);
+            }
+        }
+    }
 
     cJSON *items = cJSON_GetObjectItemCaseSensitive(json, "items");
     if (cJSON_IsArray(items)) {
@@ -57,7 +86,13 @@ void free_menu(MenuNode *node) {
     for (int i = 0; i < node->num_items; i++) {
         free_menu(node->items[i]);
     }
-    free(node->items);
+    if (node->items) free(node->items);
+    
+    for (int i = 0; i < node->num_languages; i++) {
+        free(node->languages[i]);
+    }
+    if (node->languages) free(node->languages);
+
     free(node->title);
     free(node->title_key);
     free(node->key);
@@ -68,19 +103,31 @@ void print_menu(MenuNode *node, int selected_index) {
     // Clear screen (ANSI escape code)
     printf("\033[H\033[J");
     printf("--- %s ---\n", node->title);
-    if (node->num_items == 0) {
-        printf("  (No items)\n");
+    
+    int visible_count = 0;
+    for (int i = 0; i < node->num_items; i++) {
+        if (is_menu_visible(node->items[i], current_lang_code)) {
+            visible_count++;
+        }
+    }
+
+    if (visible_count == 0) {
+        printf("  (No items available in this language)\n");
     } else {
+        int current_visible_idx = 0;
         for (int i = 0; i < node->num_items; i++) {
+            if (!is_menu_visible(node->items[i], current_lang_code)) continue;
+
             char shortcut_str[8] = "";
             if (node->items[i]->shortcut) {
                 snprintf(shortcut_str, sizeof(shortcut_str), "(%c) ", node->items[i]->shortcut);
             }
-            if (i == selected_index) {
+            if (current_visible_idx == selected_index) {
                 printf("> %s%s\n", shortcut_str, node->items[i]->title);
             } else {
                 printf("  %s%s\n", shortcut_str, node->items[i]->title);
             }
+            current_visible_idx++;
         }
     }
     printf("\n[Arrows: Navigate | Enter: Select | Esc: Back/Exit | Shortcut Keys]\n");
@@ -101,6 +148,9 @@ static void update_titles_recursive(MenuNode *node, cJSON *lang_json) {
 }
 
 void set_language(MenuNode *root, const char *lang_code) {
+    if (current_lang_code) free(current_lang_code);
+    current_lang_code = strdup(lang_code);
+
     char filename[16];
     snprintf(filename, sizeof(filename), "%s.json", lang_code);
     

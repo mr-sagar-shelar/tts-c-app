@@ -307,12 +307,18 @@
         {
           "title_key": "english_only_dictionary",
           "key": "english_only_dictionary",
-          "shortcut": "n"
+          "shortcut": "n",
+          "languages": [
+            "en"
+          ]
         },
         {
           "title_key": "multi_lang_dictionary",
           "key": "multi_lang_dictionary",
-          "shortcut": "m"
+          "shortcut": "m",
+          "languages": [
+            "hi"
+          ]
         },
         {
           "title_key": "short_stories",
