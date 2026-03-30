@@ -13,6 +13,7 @@ tts application based on C language to load when Tinycore linux loads on raspber
 ## Next Features
 
 - Some menus should be visible only to selected languages from the list
+- Similar to Internet Radio, Implement flite tts integration with system commands
 - Typing Tutor
   - Expect specific character from user and maintain it's accuracy, time spent and other similar statics and show at the end
 - Setting Menu Completion
