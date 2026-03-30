@@ -377,6 +377,11 @@
           "shortcut": "p"
         },
         {
+          "title_key": "current_time_date",
+          "key": "current_time_date",
+          "shortcut": "n"
+        },
+        {
           "title_key": "display_time_date",
           "key": "display_time_date",
           "shortcut": "t"

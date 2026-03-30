@@ -3,6 +3,7 @@
 #include <termios.h>
 #include <unistd.h>
 #include <string.h>
+#include <strings.h>
 #include <ctype.h>
 #include <dirent.h>
 #include <sys/stat.h>
@@ -1284,6 +1285,70 @@ void handle_weather() {
     free(city);
 }
 
+void handle_current_time_date() {
+    char *city = get_setting("city");
+    if (!city) city = strdup("Pune");
+
+    printf("\033[H\033[J--- Current Time and Date ---\n");
+    printf("City: %s\n", city);
+    printf("Fetching data...\n");
+    fflush(stdout);
+
+    const char *timezone = "Asia/Kolkata";
+    if (city) {
+        if (strcasecmp(city, "London") == 0) timezone = "Europe/London";
+        else if (strcasecmp(city, "New York") == 0) timezone = "America/New_York";
+        else if (strcasecmp(city, "Tokyo") == 0) timezone = "Asia/Tokyo";
+        else if (strcasecmp(city, "Sydney") == 0) timezone = "Australia/Sydney";
+        else if (strcasecmp(city, "Paris") == 0) timezone = "Europe/Paris";
+        else if (strcasecmp(city, "Berlin") == 0) timezone = "Europe/Berlin";
+    }
+
+    char url[512];
+    snprintf(url, sizeof(url), "http://worldtimeapi.org/api/timezone/%s", timezone);
+
+    char cmd[1024];
+    snprintf(cmd, sizeof(cmd), "curl -s \"%s\"", url);
+
+    FILE *fp = popen(cmd, "r");
+    if (fp) {
+        char response[8192] = {0};
+        fread(response, 1, sizeof(response) - 1, fp);
+        pclose(fp);
+
+        cJSON *json = cJSON_Parse(response);
+        if (json) {
+            cJSON *datetime = cJSON_GetObjectItemCaseSensitive(json, "datetime");
+            if (datetime && cJSON_IsString(datetime)) {
+                // Example: 2026-03-30T10:28:50.310386+05:30
+                char date_str[11] = {0};
+                char time_str[9] = {0};
+                if (strlen(datetime->valuestring) >= 19) {
+                    strncpy(date_str, datetime->valuestring, 10);
+                    strncpy(time_str, datetime->valuestring + 11, 8);
+                    printf("\nDate: %s\n", date_str);
+                    printf("Time: %s\n", time_str);
+                    printf("Timezone: %s\n", timezone);
+                } else {
+                    printf("\nRaw DateTime: %s\n", datetime->valuestring);
+                }
+            } else {
+                printf("\nError: Could not retrieve time for %s.", city);
+            }
+            cJSON_Delete(json);
+        } else {
+            printf("\nError parsing time data.");
+        }
+    } else {
+        printf("\nFailed to connect to Time API.");
+    }
+
+    printf("\nPress any key to go back...");
+    fflush(stdout);
+    read_key();
+    free(city);
+}
+
 void handle_set_city() {
     char *current = get_setting("city");
     printf("\033[H\033[J--- Set City ---\n");
@@ -1625,6 +1690,8 @@ int main() {
                             handle_calculator();
                         } else if (strcmp(selected_node->key, "weather") == 0) {
                             handle_weather();
+                        } else if (strcmp(selected_node->key, "current_time_date") == 0) {
+                            handle_current_time_date();
                         } else if (strcmp(selected_node->key, "news") == 0) {
                             handle_news();
                         } else if (strcmp(selected_node->key, "poems") == 0) {
@@ -1659,6 +1726,8 @@ int main() {
                             handle_calculator();
                         } else if (strcmp(current_node->items[i]->key, "weather") == 0) {
                             handle_weather();
+                        } else if (strcmp(current_node->items[i]->key, "current_time_date") == 0) {
+                            handle_current_time_date();
                         } else if (strcmp(current_node->items[i]->key, "news") == 0) {
                             handle_news();
                         } else if (strcmp(current_node->items[i]->key, "poems") == 0) {

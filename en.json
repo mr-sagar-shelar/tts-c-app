@@ -68,6 +68,7 @@
   "bs_math": "BrailleSense Math",
   "world_clock": "World Clock",
   "compass": "Compass",
+  "current_time_date": "Current Time and Date",
   "display_time_date": "Display Time and Date",
   "alarm": "Wake-up Alarm",
   "terminal": "Terminal for Screen Reader",
