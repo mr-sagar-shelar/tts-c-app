@@ -1533,6 +1533,93 @@ void handle_time_format() {
     }
 }
 
+int handle_value_picker(const char *title, int min, int max, int current) {
+    int sel = current - min;
+    int count = max - min + 1;
+    int scroll = (sel / 15) * 15;
+    int PAGE_SIZE = 15;
+
+    while (1) {
+        printf("\033[H\033[J--- %s ---\n", title);
+        int end = scroll + PAGE_SIZE;
+        if (end > count) end = count;
+
+        for (int i = scroll; i < end; i++) {
+            if (i == sel) printf("> %02d\n", i + min);
+            else printf("  %02d\n", i + min);
+        }
+        printf("\n[Arrows: Navigate | Enter: Select | Esc: Back]\n");
+        fflush(stdout);
+
+        int key = read_key();
+        if (key == KEY_UP && sel > 0) {
+            sel--;
+            if (sel < scroll) scroll = sel;
+        } else if (key == KEY_DOWN && sel < count - 1) {
+            sel++;
+            if (sel >= scroll + PAGE_SIZE) scroll = sel - PAGE_SIZE + 1;
+        } else if (key == KEY_ENTER) {
+            return sel + min;
+        } else if (key == KEY_ESC) {
+            return -1;
+        }
+    }
+}
+
+void handle_set_time_manual() {
+    int h = 0, m = 0, s = 0;
+    char *current = get_setting("manual_time");
+    if (current) {
+        sscanf(current, "%d:%d:%d", &h, &m, &s);
+        free(current);
+    }
+
+    int sel = 0;
+    const char *options[] = {"Hour", "Minute", "Second", "Save and Back"};
+    int num_options = 4;
+
+    while (1) {
+        printf("\033[H\033[J--- Set Time ---\n");
+        printf("Current Selection: %02d:%02d:%02d\n", h, m, s);
+        printf("---------------------------\n");
+        
+        for (int i = 0; i < num_options; i++) {
+            if (i == sel) printf("> %s\n", options[i]);
+            else printf("  %s\n", options[i]);
+        }
+        
+        printf("\n[Arrows: Navigate | Enter: Select | Esc: Cancel]\n");
+        fflush(stdout);
+
+        int key = read_key();
+        if (key == KEY_UP && sel > 0) {
+            sel--;
+        } else if (key == KEY_DOWN && sel < num_options - 1) {
+            sel++;
+        } else if (key == KEY_ENTER) {
+            if (sel == 0) { // Hour
+                int val = handle_value_picker("Select Hour", 0, 23, h);
+                if (val != -1) h = val;
+            } else if (sel == 1) { // Minute
+                int val = handle_value_picker("Select Minute", 0, 59, m);
+                if (val != -1) m = val;
+            } else if (sel == 2) { // Second
+                int val = handle_value_picker("Select Second", 0, 59, s);
+                if (val != -1) s = val;
+            } else if (sel == 3) { // Save
+                char buffer[16];
+                snprintf(buffer, sizeof(buffer), "%02d:%02d:%02d", h, m, s);
+                save_setting("manual_time", buffer);
+                printf("\nTime saved! Press any key...");
+                fflush(stdout); read_key();
+                break;
+            }
+        } else if (key == KEY_ESC) {
+            break;
+        }
+    }
+}
+
 void handle_news() {
     printf("\033[H\033[J--- News ---\n");
     printf("Fetching latest news...\n");
@@ -1858,6 +1945,8 @@ int main() {
                                 handle_timezone();
                             } else if (strcmp(selected_node->key, "time_format") == 0) {
                                 handle_time_format();
+                            } else if (strcmp(selected_node->key, "set_time_manual") == 0) {
+                                handle_set_time_manual();
                             } else {
                                 handle_settings(selected_node, root);
                             }
@@ -1938,6 +2027,8 @@ int main() {
                                     handle_timezone();
                                 } else if (strcmp(target->key, "time_format") == 0) {
                                     handle_time_format();
+                                } else if (strcmp(target->key, "set_time_manual") == 0) {
+                                    handle_set_time_manual();
                                 } else {
                                     handle_settings(target, root);
                                 }

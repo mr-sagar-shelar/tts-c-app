@@ -458,6 +458,11 @@
           "title_key": "time_format",
           "key": "time_format",
           "shortcut": "f"
+        },
+        {
+          "title_key": "set_time_manual",
+          "key": "set_time_manual",
+          "shortcut": "m"
         }
       ]
     },
