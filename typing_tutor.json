@@ -1,0 +1,54 @@
+{
+  "levels": [
+    {
+      "id": 1,
+      "name": "Beginner - Home Row",
+      "examples": [
+        {
+          "text": "asdf",
+          "time_limit": 10
+        },
+        {
+          "text": "jkl;",
+          "time_limit": 10
+        },
+        {
+          "text": "asdf jkl;",
+          "time_limit": 15
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Intermediate - Top Row",
+      "examples": [
+        {
+          "text": "qwer",
+          "time_limit": 10
+        },
+        {
+          "text": "uiop",
+          "time_limit": 10
+        },
+        {
+          "text": "quiet roof",
+          "time_limit": 20
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Advanced - Full Sentences",
+      "examples": [
+        {
+          "text": "The quick brown fox jumps over the lazy dog.",
+          "time_limit": 30
+        },
+        {
+          "text": "C programming is powerful and efficient.",
+          "time_limit": 30
+        }
+      ]
+    }
+  ]
+}

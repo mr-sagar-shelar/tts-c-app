@@ -14,6 +14,7 @@
 #include "dictionary.h"
 #include "entertainment.h"
 #include "tools.h"
+#include "typing_tutor.h"
 
 /**
  * UI handler for settings.
@@ -182,6 +183,8 @@ int main() {
                         handle_joke();
                     } else if (strcmp(selected_node->key, "calculator") == 0) {
                         handle_calculator();
+                    } else if (strcmp(selected_node->key, "typing_tutor") == 0) {
+                        handle_typing_tutor();
                     } else if (strcmp(selected_node->key, "weather") == 0) {
                         handle_weather();
                     } else if (strcmp(selected_node->key, "current_time_date") == 0) {

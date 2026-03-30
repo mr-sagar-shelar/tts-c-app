@@ -368,6 +368,11 @@
           "shortcut": "c"
         },
         {
+          "title_key": "typing_tutor",
+          "key": "typing_tutor",
+          "shortcut": "y"
+        },
+        {
           "title_key": "bs_math",
           "key": "bs_math",
           "shortcut": "m"
