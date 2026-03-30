@@ -15,6 +15,7 @@
 #include "entertainment.h"
 #include "tools.h"
 #include "typing_tutor.h"
+#include "alarm.h"
 
 /**
  * UI handler for settings.
@@ -203,6 +204,8 @@ int main() {
                         handle_set_time_manual();
                     } else if (strcmp(selected_node->key, "set_date_manual") == 0) {
                         handle_set_date_manual();
+                    } else if (strcmp(selected_node->key, "alarm") == 0) {
+                        handle_alarm();
                     } else {
                         // Check for group handlers
                         MenuNode *temp = selected_node;

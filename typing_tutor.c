@@ -61,14 +61,14 @@ static void load_typing_levels() {
     cJSON_Delete(json);
 }
 
-static void free_typing_levels() {
-    for (int i = 0; i < level_count; i++) {
-        free(levels[i].examples);
-    }
-    free(levels);
-    levels = NULL;
-    level_count = 0;
-}
+// static void free_typing_levels() {
+//     for (int i = 0; i < level_count; i++) {
+//         free(levels[i].examples);
+//     }
+//     free(levels);
+//     levels = NULL;
+//     level_count = 0;
+// }
 
 double get_time_in_seconds() {
     struct timeval tv;
