@@ -218,7 +218,12 @@ int main() {
                         }
 
                         if (is_settings) {
-                            handle_settings_ui(selected_node, root);
+                            if (strcmp(selected_node->key, "sync_server") == 0) {
+                                sync_config();
+                                printf("\nPress any key to continue..."); fflush(stdout); read_key();
+                            } else {
+                                handle_settings_ui(selected_node, root);
+                            }
                         } else if (is_fm) {
                             handle_file_manager(selected_node);
                         } else if (is_contacts) {

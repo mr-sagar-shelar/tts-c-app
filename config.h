@@ -4,7 +4,9 @@
 #include "cJSON.h"
 
 /**
- * Initializes the configuration system by loading userConfig.json.
+ * Initializes the configuration system.
+ * If userConfig.json is missing, attempts to sync from server.
+ * If sync fails, initializes with default values.
  */
 void init_config();
 
@@ -19,6 +21,12 @@ void cleanup_config();
 void save_config();
 
 /**
+ * Syncs the configuration with the server.
+ * Uploads local changes and updates last_sync timestamp.
+ */
+void sync_config();
+
+/**
  * Gets a string setting from the configuration.
  * @return A newly allocated string (must be freed) or NULL.
  */
@@ -31,7 +39,6 @@ void save_setting(const char *key, const char *value);
 
 /**
  * Returns the root cJSON object for complex data structures (contacts, alarms).
- * Modules should use this to read/write their sub-objects and then call save_config().
  */
 cJSON* get_config_root();
 

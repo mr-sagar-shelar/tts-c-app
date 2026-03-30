@@ -86,6 +86,7 @@
   "time_format": "समय प्रारूप",
   "set_time_manual": "समय सेट करें",
   "set_date_manual": "दिनांक सेट करें",
+  "sync_server": "सर्वर के साथ सिंक करें",
   "hour": "घंटा",
   "minute": "मिनट",
   "second": "सेकंड",

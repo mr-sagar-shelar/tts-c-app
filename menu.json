@@ -473,6 +473,11 @@
           "title_key": "set_date_manual",
           "key": "set_date_manual",
           "shortcut": "d"
+        },
+        {
+          "title_key": "sync_server",
+          "key": "sync_server",
+          "shortcut": "s"
         }
       ]
     },

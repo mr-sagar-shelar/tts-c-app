@@ -33,7 +33,7 @@ tts application based on C language to load when Tinycore linux loads on raspber
   - Use epub, (x) html reading logic
   - use keyboard input and selection logic
 - Poem: Save locally option
-- Books (Txt, Docx, PDF, Excel, Daisy)
+- Books (Txt, Docx, PDF, Excel, Daisy), ePUB
 - Book-reader – read your favorite books and files in DAISY, DOCX, PDF and ePUB formats
 - Note-taker – take notes and edit files in text and braille
 - Onboard Apps: Clock and Alarm, Calendar, Address book, Calculator, File Manager

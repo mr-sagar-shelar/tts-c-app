@@ -86,6 +86,7 @@
   "time_format": "Time Format",
   "set_time_manual": "Set Time",
   "set_date_manual": "Set Date",
+  "sync_server": "Sync with Server",
   "hour": "Hour",
   "minute": "Minute",
   "second": "Second",
