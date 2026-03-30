@@ -57,6 +57,8 @@ tts application based on C language to load when Tinycore linux loads on raspber
 - Internet Setup
 - Voice call, SMS Setup
 - Voice based interaction
+- Local bus, traine schedule
+- Integration with cab booking service like Uber, Bharat Taxi
 
 ## Reference Devices
 

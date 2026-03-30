@@ -16,6 +16,7 @@
 #include "tools.h"
 #include "typing_tutor.h"
 #include "alarm.h"
+#include "calendar.h"
 
 /**
  * UI handler for settings.
@@ -80,6 +81,7 @@ void handle_settings_ui(MenuNode *node, MenuNode *root) {
 int main() {
     init_config();
     init_contacts();
+    init_calendar();
     
     mkdir(USER_SPACE, 0777);
     mkdir("Downloads", 0777);
@@ -209,11 +211,12 @@ int main() {
                     } else {
                         // Check for group handlers
                         MenuNode *temp = selected_node;
-                        int is_settings = 0, is_fm = 0, is_contacts = 0;
+                        int is_settings = 0, is_fm = 0, is_contacts = 0, is_calendar = 0;
                         while (temp) {
                             if (strcmp(temp->key, "settings") == 0) is_settings = 1;
                             if (strcmp(temp->key, "file_manager") == 0) is_fm = 1;
                             if (strcmp(temp->key, "address_manager") == 0) is_contacts = 1;
+                            if (strcmp(temp->key, "calendar") == 0) is_calendar = 1;
                             temp = temp->parent;
                         }
 
@@ -228,6 +231,8 @@ int main() {
                             handle_file_manager(selected_node);
                         } else if (is_contacts) {
                             handle_address_manager(selected_node);
+                        } else if (is_calendar) {
+                            handle_calendar(selected_node);
                         }
                     }
                 }
@@ -252,5 +257,6 @@ int main() {
     free_menu(root);
     cleanup_config();
     cleanup_contacts();
+    cleanup_calendar();
     return 0;
 }

@@ -1,14 +1,14 @@
 CC=gcc
 CFLAGS=-Wall -Wextra -O2
 TARGET=sai
-OBJS=main.o menu.o cJSON.o config.o contacts.o utils.o file_manager.o notepad.o dictionary.o entertainment.o tools.o typing_tutor.o alarm.o
+OBJS=main.o menu.o cJSON.o config.o contacts.o utils.o file_manager.o notepad.o dictionary.o entertainment.o tools.o typing_tutor.o alarm.o calendar.o
 
 all: $(TARGET)
 
 $(TARGET): $(OBJS)
 	$(CC) $(CFLAGS) -o $(TARGET) $(OBJS)
 
-main.o: main.c menu.h config.h contacts.h utils.h file_manager.h notepad.h dictionary.h entertainment.h tools.h typing_tutor.h alarm.h
+main.o: main.c menu.h config.h contacts.h utils.h file_manager.h notepad.h dictionary.h entertainment.h tools.h typing_tutor.h alarm.h calendar.h
 	$(CC) $(CFLAGS) -c main.c
 
 menu.o: menu.c menu.h cJSON.h
@@ -46,6 +46,9 @@ typing_tutor.o: typing_tutor.c typing_tutor.h utils.h cJSON.h
 
 alarm.o: alarm.c alarm.h utils.h cJSON.h
 	$(CC) $(CFLAGS) -c alarm.c
+
+calendar.o: calendar.c calendar.h cJSON.h utils.h config.h
+	$(CC) $(CFLAGS) -c calendar.c
 
 clean:
 	rm -f $(TARGET) $(OBJS)

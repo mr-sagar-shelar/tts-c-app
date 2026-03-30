@@ -224,6 +224,38 @@
       "shortcut": "o",
       "items": [
         {
+          "title_key": "calendar",
+          "key": "calendar",
+          "shortcut": "c",
+          "items": [
+            {
+              "title_key": "calendar_list",
+              "key": "calendar_list",
+              "shortcut": "l"
+            },
+            {
+              "title_key": "calendar_search",
+              "key": "calendar_search",
+              "shortcut": "s"
+            },
+            {
+              "title_key": "calendar_add",
+              "key": "calendar_add",
+              "shortcut": "a"
+            },
+            {
+              "title_key": "calendar_edit",
+              "key": "calendar_edit",
+              "shortcut": "e"
+            },
+            {
+              "title_key": "calendar_delete",
+              "key": "calendar_delete",
+              "shortcut": "d"
+            }
+          ]
+        },
+        {
           "title_key": "address_manager",
           "key": "address_manager",
           "shortcut": "a",
