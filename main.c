@@ -1620,6 +1620,80 @@ void handle_set_time_manual() {
     }
 }
 
+int is_leap_year(int year) {
+    return (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0);
+}
+
+int get_days_in_month(int month, int year) {
+    int days[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+    if (month == 2 && is_leap_year(year)) return 29;
+    if (month >= 1 && month <= 12) return days[month - 1];
+    return 31;
+}
+
+void handle_set_date_manual() {
+    int day = 1, month = 1, year = 2026;
+    char *current = get_setting("manual_date");
+    if (current) {
+        sscanf(current, "%d-%d-%d", &year, &month, &day);
+        free(current);
+    }
+
+    int sel = 0;
+    const char *options[] = {"Month", "Year", "Date", "Save and Back"};
+    int num_options = 4;
+
+    while (1) {
+        printf("\033[H\033[J--- Set Date ---\n");
+        printf("Current Selection: %04d-%02d-%02d\n", year, month, day);
+        printf("---------------------------\n");
+        
+        for (int i = 0; i < num_options; i++) {
+            if (i == sel) printf("> %s\n", options[i]);
+            else printf("  %s\n", options[i]);
+        }
+        
+        printf("\n[Arrows: Navigate | Enter: Select | Esc: Cancel]\n");
+        fflush(stdout);
+
+        int key = read_key();
+        if (key == KEY_UP && sel > 0) {
+            sel--;
+        } else if (key == KEY_DOWN && sel < num_options - 1) {
+            sel++;
+        } else if (key == KEY_ENTER) {
+            if (sel == 0) { // Month
+                int val = handle_value_picker("Select Month", 1, 12, month);
+                if (val != -1) {
+                    month = val;
+                    int max_days = get_days_in_month(month, year);
+                    if (day > max_days) day = max_days;
+                }
+            } else if (sel == 1) { // Year
+                int val = handle_value_picker("Select Year", 2000, 2100, year);
+                if (val != -1) {
+                    year = val;
+                    int max_days = get_days_in_month(month, year);
+                    if (day > max_days) day = max_days;
+                }
+            } else if (sel == 2) { // Date
+                int max_days = get_days_in_month(month, year);
+                int val = handle_value_picker("Select Date", 1, max_days, day);
+                if (val != -1) day = val;
+            } else if (sel == 3) { // Save
+                char buffer[16];
+                snprintf(buffer, sizeof(buffer), "%04d-%02d-%02d", year, month, day);
+                save_setting("manual_date", buffer);
+                printf("\nDate saved! Press any key...");
+                fflush(stdout); read_key();
+                break;
+            }
+        } else if (key == KEY_ESC) {
+            break;
+        }
+    }
+}
+
 void handle_news() {
     printf("\033[H\033[J--- News ---\n");
     printf("Fetching latest news...\n");
@@ -1947,6 +2021,8 @@ int main() {
                                 handle_time_format();
                             } else if (strcmp(selected_node->key, "set_time_manual") == 0) {
                                 handle_set_time_manual();
+                            } else if (strcmp(selected_node->key, "set_date_manual") == 0) {
+                                handle_set_date_manual();
                             } else {
                                 handle_settings(selected_node, root);
                             }
@@ -2029,6 +2105,8 @@ int main() {
                                     handle_time_format();
                                 } else if (strcmp(target->key, "set_time_manual") == 0) {
                                     handle_set_time_manual();
+                                } else if (strcmp(target->key, "set_date_manual") == 0) {
+                                    handle_set_date_manual();
                                 } else {
                                     handle_settings(target, root);
                                 }

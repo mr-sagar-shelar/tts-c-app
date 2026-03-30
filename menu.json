@@ -463,6 +463,11 @@
           "title_key": "set_time_manual",
           "key": "set_time_manual",
           "shortcut": "m"
+        },
+        {
+          "title_key": "set_date_manual",
+          "key": "set_date_manual",
+          "shortcut": "d"
         }
       ]
     },
