@@ -1,4 +1,5 @@
 #include "menu.h"
+#include "utils.h"
 
 static char *current_lang_code = NULL;
 
@@ -21,13 +22,16 @@ static MenuNode* parse_json_to_menu(cJSON *json, MenuNode *parent) {
     MenuNode *node = (MenuNode*)malloc(sizeof(MenuNode));
     cJSON *title_key = cJSON_GetObjectItemCaseSensitive(json, "title_key");
     cJSON *key = cJSON_GetObjectItemCaseSensitive(json, "key");
+    cJSON *description_key = cJSON_GetObjectItemCaseSensitive(json, "description_key");
     cJSON *shortcut = cJSON_GetObjectItemCaseSensitive(json, "shortcut");
     cJSON *languages = cJSON_GetObjectItemCaseSensitive(json, "languages");
     
     node->title_key = title_key ? strdup(title_key->valuestring) : strdup("Untitled");
     node->key = key ? strdup(key->valuestring) : strdup("no_key");
+    node->description_key = description_key ? strdup(description_key->valuestring) : NULL;
     node->shortcut = (shortcut && shortcut->valuestring && strlen(shortcut->valuestring) > 0) ? shortcut->valuestring[0] : 0;
     node->title = strdup(node->title_key); // Default to key until translated
+    node->description = node->description_key ? strdup(node->description_key) : NULL;
     node->parent = parent;
     node->items = NULL;
     node->num_items = 0;
@@ -95,6 +99,8 @@ void free_menu(MenuNode *node) {
 
     free(node->title);
     free(node->title_key);
+    if (node->description) free(node->description);
+    if (node->description_key) free(node->description_key);
     free(node->key);
     free(node);
 }
@@ -130,7 +136,21 @@ void print_menu(MenuNode *node, int selected_index) {
             current_visible_idx++;
         }
     }
-    printf("\n[Arrows: Navigate | Enter: Select | Esc: Back/Exit | Shortcut Keys]\n");
+    printf("\n[Arrows: Navigate | Enter: Select | Esc: Back/Exit | Shortcut Keys | Ctrl+I: Info]\n");
+}
+
+void print_description(MenuNode *node) {
+    if (!node) return;
+    printf("\033[H\033[J");
+    printf("--- Information: %s ---\n\n", node->title);
+    if (node->description) {
+        printf("%s\n", node->description);
+    } else {
+        printf("No description available.\n");
+    }
+    printf("\n\nPress Esc to return to menu...");
+    fflush(stdout);
+    while (read_key() != KEY_ESC);
 }
 
 static void update_titles_recursive(MenuNode *node, cJSON *lang_json) {
@@ -140,6 +160,14 @@ static void update_titles_recursive(MenuNode *node, cJSON *lang_json) {
     if (translated && cJSON_IsString(translated)) {
         free(node->title);
         node->title = strdup(translated->valuestring);
+    }
+
+    if (node->description_key) {
+        cJSON *desc_translated = cJSON_GetObjectItemCaseSensitive(lang_json, node->description_key);
+        if (desc_translated && cJSON_IsString(desc_translated)) {
+            if (node->description) free(node->description);
+            node->description = strdup(desc_translated->valuestring);
+        }
     }
     
     for (int i = 0; i < node->num_items; i++) {

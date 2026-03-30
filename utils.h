@@ -15,6 +15,7 @@
 #define KEY_ESC 1004
 #define KEY_BACKSPACE 127
 #define KEY_TAB 9
+#define KEY_CTRL_I 9
 
 /**
  * Sets the terminal to non-canonical mode for raw input.

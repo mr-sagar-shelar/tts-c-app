@@ -144,6 +144,10 @@ int main() {
             if (selected_index > 0) selected_index--;
         } else if (key == KEY_DOWN) {
             if (selected_index < visible_count - 1) selected_index++;
+        } else if (key == KEY_CTRL_I) {
+            if (visible_count > 0) {
+                print_description(visible_items[selected_index]);
+            }
         } else if (key == KEY_ENTER) {
             if (visible_count > 0) {
                 MenuNode *selected_node = visible_items[selected_index];

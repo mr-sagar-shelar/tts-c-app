@@ -1,6 +1,7 @@
 {
   "title_key": "main_menu",
   "key": "main_menu",
+  "description_key": "main_menu_desc",
   "items": [
     {
       "title_key": "file_manager",
@@ -10,34 +11,41 @@
         {
           "title_key": "fm_browse",
           "key": "fm_browse",
-          "shortcut": "b"
+          "shortcut": "b",
+          "description_key": "fm_browse_desc"
         },
         {
           "title_key": "fm_search",
           "key": "fm_search",
-          "shortcut": "s"
+          "shortcut": "s",
+          "description_key": "fm_search_desc"
         },
         {
           "title_key": "fm_new_folder",
           "key": "fm_new_folder",
-          "shortcut": "n"
+          "shortcut": "n",
+          "description_key": "fm_new_folder_desc"
         },
         {
           "title_key": "fm_new_file",
           "key": "fm_new_file",
-          "shortcut": "f"
+          "shortcut": "f",
+          "description_key": "fm_new_file_desc"
         },
         {
           "title_key": "fm_rename",
           "key": "fm_rename",
-          "shortcut": "r"
+          "shortcut": "r",
+          "description_key": "fm_rename_desc"
         },
         {
           "title_key": "fm_delete",
           "key": "fm_delete",
-          "shortcut": "d"
+          "shortcut": "d",
+          "description_key": "fm_delete_desc"
         }
-      ]
+      ],
+      "description_key": "file_manager_desc"
     },
     {
       "title_key": "word_processor",
@@ -52,34 +60,41 @@
             {
               "title_key": "wp_new",
               "key": "wp_new",
-              "shortcut": "n"
+              "shortcut": "n",
+              "description_key": "wp_new_desc"
             },
             {
               "title_key": "wp_open",
               "key": "wp_open",
-              "shortcut": "o"
+              "shortcut": "o",
+              "description_key": "wp_open_desc"
             },
             {
               "title_key": "wp_save",
               "key": "wp_save",
-              "shortcut": "s"
+              "shortcut": "s",
+              "description_key": "wp_save_desc"
             },
             {
               "title_key": "wp_save_as",
               "key": "wp_save_as",
-              "shortcut": "a"
+              "shortcut": "a",
+              "description_key": "wp_save_as_desc"
             },
             {
               "title_key": "wp_print",
               "key": "wp_print",
-              "shortcut": "p"
+              "shortcut": "p",
+              "description_key": "wp_print_desc"
             },
             {
               "title_key": "wp_exit",
               "key": "wp_exit",
-              "shortcut": "z"
+              "shortcut": "z",
+              "description_key": "wp_exit_desc"
             }
-          ]
+          ],
+          "description_key": "wp_file_desc"
         },
         {
           "title_key": "wp_edit",
@@ -89,44 +104,53 @@
             {
               "title_key": "wp_start_selection",
               "key": "wp_start_selection",
-              "shortcut": "s"
+              "shortcut": "s",
+              "description_key": "wp_start_selection_desc"
             },
             {
               "title_key": "wp_copy",
               "key": "wp_copy",
-              "shortcut": "c"
+              "shortcut": "c",
+              "description_key": "wp_copy_desc"
             },
             {
               "title_key": "wp_cut",
               "key": "wp_cut",
-              "shortcut": "x"
+              "shortcut": "x",
+              "description_key": "wp_cut_desc"
             },
             {
               "title_key": "wp_paste",
               "key": "wp_paste",
-              "shortcut": "v"
+              "shortcut": "v",
+              "description_key": "wp_paste_desc"
             },
             {
               "title_key": "wp_delete",
               "key": "wp_delete",
-              "shortcut": "d"
+              "shortcut": "d",
+              "description_key": "wp_delete_desc"
             },
             {
               "title_key": "wp_select_all",
               "key": "wp_select_all",
-              "shortcut": "a"
+              "shortcut": "a",
+              "description_key": "wp_select_all_desc"
             },
             {
               "title_key": "wp_find",
               "key": "wp_find",
-              "shortcut": "f"
+              "shortcut": "f",
+              "description_key": "wp_find_desc"
             },
             {
               "title_key": "wp_replace",
               "key": "wp_replace",
-              "shortcut": "r"
+              "shortcut": "r",
+              "description_key": "wp_replace_desc"
             }
-          ]
+          ],
+          "description_key": "wp_edit_desc"
         },
         {
           "title_key": "wp_insert",
@@ -136,14 +160,17 @@
             {
               "title_key": "wp_insert_date_time",
               "key": "wp_insert_date_time",
-              "shortcut": "d"
+              "shortcut": "d",
+              "description_key": "wp_insert_date_time_desc"
             },
             {
               "title_key": "wp_insert_page_break",
               "key": "wp_insert_page_break",
-              "shortcut": "p"
+              "shortcut": "p",
+              "description_key": "wp_insert_page_break_desc"
             }
-          ]
+          ],
+          "description_key": "wp_insert_desc"
         },
         {
           "title_key": "wp_format",
@@ -153,21 +180,26 @@
             {
               "title_key": "wp_font",
               "key": "wp_font",
-              "shortcut": "f"
+              "shortcut": "f",
+              "description_key": "wp_font_desc"
             },
             {
               "title_key": "wp_paragraph",
               "key": "wp_paragraph",
-              "shortcut": "p"
+              "shortcut": "p",
+              "description_key": "wp_paragraph_desc"
             },
             {
               "title_key": "wp_style",
               "key": "wp_style",
-              "shortcut": "s"
+              "shortcut": "s",
+              "description_key": "wp_style_desc"
             }
-          ]
+          ],
+          "description_key": "wp_format_desc"
         }
-      ]
+      ],
+      "description_key": "word_processor_desc"
     },
     {
       "title_key": "notepad",
@@ -177,24 +209,29 @@
         {
           "title_key": "notepad_new",
           "key": "notepad_new",
-          "shortcut": "n"
+          "shortcut": "n",
+          "description_key": "notepad_new_desc"
         },
         {
           "title_key": "notepad_open",
           "key": "notepad_open",
-          "shortcut": "o"
+          "shortcut": "o",
+          "description_key": "notepad_open_desc"
         },
         {
           "title_key": "notepad_search",
           "key": "notepad_search",
-          "shortcut": "s"
+          "shortcut": "s",
+          "description_key": "notepad_search_desc"
         }
-      ]
+      ],
+      "description_key": "notepad_desc"
     },
     {
       "title_key": "email",
       "key": "email",
-      "shortcut": "e"
+      "shortcut": "e",
+      "description_key": "email_desc"
     },
     {
       "title_key": "media",
@@ -204,19 +241,23 @@
         {
           "title_key": "media_player",
           "key": "media_player",
-          "shortcut": "m"
+          "shortcut": "m",
+          "description_key": "media_player_desc"
         },
         {
           "title_key": "fm_radio",
           "key": "fm_radio",
-          "shortcut": "r"
+          "shortcut": "r",
+          "description_key": "fm_radio_desc"
         },
         {
           "title_key": "daisy_player",
           "key": "daisy_player",
-          "shortcut": "d"
+          "shortcut": "d",
+          "description_key": "daisy_player_desc"
         }
-      ]
+      ],
+      "description_key": "media_desc"
     },
     {
       "title_key": "organizer",
@@ -231,29 +272,35 @@
             {
               "title_key": "calendar_list",
               "key": "calendar_list",
-              "shortcut": "l"
+              "shortcut": "l",
+              "description_key": "calendar_list_desc"
             },
             {
               "title_key": "calendar_search",
               "key": "calendar_search",
-              "shortcut": "s"
+              "shortcut": "s",
+              "description_key": "calendar_search_desc"
             },
             {
               "title_key": "calendar_add",
               "key": "calendar_add",
-              "shortcut": "a"
+              "shortcut": "a",
+              "description_key": "calendar_add_desc"
             },
             {
               "title_key": "calendar_edit",
               "key": "calendar_edit",
-              "shortcut": "e"
+              "shortcut": "e",
+              "description_key": "calendar_edit_desc"
             },
             {
               "title_key": "calendar_delete",
               "key": "calendar_delete",
-              "shortcut": "d"
+              "shortcut": "d",
+              "description_key": "calendar_delete_desc"
             }
-          ]
+          ],
+          "description_key": "calendar_desc"
         },
         {
           "title_key": "address_manager",
@@ -263,41 +310,50 @@
             {
               "title_key": "contacts_list",
               "key": "contacts_list",
-              "shortcut": "l"
+              "shortcut": "l",
+              "description_key": "contacts_list_desc"
             },
             {
               "title_key": "contacts_search",
               "key": "contacts_search",
-              "shortcut": "s"
+              "shortcut": "s",
+              "description_key": "contacts_search_desc"
             },
             {
               "title_key": "contacts_add",
               "key": "contacts_add",
-              "shortcut": "a"
+              "shortcut": "a",
+              "description_key": "contacts_add_desc"
             },
             {
               "title_key": "contacts_edit",
               "key": "contacts_edit",
-              "shortcut": "e"
+              "shortcut": "e",
+              "description_key": "contacts_edit_desc"
             },
             {
               "title_key": "contacts_delete",
               "key": "contacts_delete",
-              "shortcut": "d"
+              "shortcut": "d",
+              "description_key": "contacts_delete_desc"
             }
-          ]
+          ],
+          "description_key": "address_manager_desc"
         },
         {
           "title_key": "schedule_manager",
           "key": "schedule_manager",
-          "shortcut": "s"
+          "shortcut": "s",
+          "description_key": "schedule_manager_desc"
         },
         {
           "title_key": "database_manager",
           "key": "database_manager",
-          "shortcut": "d"
+          "shortcut": "d",
+          "description_key": "database_manager_desc"
         }
-      ]
+      ],
+      "description_key": "organizer_desc"
     },
     {
       "title_key": "web_tools",
@@ -307,19 +363,23 @@
         {
           "title_key": "web_browser",
           "key": "web_browser",
-          "shortcut": "b"
+          "shortcut": "b",
+          "description_key": "web_browser_desc"
         },
         {
           "title_key": "google_search",
           "key": "google_search",
-          "shortcut": "g"
+          "shortcut": "g",
+          "description_key": "google_search_desc"
         },
         {
           "title_key": "wiki_search",
           "key": "wiki_search",
-          "shortcut": "w"
+          "shortcut": "w",
+          "description_key": "wiki_search_desc"
         }
-      ]
+      ],
+      "description_key": "web_tools_desc"
     },
     {
       "title_key": "extras",
@@ -329,12 +389,14 @@
         {
           "title_key": "excel_viewer",
           "key": "excel_viewer",
-          "shortcut": "e"
+          "shortcut": "e",
+          "description_key": "excel_viewer_desc"
         },
         {
           "title_key": "online_daisy",
           "key": "online_daisy",
-          "shortcut": "o"
+          "shortcut": "o",
+          "description_key": "online_daisy_desc"
         },
         {
           "title_key": "english_only_dictionary",
@@ -342,7 +404,8 @@
           "shortcut": "n",
           "languages": [
             "en"
-          ]
+          ],
+          "description_key": "english_only_dictionary_desc"
         },
         {
           "title_key": "multi_lang_dictionary",
@@ -350,44 +413,53 @@
           "shortcut": "m",
           "languages": [
             "hi"
-          ]
+          ],
+          "description_key": "multi_lang_dictionary_desc"
         },
         {
           "title_key": "short_stories",
           "key": "short_stories",
-          "shortcut": "h"
+          "shortcut": "h",
+          "description_key": "short_stories_desc"
         },
         {
           "title_key": "joke",
           "key": "joke",
-          "shortcut": "j"
+          "shortcut": "j",
+          "description_key": "joke_desc"
         },
         {
           "title_key": "weather",
           "key": "weather",
-          "shortcut": "w"
+          "shortcut": "w",
+          "description_key": "weather_desc"
         },
         {
           "title_key": "news",
           "key": "news",
-          "shortcut": "i"
+          "shortcut": "i",
+          "description_key": "news_desc"
         },
         {
           "title_key": "poems",
           "key": "poems",
-          "shortcut": "p"
+          "shortcut": "p",
+          "description_key": "poems_desc"
         },
         {
           "title_key": "sense_dictionary",
           "key": "sense_dictionary",
-          "shortcut": "s"
+          "shortcut": "s",
+          "description_key": "sense_dictionary_desc"
         },
         {
           "title_key": "color_reader",
           "key": "color_reader",
-          "shortcut": "c"
+          "shortcut": "c",
+          "description_key": "color_reader_desc"
         }
-      ]
+      ],
+      "description_key": "extras_desc"
     },
     {
       "title_key": "utilities",
@@ -397,49 +469,59 @@
         {
           "title_key": "calculator",
           "key": "calculator",
-          "shortcut": "c"
+          "shortcut": "c",
+          "description_key": "calculator_desc"
         },
         {
           "title_key": "typing_tutor",
           "key": "typing_tutor",
-          "shortcut": "y"
+          "shortcut": "y",
+          "description_key": "typing_tutor_desc"
         },
         {
           "title_key": "bs_math",
           "key": "bs_math",
-          "shortcut": "m"
+          "shortcut": "m",
+          "description_key": "bs_math_desc"
         },
         {
           "title_key": "world_clock",
           "key": "world_clock",
-          "shortcut": "w"
+          "shortcut": "w",
+          "description_key": "world_clock_desc"
         },
         {
           "title_key": "compass",
           "key": "compass",
-          "shortcut": "p"
+          "shortcut": "p",
+          "description_key": "compass_desc"
         },
         {
           "title_key": "current_time_date",
           "key": "current_time_date",
-          "shortcut": "n"
+          "shortcut": "n",
+          "description_key": "current_time_date_desc"
         },
         {
           "title_key": "display_time_date",
           "key": "display_time_date",
-          "shortcut": "t"
+          "shortcut": "t",
+          "description_key": "display_time_date_desc"
         },
         {
           "title_key": "alarm",
           "key": "alarm",
-          "shortcut": "a"
+          "shortcut": "a",
+          "description_key": "alarm_desc"
         },
         {
           "title_key": "terminal",
           "key": "terminal",
-          "shortcut": "s"
+          "shortcut": "s",
+          "description_key": "terminal_desc"
         }
-      ]
+      ],
+      "description_key": "utilities_desc"
     },
     {
       "title_key": "settings",
@@ -449,89 +531,107 @@
         {
           "title_key": "set_time_date",
           "key": "set_time_date",
-          "shortcut": "t"
+          "shortcut": "t",
+          "description_key": "set_time_date_desc"
         },
         {
           "title_key": "set_city",
           "key": "set_city",
-          "shortcut": "c"
+          "shortcut": "c",
+          "description_key": "set_city_desc"
         },
         {
           "title_key": "setup_internet",
           "key": "setup_internet",
-          "shortcut": "w"
+          "shortcut": "w",
+          "description_key": "setup_internet_desc"
         },
         {
           "title_key": "bluetooth_manager",
           "key": "bluetooth_manager",
-          "shortcut": "b"
+          "shortcut": "b",
+          "description_key": "bluetooth_manager_desc"
         },
         {
           "title_key": "menu_manager",
           "key": "menu_manager",
-          "shortcut": "m"
+          "shortcut": "m",
+          "description_key": "menu_manager_desc"
         },
         {
           "title_key": "global_options",
           "key": "global_options",
-          "shortcut": "o"
+          "shortcut": "o",
+          "description_key": "global_options_desc"
         },
         {
           "title_key": "android_settings",
           "key": "android_settings",
-          "shortcut": "e"
+          "shortcut": "e",
+          "description_key": "android_settings_desc"
         },
         {
           "title_key": "language_switch",
           "key": "language_switch",
-          "shortcut": "l"
+          "shortcut": "l",
+          "description_key": "language_switch_desc"
         },
         {
           "title_key": "timezone",
           "key": "timezone",
-          "shortcut": "z"
+          "shortcut": "z",
+          "description_key": "timezone_desc"
         },
         {
           "title_key": "time_format",
           "key": "time_format",
-          "shortcut": "f"
+          "shortcut": "f",
+          "description_key": "time_format_desc"
         },
         {
           "title_key": "set_time_manual",
           "key": "set_time_manual",
-          "shortcut": "m"
+          "shortcut": "m",
+          "description_key": "set_time_manual_desc"
         },
         {
           "title_key": "set_date_manual",
           "key": "set_date_manual",
-          "shortcut": "d"
+          "shortcut": "d",
+          "description_key": "set_date_manual_desc"
         },
         {
           "title_key": "sync_server",
           "key": "sync_server",
-          "shortcut": "s"
+          "shortcut": "s",
+          "description_key": "sync_server_desc"
         }
-      ]
+      ],
+      "description_key": "settings_desc"
     },
     {
       "title_key": "help",
       "key": "help",
-      "shortcut": "h"
+      "shortcut": "h",
+      "description_key": "help_desc"
     },
     {
       "title_key": "play_store",
       "key": "play_store",
-      "shortcut": "p"
+      "shortcut": "p",
+      "description_key": "play_store_desc"
     },
     {
       "title_key": "all_apps",
       "key": "all_apps",
-      "shortcut": "a"
+      "shortcut": "a",
+      "description_key": "all_apps_desc"
     },
     {
       "title_key": "info",
       "key": "info",
-      "shortcut": "i"
+      "shortcut": "i",
+      "description_key": "info_desc"
     }
   ]
 }
