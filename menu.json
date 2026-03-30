@@ -448,6 +448,16 @@
           "title_key": "language_switch",
           "key": "language_switch",
           "shortcut": "l"
+        },
+        {
+          "title_key": "timezone",
+          "key": "timezone",
+          "shortcut": "z"
+        },
+        {
+          "title_key": "time_format",
+          "key": "time_format",
+          "shortcut": "f"
         }
       ]
     },

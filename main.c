@@ -1367,6 +1367,172 @@ void handle_set_city() {
     read_key();
 }
 
+void handle_change_timezone() {
+    FILE *f = fopen("timezones.json", "rb");
+    if (!f) {
+        printf("\nError: timezones.json not found. Press any key...");
+        fflush(stdout); read_key();
+        return;
+    }
+
+    fseek(f, 0, SEEK_END);
+    long len = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    char *data = (char*)malloc(len + 1);
+    fread(data, 1, len, f);
+    data[len] = '\0';
+    fclose(f);
+
+    cJSON *json = cJSON_Parse(data);
+    free(data);
+    if (!json) {
+        printf("\nError parsing timezones.json. Press any key...");
+        fflush(stdout); read_key();
+        return;
+    }
+
+    cJSON *tz_array = cJSON_GetObjectItemCaseSensitive(json, "timezones");
+    if (!cJSON_IsArray(tz_array)) {
+        printf("\nError: 'timezones' array not found. Press any key...");
+        fflush(stdout); read_key();
+        cJSON_Delete(json);
+        return;
+    }
+
+    int total_count = cJSON_GetArraySize(tz_array);
+    char search_term[256] = {0};
+    int sel = 0;
+    int scroll = 0;
+    int PAGE_SIZE = 15;
+
+    while (1) {
+        printf("\033[H\033[J--- Select Time Zone ---\n");
+        printf("Search: %s_\n", search_term);
+        printf("---------------------------\n");
+
+        int matches[total_count];
+        int match_count = 0;
+        char lower_search[256] = {0};
+        for(int i=0; search_term[i]; i++) lower_search[i] = (char)tolower(search_term[i]);
+
+        for (int i = 0; i < total_count; i++) {
+            const char *tz = cJSON_GetArrayItem(tz_array, i)->valuestring;
+            char lower_tz[256] = {0};
+            for(int j=0; tz[j] && j < 255; j++) lower_tz[j] = (char)tolower(tz[j]);
+
+            if (strlen(lower_search) == 0 || strstr(lower_tz, lower_search) != NULL) {
+                matches[match_count++] = i;
+            }
+        }
+
+        if (sel >= match_count) sel = (match_count > 0) ? match_count - 1 : 0;
+        if (sel < scroll) scroll = sel;
+        if (sel >= scroll + PAGE_SIZE) scroll = sel - PAGE_SIZE + 1;
+
+        if (match_count == 0) {
+            printf("  (No matching time zones)\n");
+        } else {
+            int end = scroll + PAGE_SIZE;
+            if (end > match_count) end = match_count;
+
+            for (int i = scroll; i < end; i++) {
+                const char *tz = cJSON_GetArrayItem(tz_array, matches[i])->valuestring;
+                if (i == sel) printf("> %s\n", tz);
+                else printf("  %s\n", tz);
+            }
+        }
+
+        printf("\n[Arrows: Navigate | Enter: Select | Esc: Cancel | Type to Search]\n");
+        fflush(stdout);
+
+        int key = read_key();
+        if (key == KEY_UP && sel > 0) {
+            sel--;
+        } else if (key == KEY_DOWN && sel < match_count - 1) {
+            sel++;
+        } else if (key == KEY_ENTER && match_count > 0) {
+            const char *selected_tz = cJSON_GetArrayItem(tz_array, matches[sel])->valuestring;
+            save_setting("timezone", selected_tz);
+            printf("\nTime Zone updated to '%s'! Press any key...", selected_tz);
+            fflush(stdout); read_key();
+            break;
+        } else if (key == KEY_ESC) {
+            break;
+        } else if (key == KEY_BACKSPACE) {
+            int slen = (int)strlen(search_term);
+            if (slen > 0) {
+                search_term[slen - 1] = '\0';
+                sel = 0;
+                scroll = 0;
+            }
+        } else if (key > 0 && key < 1000 && isprint(key)) {
+            int slen = (int)strlen(search_term);
+            if (slen < 254) {
+                search_term[slen] = (char)key;
+                search_term[slen + 1] = '\0';
+                sel = 0;
+                scroll = 0;
+            }
+        }
+    }
+    cJSON_Delete(json);
+}
+
+void handle_timezone() {
+    while (1) {
+        char *current = get_setting("timezone");
+        printf("\033[H\033[J--- Time Zone ---\n");
+        printf("Current Time Zone: %s\n", current ? current : "Asia/Kolkata (Default)");
+        if (current) free(current);
+
+        printf("\n1. Change Time Zone\n");
+        printf("Esc. Go Back\n");
+        printf("\nSelect option: ");
+        fflush(stdout);
+
+        int key = read_key();
+        if (key == '1') {
+            handle_change_timezone();
+        } else if (key == KEY_ESC) {
+            break;
+        }
+    }
+}
+
+void handle_time_format() {
+    int sel = 0;
+    char *current = get_setting("time_format");
+    if (current) {
+        if (strcmp(current, "24h") == 0) sel = 1;
+        free(current);
+    }
+
+    const char *options[] = {"12 Hours", "24 Hours"};
+    const char *keys[] = {"12h", "24h"};
+
+    while (1) {
+        printf("\033[H\033[J--- Time Format ---\n");
+        for (int i = 0; i < 2; i++) {
+            if (i == sel) printf("> %s\n", options[i]);
+            else printf("  %s\n", options[i]);
+        }
+        printf("\n[Arrows: Navigate | Enter: Select | Esc: Back]\n");
+        fflush(stdout);
+
+        int key = read_key();
+        if (key == KEY_UP && sel > 0) sel--;
+        else if (key == KEY_DOWN && sel < 1) sel++;
+        else if (key == KEY_ENTER) {
+            save_setting("time_format", keys[sel]);
+            printf("\nTime Format updated to '%s'! Press any key...", options[sel]);
+            fflush(stdout); read_key();
+            break;
+        } else if (key == KEY_ESC) {
+            break;
+        }
+    }
+}
+
 void handle_news() {
     printf("\033[H\033[J--- News ---\n");
     printf("Fetching latest news...\n");
@@ -1688,6 +1854,10 @@ int main() {
                         if (is_settings) {
                             if (strcmp(selected_node->key, "set_city") == 0) {
                                 handle_set_city();
+                            } else if (strcmp(selected_node->key, "timezone") == 0) {
+                                handle_timezone();
+                            } else if (strcmp(selected_node->key, "time_format") == 0) {
+                                handle_time_format();
                             } else {
                                 handle_settings(selected_node, root);
                             }
@@ -1764,6 +1934,10 @@ int main() {
                             if (is_settings) {
                                 if (strcmp(target->key, "set_city") == 0) {
                                     handle_set_city();
+                                } else if (strcmp(target->key, "timezone") == 0) {
+                                    handle_timezone();
+                                } else if (strcmp(target->key, "time_format") == 0) {
+                                    handle_time_format();
                                 } else {
                                     handle_settings(target, root);
                                 }
