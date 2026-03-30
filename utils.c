@@ -1,0 +1,130 @@
+#include "utils.h"
+
+static struct termios original_termios;
+static int is_conio_mode = 0;
+
+void reset_terminal_mode() {
+    if (is_conio_mode) {
+        tcsetattr(STDIN_FILENO, TCSAFLUSH, &original_termios);
+        is_conio_mode = 0;
+    }
+}
+
+void set_conio_terminal_mode() {
+    if (is_conio_mode) return;
+    
+    struct termios new_termios;
+    tcgetattr(STDIN_FILENO, &original_termios);
+    atexit(reset_terminal_mode);
+    
+    new_termios = original_termios;
+    new_termios.c_lflag &= ~(ICANON | ECHO);
+    new_termios.c_cc[VMIN] = 1;
+    new_termios.c_cc[VTIME] = 0;
+    
+    tcsetattr(STDIN_FILENO, TCSAFLUSH, &new_termios);
+    is_conio_mode = 1;
+}
+
+int read_key() {
+    char c;
+    if (read(STDIN_FILENO, &c, 1) != 1) return 0;
+
+    if (c == 27) { // Escape or start of sequence
+        struct termios work_termios;
+        tcgetattr(STDIN_FILENO, &work_termios);
+        struct termios tmp_termios = work_termios;
+        tmp_termios.c_cc[VMIN] = 0;
+        tmp_termios.c_cc[VTIME] = 1; // 100ms timeout
+        tcsetattr(STDIN_FILENO, TCSANOW, &tmp_termios);
+
+        char seq[2];
+        int n = read(STDIN_FILENO, &seq[0], 1);
+        if (n <= 0) {
+            tcsetattr(STDIN_FILENO, TCSANOW, &work_termios);
+            return KEY_ESC;
+        }
+        n = read(STDIN_FILENO, &seq[1], 1);
+        
+        tcsetattr(STDIN_FILENO, TCSANOW, &work_termios);
+
+        if (seq[0] == '[') {
+            switch (seq[1]) {
+                case 'A': return KEY_UP;
+                case 'B': return KEY_DOWN;
+            }
+        }
+        return KEY_ESC;
+    } else if (c == 10 || c == 13) {
+        return KEY_ENTER;
+    } else if (c == 127 || c == 8) {
+        return KEY_BACKSPACE;
+    } else if (c == 9) {
+        return KEY_TAB;
+    }
+    return (unsigned char)c;
+}
+
+void get_user_input(char *buffer, int size, const char *prompt) {
+    reset_terminal_mode();
+    printf("\n%s: ", prompt);
+    if (fgets(buffer, size, stdin)) {
+        buffer[strcspn(buffer, "\n")] = 0;
+    }
+    set_conio_terminal_mode();
+}
+
+char *url_encode(const char *str) {
+    static const char *hex = "0123456789ABCDEF";
+    size_t len = strlen(str);
+    char *encoded = (char*)malloc(len * 3 + 1);
+    if (!encoded) return NULL;
+
+    char *p = encoded;
+    while (*str) {
+        unsigned char c = (unsigned char)*str;
+        if (isalnum(c) || c == '-' || c == '_' || c == '.' || c == '~') {
+            *p++ = c;
+        } else {
+            *p++ = '%';
+            *p++ = hex[c >> 4];
+            *p++ = hex[c & 15];
+        }
+        str++;
+    }
+    *p = '\0';
+    return encoded;
+}
+
+int handle_value_picker(const char *title, int min, int max, int current) {
+    int sel = current - min;
+    int count = max - min + 1;
+    int PAGE_SIZE = 15;
+    int scroll = (sel / PAGE_SIZE) * PAGE_SIZE;
+
+    while (1) {
+        printf("\033[H\033[J--- %s ---\n", title);
+        int end = scroll + PAGE_SIZE;
+        if (end > count) end = count;
+
+        for (int i = scroll; i < end; i++) {
+            if (i == sel) printf("> %02d\n", i + min);
+            else printf("  %02d\n", i + min);
+        }
+        printf("\n[Arrows: Navigate | Enter: Select | Esc: Back]\n");
+        fflush(stdout);
+
+        int key = read_key();
+        if (key == KEY_UP && sel > 0) {
+            sel--;
+            if (sel < scroll) scroll = (sel / PAGE_SIZE) * PAGE_SIZE;
+        } else if (key == KEY_DOWN && sel < count - 1) {
+            sel++;
+            if (sel >= scroll + PAGE_SIZE) scroll = (sel / PAGE_SIZE) * PAGE_SIZE;
+        } else if (key == KEY_ENTER) {
+            return sel + min;
+        } else if (key == KEY_ESC) {
+            return -1;
+        }
+    }
+}
