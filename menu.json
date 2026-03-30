@@ -239,6 +239,12 @@
       "shortcut": "m",
       "items": [
         {
+          "title_key": "internet_radio",
+          "key": "internet_radio",
+          "shortcut": "i",
+          "description_key": "internet_radio_desc"
+        },
+        {
           "title_key": "media_player",
           "key": "media_player",
           "shortcut": "m",

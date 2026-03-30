@@ -36,6 +36,8 @@
   "notepad_open": "Open File",
   "email": "Email",
   "media": "Media",
+  "internet_radio": "Internet Radio",
+  "internet_radio_desc": "Stream your favorite radio stations from the web.",
   "media_player": "Media Player",
   "fm_radio": "FM Radio",
   "daisy_player": "DAISY Player",
