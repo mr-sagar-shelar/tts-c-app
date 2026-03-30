@@ -1,11 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 #include "alarm.h"
 #include "utils.h"
 #include "cJSON.h"
-
-#define ALARMS_FILE "alarms.json"
+#include "config.h"
 
 typedef struct {
     int hour;
@@ -14,101 +14,64 @@ typedef struct {
     char label[64];
 } Alarm;
 
-static Alarm *alarms = NULL;
-static int alarm_count = 0;
+static cJSON *alarms_json = NULL;
 
-static void load_alarms() {
-    FILE *f = fopen(ALARMS_FILE, "rb");
-    if (!f) {
-        alarm_count = 0;
-        alarms = NULL;
-        return;
+static void load_alarms_from_config() {
+    cJSON *root = get_config_root();
+    alarms_json = cJSON_GetObjectItemCaseSensitive(root, "alarms");
+    if (!alarms_json) {
+        alarms_json = cJSON_CreateArray();
+        cJSON_AddItemToObject(root, "alarms", alarms_json);
     }
-
-    fseek(f, 0, SEEK_END);
-    long len = ftell(f);
-    fseek(f, 0, SEEK_SET);
-
-    char *data = (char*)malloc(len + 1);
-    fread(data, 1, len, f);
-    data[len] = '\0';
-    fclose(f);
-
-    cJSON *json = cJSON_Parse(data);
-    free(data);
-    if (!json) {
-        alarm_count = 0;
-        alarms = NULL;
-        return;
-    }
-
-    alarm_count = cJSON_GetArraySize(json);
-    if (alarm_count > 0) {
-        alarms = (Alarm*)malloc(sizeof(Alarm) * alarm_count);
-        for (int i = 0; i < alarm_count; i++) {
-            cJSON *item = cJSON_GetArrayItem(json, i);
-            alarms[i].hour = cJSON_GetObjectItemCaseSensitive(item, "hour")->valueint;
-            alarms[i].minute = cJSON_GetObjectItemCaseSensitive(item, "minute")->valueint;
-            alarms[i].enabled = cJSON_GetObjectItemCaseSensitive(item, "enabled")->valueint;
-            cJSON *lbl = cJSON_GetObjectItemCaseSensitive(item, "label");
-            if (lbl && cJSON_IsString(lbl)) {
-                strncpy(alarms[i].label, lbl->valuestring, 63);
-            } else {
-                strcpy(alarms[i].label, "Alarm");
-            }
-        }
-    }
-    cJSON_Delete(json);
 }
 
 static void save_alarms() {
-    cJSON *json = cJSON_CreateArray();
-    for (int i = 0; i < alarm_count; i++) {
-        cJSON *item = cJSON_CreateObject();
-        cJSON_AddNumberToObject(item, "hour", alarms[i].hour);
-        cJSON_AddNumberToObject(item, "minute", alarms[i].minute);
-        cJSON_AddNumberToObject(item, "enabled", alarms[i].enabled);
-        cJSON_AddStringToObject(item, "label", alarms[i].label);
-        cJSON_AddItemToArray(json, item);
+    save_config();
+}
+
+static int get_alarm_count() {
+    if (!alarms_json) load_alarms_from_config();
+    return cJSON_GetArraySize(alarms_json);
+}
+
+static void get_alarm_at(int index, Alarm *a) {
+    cJSON *item = cJSON_GetArrayItem(alarms_json, index);
+    if (item) {
+        a->hour = cJSON_GetObjectItemCaseSensitive(item, "hour")->valueint;
+        a->minute = cJSON_GetObjectItemCaseSensitive(item, "minute")->valueint;
+        a->enabled = cJSON_GetObjectItemCaseSensitive(item, "enabled")->valueint;
+        cJSON *lbl = cJSON_GetObjectItemCaseSensitive(item, "label");
+        if (lbl && cJSON_IsString(lbl)) {
+            strncpy(a->label, lbl->valuestring, 63);
+        } else {
+            strcpy(a->label, "Alarm");
+        }
     }
-    char *out = cJSON_Print(json);
-    FILE *f = fopen(ALARMS_FILE, "w");
-    if (f) {
-        fputs(out, f);
-        fclose(f);
-    }
-    free(out);
-    cJSON_Delete(json);
 }
 
 static void add_alarm(Alarm *a) {
-    alarm_count++;
-    alarms = (Alarm*)realloc(alarms, sizeof(Alarm) * alarm_count);
-    alarms[alarm_count - 1] = *a;
+    cJSON *item = cJSON_CreateObject();
+    cJSON_AddNumberToObject(item, "hour", a->hour);
+    cJSON_AddNumberToObject(item, "minute", a->minute);
+    cJSON_AddNumberToObject(item, "enabled", a->enabled);
+    cJSON_AddStringToObject(item, "label", a->label);
+    cJSON_AddItemToArray(alarms_json, item);
     save_alarms();
 }
 
 static void update_alarm(int index, Alarm *a) {
-    if (index >= 0 && index < alarm_count) {
-        alarms[index] = *a;
-        save_alarms();
-    }
+    cJSON *item = cJSON_CreateObject();
+    cJSON_AddNumberToObject(item, "hour", a->hour);
+    cJSON_AddNumberToObject(item, "minute", a->minute);
+    cJSON_AddNumberToObject(item, "enabled", a->enabled);
+    cJSON_AddStringToObject(item, "label", a->label);
+    cJSON_ReplaceItemInArray(alarms_json, index, item);
+    save_alarms();
 }
 
 static void remove_alarm(int index) {
-    if (index >= 0 && index < alarm_count) {
-        for (int i = index; i < alarm_count - 1; i++) {
-            alarms[i] = alarms[i + 1];
-        }
-        alarm_count--;
-        if (alarm_count > 0) {
-            alarms = (Alarm*)realloc(alarms, sizeof(Alarm) * alarm_count);
-        } else {
-            free(alarms);
-            alarms = NULL;
-        }
-        save_alarms();
-    }
+    cJSON_DeleteItemFromArray(alarms_json, index);
+    save_alarms();
 }
 
 static void alarm_form(Alarm *a, const char *title) {
@@ -156,8 +119,8 @@ static void alarm_form(Alarm *a, const char *title) {
 }
 
 void handle_alarm() {
-    if (alarms == NULL && alarm_count == 0) {
-        load_alarms();
+    if (!alarms_json) {
+        load_alarms_from_config();
     }
 
     int sel = 0;
@@ -165,12 +128,15 @@ void handle_alarm() {
     int num_options = 4;
 
     while (1) {
+        int alarm_count = get_alarm_count();
         printf("\033[H\033[J--- Alarms ---\n");
         if (alarm_count == 0) {
             printf("  (No alarms set)\n");
         } else {
             for (int i = 0; i < alarm_count; i++) {
-                printf("%d. [%s] %02d:%02d (%s)\n", i + 1, alarms[i].label, alarms[i].hour, alarms[i].minute, alarms[i].enabled ? "ON" : "OFF");
+                Alarm a;
+                get_alarm_at(i, &a);
+                printf("%d. [%s] %02d:%02d (%s)\n", i + 1, a.label, a.hour, a.minute, a.enabled ? "ON" : "OFF");
             }
         }
         printf("---------------------------\n");
@@ -220,7 +186,8 @@ void handle_alarm() {
             get_user_input(input, sizeof(input), "Enter alarm number to update");
             int idx = atoi(input) - 1;
             if (idx >= 0 && idx < alarm_count) {
-                Alarm a = alarms[idx];
+                Alarm a;
+                get_alarm_at(idx, &a);
                 alarm_form(&a, "Update Alarm");
                 if (a.hour != -1) {
                     update_alarm(idx, &a);

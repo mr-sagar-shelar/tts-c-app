@@ -9,6 +9,8 @@
 static cJSON *config_json = NULL;
 
 void init_config() {
+    if (config_json) return;
+
     FILE *f = fopen(CONFIG_FILE, "rb");
     if (!f) {
         config_json = cJSON_CreateObject();
@@ -20,33 +22,42 @@ void init_config() {
     fseek(f, 0, SEEK_SET);
 
     char *data = (char*)malloc(len + 1);
-    fread(data, 1, len, f);
-    data[len] = '\0';
+    if (data) {
+        fread(data, 1, len, f);
+        data[len] = '\0';
+        config_json = cJSON_Parse(data);
+        free(data);
+    }
     fclose(f);
 
-    config_json = cJSON_Parse(data);
-    free(data);
     if (!config_json) {
         config_json = cJSON_CreateObject();
+    }
+}
+
+void save_config() {
+    if (!config_json) return;
+    char *out = cJSON_Print(config_json);
+    if (out) {
+        FILE *f = fopen(CONFIG_FILE, "w");
+        if (f) {
+            fputs(out, f);
+            fclose(f);
+        }
+        free(out);
     }
 }
 
 void save_setting(const char *key, const char *value) {
     if (!config_json) init_config();
 
-    if (cJSON_GetObjectItemCaseSensitive(config_json, key)) {
+    cJSON *item = cJSON_GetObjectItemCaseSensitive(config_json, key);
+    if (item) {
         cJSON_ReplaceItemInObject(config_json, key, cJSON_CreateString(value));
     } else {
         cJSON_AddItemToObject(config_json, key, cJSON_CreateString(value));
     }
-
-    char *out = cJSON_Print(config_json);
-    FILE *f = fopen(CONFIG_FILE, "w");
-    if (f) {
-        fputs(out, f);
-        fclose(f);
-    }
-    free(out);
+    save_config();
 }
 
 char* get_setting(const char *key) {
@@ -57,6 +68,11 @@ char* get_setting(const char *key) {
         return strdup(item->valuestring);
     }
     return NULL;
+}
+
+cJSON* get_config_root() {
+    if (!config_json) init_config();
+    return config_json;
 }
 
 void cleanup_config() {

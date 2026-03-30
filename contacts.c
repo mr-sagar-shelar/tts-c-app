@@ -5,50 +5,26 @@
 #include "contacts.h"
 #include "cJSON.h"
 #include "utils.h"
-
-#define CONTACTS_FILE "contacts.json"
+#include "config.h"
 
 static cJSON *contacts_json = NULL;
 
 void init_contacts() {
-    FILE *f = fopen(CONTACTS_FILE, "rb");
-    if (!f) {
-        contacts_json = cJSON_CreateArray();
-        return;
-    }
-
-    fseek(f, 0, SEEK_END);
-    long len = ftell(f);
-    fseek(f, 0, SEEK_SET);
-
-    char *data = (char*)malloc(len + 1);
-    fread(data, 1, len, f);
-    data[len] = '\0';
-    fclose(f);
-
-    contacts_json = cJSON_Parse(data);
-    free(data);
+    cJSON *root = get_config_root();
+    contacts_json = cJSON_GetObjectItemCaseSensitive(root, "contacts");
     if (!contacts_json) {
         contacts_json = cJSON_CreateArray();
+        cJSON_AddItemToObject(root, "contacts", contacts_json);
     }
 }
 
 void cleanup_contacts() {
-    if (contacts_json) {
-        cJSON_Delete(contacts_json);
-        contacts_json = NULL;
-    }
+    // contacts_json is part of config_root, cleaned up by cleanup_config()
+    contacts_json = NULL;
 }
 
 void save_contacts() {
-    if (!contacts_json) return;
-    char *out = cJSON_Print(contacts_json);
-    FILE *f = fopen(CONTACTS_FILE, "w");
-    if (f) {
-        fputs(out, f);
-        fclose(f);
-    }
-    free(out);
+    save_config();
 }
 
 void add_contact(Contact *c) {

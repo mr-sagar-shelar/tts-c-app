@@ -4,5 +4,20 @@
 	"time_format":	"12h",
 	"timezone":	"Asia/Kolkata",
 	"manual_time":	"23:10:20",
-	"manual_date":	"2026-03-30"
+	"manual_date":	"2026-03-30",
+	"contacts":	[{
+			"first_name":	" Sai",
+			"last_name":	"shel",
+			"phone":	"12121",
+			"email":	"sai@sdfsf.com",
+			"address":	"232323, mubmai pune",
+			"postal_code":	"121212"
+		}],
+	"alarms":	[{
+			"hour":	3,
+			"minute":	3,
+			"enabled":	1,
+			"label":	"first"
+		}],
+	"city":	"Mumbai"
 }
