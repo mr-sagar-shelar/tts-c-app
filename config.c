@@ -11,6 +11,17 @@
 
 static cJSON *config_json = NULL;
 
+static void ensure_default_string(const char *key, const char *value) {
+    cJSON *item = cJSON_GetObjectItemCaseSensitive(config_json, key);
+    if (!cJSON_IsString(item) || item->valuestring == NULL) {
+        if (item) {
+            cJSON_ReplaceItemInObject(config_json, key, cJSON_CreateString(value));
+        } else {
+            cJSON_AddStringToObject(config_json, key, value);
+        }
+    }
+}
+
 static void create_default_config() {
     if (config_json) cJSON_Delete(config_json);
     config_json = cJSON_CreateObject();
@@ -18,6 +29,9 @@ static void create_default_config() {
     cJSON_AddStringToObject(config_json, "city", "Pune");
     cJSON_AddStringToObject(config_json, "timezone", "Asia/Kolkata");
     cJSON_AddStringToObject(config_json, "time_format", "12h");
+    cJSON_AddStringToObject(config_json, "tts_voice", "kal");
+    cJSON_AddStringToObject(config_json, "tts_volume", "medium");
+    cJSON_AddStringToObject(config_json, "speech_mode", "on");
     cJSON_AddItemToObject(config_json, "contacts", cJSON_CreateArray());
     cJSON_AddItemToObject(config_json, "alarms", cJSON_CreateArray());
     cJSON_AddStringToObject(config_json, "last_sync", "Never");
@@ -117,7 +131,18 @@ void init_config() {
     if (!config_json) {
         create_default_config();
         save_config();
+        return;
     }
+
+    ensure_default_string("language", "en");
+    ensure_default_string("city", "Pune");
+    ensure_default_string("timezone", "Asia/Kolkata");
+    ensure_default_string("time_format", "12h");
+    ensure_default_string("tts_voice", "kal");
+    ensure_default_string("tts_volume", "medium");
+    ensure_default_string("speech_mode", "on");
+    ensure_default_string("last_sync", "Never");
+    save_config();
 }
 
 void save_config() {

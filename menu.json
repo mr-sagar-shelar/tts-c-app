@@ -589,6 +589,90 @@
           "description_key": "language_switch_desc"
         },
         {
+          "title_key": "voice_select",
+          "key": "voice_select",
+          "shortcut": "v",
+          "description_key": "voice_select_desc",
+          "items": [
+            {
+              "title_key": "voice_kal",
+              "key": "voice_kal",
+              "shortcut": "k",
+              "description_key": "voice_kal_desc"
+            },
+            {
+              "title_key": "voice_slt",
+              "key": "voice_slt",
+              "shortcut": "s",
+              "description_key": "voice_slt_desc"
+            },
+            {
+              "title_key": "voice_rms",
+              "key": "voice_rms",
+              "shortcut": "r",
+              "description_key": "voice_rms_desc"
+            },
+            {
+              "title_key": "voice_awb",
+              "key": "voice_awb",
+              "shortcut": "a",
+              "description_key": "voice_awb_desc"
+            }
+          ]
+        },
+        {
+          "title_key": "set_volume",
+          "key": "set_volume",
+          "shortcut": "u",
+          "description_key": "set_volume_desc",
+          "items": [
+            {
+              "title_key": "volume_low",
+              "key": "volume_low",
+              "shortcut": "l",
+              "description_key": "volume_low_desc"
+            },
+            {
+              "title_key": "volume_medium",
+              "key": "volume_medium",
+              "shortcut": "m",
+              "description_key": "volume_medium_desc"
+            },
+            {
+              "title_key": "volume_high",
+              "key": "volume_high",
+              "shortcut": "h",
+              "description_key": "volume_high_desc"
+            },
+            {
+              "title_key": "volume_max",
+              "key": "volume_max",
+              "shortcut": "x",
+              "description_key": "volume_max_desc"
+            }
+          ]
+        },
+        {
+          "title_key": "toggle_speech_mode",
+          "key": "toggle_speech_mode",
+          "shortcut": "p",
+          "description_key": "toggle_speech_mode_desc",
+          "items": [
+            {
+              "title_key": "speech_mode_on",
+              "key": "speech_mode_on",
+              "shortcut": "n",
+              "description_key": "speech_mode_on_desc"
+            },
+            {
+              "title_key": "speech_mode_off",
+              "key": "speech_mode_off",
+              "shortcut": "f",
+              "description_key": "speech_mode_off_desc"
+            }
+          ]
+        },
+        {
           "title_key": "timezone",
           "key": "timezone",
           "shortcut": "z",
