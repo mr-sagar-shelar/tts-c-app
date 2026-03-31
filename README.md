@@ -6,13 +6,15 @@ tts application based on C language to load when Tinycore linux loads on raspber
 
 `make`
 
-For Flite speech support, either export `FLITEDIR` or keep a Flite checkout
-at `../flite`, similar to Bard:
+The repository now includes a trimmed local Flite source tree under
+`third_party/flite`, so a single clone is enough to build speech support.
 
-`FLITEDIR=/path/to/flite make`
+By default, the root project builds and links against that vendored Flite copy.
+`FLITEDIR` is still supported as an override if you want to point the build at a
+different compatible Flite tree.
 
-The root project now links against Flite in the same style as Bard and uses
-streaming synthesis in the Word by Word Viewer when speech mode is enabled.
+The root project uses Flite streaming synthesis in the Word by Word Viewer when
+speech mode is enabled.
 
 ## Run App
 
@@ -20,8 +22,6 @@ streaming synthesis in the Word by Word Viewer when speech mode is enabled.
 
 ## Next Features
 
-- Some menus should be visible only to selected languages from the list
-- Similar to Internet Radio, Implement flite tts integration with system commands
 - Typing Tutor
   - Expect specific character from user and maintain it's accuracy, time spent and other similar statics and show at the end
 - Setting Menu Completion

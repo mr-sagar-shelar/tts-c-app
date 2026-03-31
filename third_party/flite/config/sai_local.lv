@@ -1,0 +1,5 @@
+#
+# Minimal Flite modules required by the root application.
+LEXES += cmulex cmu_indic_lex
+LANGS += usenglish cmu_indic_lang
+VOXES += cmu_us_kal cmu_us_awb cmu_us_rms cmu_us_slt
