@@ -621,6 +621,12 @@
           ]
         },
         {
+          "title_key": "download_voice",
+          "key": "download_voice",
+          "shortcut": "w",
+          "description_key": "download_voice_desc"
+        },
+        {
           "title_key": "set_volume",
           "key": "set_volume",
           "shortcut": "u",

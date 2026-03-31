@@ -3,6 +3,66 @@
 static struct termios original_termios;
 static int is_conio_mode = 0;
 
+static int read_key_internal(int timeout_ms) {
+    char c;
+
+    if (timeout_ms >= 0) {
+        struct termios work_termios;
+        struct termios tmp_termios;
+
+        tcgetattr(STDIN_FILENO, &work_termios);
+        tmp_termios = work_termios;
+        tmp_termios.c_cc[VMIN] = 0;
+        tmp_termios.c_cc[VTIME] = (cc_t)((timeout_ms + 99) / 100);
+        tcsetattr(STDIN_FILENO, TCSANOW, &tmp_termios);
+
+        if (read(STDIN_FILENO, &c, 1) != 1) {
+            tcsetattr(STDIN_FILENO, TCSANOW, &work_termios);
+            return 0;
+        }
+
+        tcsetattr(STDIN_FILENO, TCSANOW, &work_termios);
+    } else {
+        if (read(STDIN_FILENO, &c, 1) != 1) {
+            return 0;
+        }
+    }
+
+    if (c == 27) { // Escape or start of sequence
+        struct termios work_termios;
+        tcgetattr(STDIN_FILENO, &work_termios);
+        struct termios tmp_termios = work_termios;
+        tmp_termios.c_cc[VMIN] = 0;
+        tmp_termios.c_cc[VTIME] = 1; // 100ms timeout
+        tcsetattr(STDIN_FILENO, TCSANOW, &tmp_termios);
+
+        char seq[2];
+        int n = read(STDIN_FILENO, &seq[0], 1);
+        if (n <= 0) {
+            tcsetattr(STDIN_FILENO, TCSANOW, &work_termios);
+            return KEY_ESC;
+        }
+        n = read(STDIN_FILENO, &seq[1], 1);
+
+        tcsetattr(STDIN_FILENO, TCSANOW, &work_termios);
+
+        if (seq[0] == '[') {
+            switch (seq[1]) {
+                case 'A': return KEY_UP;
+                case 'B': return KEY_DOWN;
+            }
+        }
+        return KEY_ESC;
+    } else if (c == 10 || c == 13) {
+        return KEY_ENTER;
+    } else if (c == 127 || c == 8) {
+        return KEY_BACKSPACE;
+    } else if (c == 9) {
+        return KEY_TAB;
+    }
+    return (unsigned char)c;
+}
+
 void reset_terminal_mode() {
     if (is_conio_mode) {
         tcsetattr(STDIN_FILENO, TCSAFLUSH, &original_termios);
@@ -27,42 +87,11 @@ void set_conio_terminal_mode() {
 }
 
 int read_key() {
-    char c;
-    if (read(STDIN_FILENO, &c, 1) != 1) return 0;
+    return read_key_internal(-1);
+}
 
-    if (c == 27) { // Escape or start of sequence
-        struct termios work_termios;
-        tcgetattr(STDIN_FILENO, &work_termios);
-        struct termios tmp_termios = work_termios;
-        tmp_termios.c_cc[VMIN] = 0;
-        tmp_termios.c_cc[VTIME] = 1; // 100ms timeout
-        tcsetattr(STDIN_FILENO, TCSANOW, &tmp_termios);
-
-        char seq[2];
-        int n = read(STDIN_FILENO, &seq[0], 1);
-        if (n <= 0) {
-            tcsetattr(STDIN_FILENO, TCSANOW, &work_termios);
-            return KEY_ESC;
-        }
-        n = read(STDIN_FILENO, &seq[1], 1);
-        
-        tcsetattr(STDIN_FILENO, TCSANOW, &work_termios);
-
-        if (seq[0] == '[') {
-            switch (seq[1]) {
-                case 'A': return KEY_UP;
-                case 'B': return KEY_DOWN;
-            }
-        }
-        return KEY_ESC;
-    } else if (c == 10 || c == 13) {
-        return KEY_ENTER;
-    } else if (c == 127 || c == 8) {
-        return KEY_BACKSPACE;
-    } else if (c == 9) {
-        return KEY_TAB;
-    }
-    return (unsigned char)c;
+int read_key_timeout(int timeout_ms) {
+    return read_key_internal(timeout_ms);
 }
 
 void get_user_input(char *buffer, int size, const char *prompt) {

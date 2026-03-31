@@ -20,6 +20,7 @@
 #include "radio.h"
 #include "speech_engine.h"
 #include "speech_settings.h"
+#include "voice_library.h"
 
 /**
  * UI handler for settings.
@@ -68,6 +69,8 @@ void handle_settings_ui(MenuNode *node, MenuNode *root) {
         printf("\nPress any key to continue...");
         fflush(stdout);
         read_key();
+    } else if (strcmp(node->key, "download_voice") == 0) {
+        handle_voice_library_menu();
     } else {
         char *current_val = get_setting(node->key);
         printf("\033[H\033[J");
