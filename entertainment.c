@@ -1,4 +1,5 @@
 #include "entertainment.h"
+#include "document_reader.h"
 #include "file_manager.h"
 #include "text_processor.h"
 #include <ctype.h>
@@ -397,8 +398,10 @@ void handle_poems() {
 }
 
 void handle_word_by_word_viewer() {
-    char *selected_path = file_navigator(USER_SPACE, 0);
+    char *selected_path = file_navigator_supported(USER_SPACE);
     struct stat st;
+    char error[128] = {0};
+    char *document_text = NULL;
 
     if (!selected_path) {
         return;
@@ -414,7 +417,20 @@ void handle_word_by_word_viewer() {
         return;
     }
 
-    TextProcessor *processor = text_processor_load(selected_path);
+    document_text = document_load_text(selected_path, error, sizeof(error));
+    if (!document_text) {
+        printf("\033[H\033[J--- Color Reader ---\n");
+        printf("Failed to read file:\n%s\n", selected_path);
+        printf("%s\n", error[0] ? error : "Unsupported or unreadable document.");
+        printf("\nPress any key to continue...");
+        fflush(stdout);
+        read_key();
+        free(selected_path);
+        return;
+    }
+
+    TextProcessor *processor = text_processor_load_from_text(selected_path, document_text);
+    free(document_text);
     if (!processor) {
         printf("\033[H\033[J--- Color Reader ---\n");
         printf("Failed to parse file:\n%s\n", selected_path);

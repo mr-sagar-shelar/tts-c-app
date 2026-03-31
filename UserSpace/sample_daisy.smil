@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<smil><body><seq>
+<text src="chapter1.xhtml#p1">DAISY line one for navigation.</text>
+<text src="chapter1.xhtml#p2">DAISY line two for reading flow.</text>
+<text src="chapter1.xhtml#p3">DAISY line three for testing.</text>
+<text src="chapter1.xhtml#p4">DAISY line four for highlight sync.</text>
+<text src="chapter1.xhtml#p5">DAISY line five for audio prep.</text>
+</seq></body></smil>

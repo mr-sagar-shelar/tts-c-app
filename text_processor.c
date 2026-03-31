@@ -248,6 +248,33 @@ TextProcessor *text_processor_load(const char *filename) {
     return processor;
 }
 
+TextProcessor *text_processor_load_from_text(const char *source_name, const char *text) {
+    TextProcessor *processor;
+
+    if (!text) {
+        return NULL;
+    }
+
+    processor = (TextProcessor *)calloc(1, sizeof(TextProcessor));
+    if (!processor) {
+        return NULL;
+    }
+
+    processor->content = strdup(text);
+    processor->file_path = strdup(source_name ? source_name : "<memory>");
+    if (!processor->content || !processor->file_path) {
+        text_processor_free(processor);
+        return NULL;
+    }
+
+    if (!parse_tokens(processor)) {
+        text_processor_free(processor);
+        return NULL;
+    }
+
+    return processor;
+}
+
 void text_processor_free(TextProcessor *processor) {
     size_t i;
 

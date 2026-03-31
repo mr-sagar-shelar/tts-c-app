@@ -1,7 +1,7 @@
 #include "file_manager.h"
 #include <ctype.h>
 
-char* file_navigator(const char *start_path, int select_dir_only) {
+static char* file_navigator_internal(const char *start_path, int select_dir_only, int supported_only) {
     char current_path[1024];
     char abs_base[1024];
     realpath(USER_SPACE, abs_base);
@@ -31,9 +31,7 @@ char* file_navigator(const char *start_path, int select_dir_only) {
         struct dirent *entry;
         while ((entry = readdir(dir)) != NULL && count < 256) {
             if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) continue;
-            
-            strncpy(entries[count].name, entry->d_name, 255);
-            
+
             char full_path[2048];
             snprintf(full_path, sizeof(full_path), "%s/%s", current_path, entry->d_name);
             struct stat st;
@@ -42,6 +40,13 @@ char* file_navigator(const char *start_path, int select_dir_only) {
             } else {
                 entries[count].is_dir = 0;
             }
+
+            if (supported_only && !entries[count].is_dir && !document_is_supported_file(full_path)) {
+                continue;
+            }
+
+            strncpy(entries[count].name, entry->d_name, 255);
+            entries[count].name[255] = '\0';
             count++;
         }
         closedir(dir);
@@ -91,19 +96,25 @@ char* file_navigator(const char *start_path, int select_dir_only) {
     }
 }
 
+char* file_navigator(const char *start_path, int select_dir_only) {
+    return file_navigator_internal(start_path, select_dir_only, 0);
+}
+
+char* file_navigator_supported(const char *start_path) {
+    return file_navigator_internal(start_path, 0, 1);
+}
+
 void handle_file_viewer(const char *filename) {
-    FILE *f = fopen(filename, "r");
+    char error[128] = {0};
+    char *text = document_load_text(filename, error, sizeof(error));
     printf("\033[H\033[J");
     printf("--- File Viewer: %s ---\n", filename);
     printf("----------------------------------\n");
-    if (!f) {
-        printf("Error: Could not open file.\n");
+    if (!text) {
+        printf("Error: %s\n", error[0] ? error : "Could not open file.");
     } else {
-        char line[256];
-        while (fgets(line, sizeof(line), f)) {
-            printf("%s", line);
-        }
-        fclose(f);
+        printf("%s", text);
+        free(text);
     }
     printf("\n\nPress any key to go back...");
     fflush(stdout);
@@ -187,7 +198,7 @@ void handle_fm_search() {
 
 void handle_file_manager(MenuNode *node) {
     if (strcmp(node->key, "fm_browse") == 0) {
-        char *path = file_navigator(USER_SPACE, 0);
+        char *path = file_navigator_supported(USER_SPACE);
         if (path) {
             struct stat st;
             if (stat(path, &st) == 0 && S_ISREG(st.st_mode)) {

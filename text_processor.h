@@ -23,6 +23,7 @@ typedef struct {
 } TextProcessor;
 
 TextProcessor *text_processor_load(const char *filename);
+TextProcessor *text_processor_load_from_text(const char *source_name, const char *text);
 void text_processor_free(TextProcessor *processor);
 const TextWord *text_processor_get_word(const TextProcessor *processor, size_t index);
 

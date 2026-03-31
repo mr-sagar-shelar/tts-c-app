@@ -162,7 +162,9 @@ int main() {
                     } else if (strcmp(selected_node->key, "notepad_search") == 0) {
                         handle_notepad_search();
                     } else if (strcmp(selected_node->key, "notepad_open") == 0 || strcmp(selected_node->key, "wp_open") == 0) {
-                        char *selected_path = file_navigator(USER_SPACE, 0);
+                        char *selected_path = strcmp(selected_node->key, "wp_open") == 0
+                            ? file_navigator_supported(USER_SPACE)
+                            : file_navigator(USER_SPACE, 0);
                         if (selected_path) {
                             if (strcmp(selected_node->key, "notepad_open") == 0) {
                                 FILE *f = fopen(selected_path, "r");
