@@ -2,6 +2,8 @@
 #include <ctype.h>
 #include <strings.h>
 
+#include "download_ui.h"
+
 void handle_calculator() {
     double result = 0;
     char input[64];
@@ -66,26 +68,19 @@ void handle_calculator() {
 
 void handle_weather() {
     char *city = get_setting("city");
+    char error[256] = {0};
+    char *response;
     if (!city) city = strdup("Pune");
-
-    printf("\033[H\033[J--- Weather: %s ---\nFetching weather data...\n", city);
-    fflush(stdout);
 
     char *encoded_city = url_encode(city);
     char url[512];
     snprintf(url, sizeof(url), "https://goweather.xyz/weather/%s", encoded_city);
     free(encoded_city);
 
-    char cmd[1024];
-    snprintf(cmd, sizeof(cmd), "curl -s \"%s\"", url);
-
-    FILE *fp = popen(cmd, "r");
-    if (fp) {
-        char response[8192] = {0};
-        fread(response, 1, sizeof(response) - 1, fp);
-        pclose(fp);
-
+    response = fetch_text_with_progress_ui("Weather", url, "weather data", error, sizeof(error));
+    if (response) {
         cJSON *json = cJSON_Parse(response);
+        free(response);
         if (json) {
             cJSON *temp = cJSON_GetObjectItemCaseSensitive(json, "temperature");
             cJSON *wind = cJSON_GetObjectItemCaseSensitive(json, "wind");
@@ -116,7 +111,7 @@ void handle_weather() {
             printf("\nError parsing weather data.");
         }
     } else {
-        printf("\nFailed to connect to Weather API.");
+        printf("\n%s", error[0] ? error : "Failed to connect to Weather API.");
     }
 
     printf("\nPress any key to go back...");
@@ -127,12 +122,9 @@ void handle_weather() {
 
 void handle_current_time_date() {
     char *city = get_setting("city");
+    char error[256] = {0};
+    char *response;
     if (!city) city = strdup("Pune");
-
-    printf("\033[H\033[J--- Current Time and Date ---\n");
-    printf("City: %s\n", city);
-    printf("Fetching data...\n");
-    fflush(stdout);
 
     const char *timezone = "Asia/Kolkata";
     if (city) {
@@ -147,16 +139,10 @@ void handle_current_time_date() {
     char url[512];
     snprintf(url, sizeof(url), "http://worldtimeapi.org/api/timezone/%s", timezone);
 
-    char cmd[1024];
-    snprintf(cmd, sizeof(cmd), "curl -s \"%s\"", url);
-
-    FILE *fp = popen(cmd, "r");
-    if (fp) {
-        char response[8192] = {0};
-        fread(response, 1, sizeof(response) - 1, fp);
-        pclose(fp);
-
+    response = fetch_text_with_progress_ui("Current Time and Date", url, "time data", error, sizeof(error));
+    if (response) {
         cJSON *json = cJSON_Parse(response);
+        free(response);
         if (json) {
             cJSON *datetime = cJSON_GetObjectItemCaseSensitive(json, "datetime");
             if (datetime && cJSON_IsString(datetime)) {
@@ -179,7 +165,7 @@ void handle_current_time_date() {
             printf("\nError parsing time data.");
         }
     } else {
-        printf("\nFailed to connect to Time API.");
+        printf("\n%s", error[0] ? error : "Failed to connect to Time API.");
     }
 
     printf("\nPress any key to go back...");

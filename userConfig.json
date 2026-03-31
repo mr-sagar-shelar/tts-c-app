@@ -27,7 +27,7 @@
 			"description":	"This is hello world",
 			"reminder":	false
 		}],
-	"tts_voice":	"kal",
+	"tts_voice":	"slt",
 	"tts_volume":	"medium",
 	"speech_mode":	"off",
 	"last_sync":	"Never"

@@ -106,7 +106,7 @@ char* file_navigator_supported(const char *start_path) {
 
 void handle_file_viewer(const char *filename) {
     char error[128] = {0};
-    char *text = document_load_text(filename, error, sizeof(error));
+    char *text = document_load_text_with_progress(filename, error, sizeof(error));
     printf("\033[H\033[J");
     printf("--- File Viewer: %s ---\n", filename);
     printf("----------------------------------\n");

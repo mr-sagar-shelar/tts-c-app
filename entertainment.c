@@ -1,5 +1,6 @@
 #include "entertainment.h"
 #include "config.h"
+#include "download_ui.h"
 #include "document_reader.h"
 #include "file_manager.h"
 #include "speech_engine.h"
@@ -238,19 +239,10 @@ void handle_joke() {
 
     while (1) {
         if (fetch_new) {
-            printf("\033[H\033[J--- Joke ---\nFetching a new joke...\n");
-            fflush(stdout);
-
             const char *url = "https://v2.jokeapi.dev/joke/Any?format=json&type=single&lang=en&amount=1";
-            char cmd[512];
-            snprintf(cmd, sizeof(cmd), "curl -s \"%s\"", url);
-
-            FILE *fp = popen(cmd, "r");
-            if (fp) {
-                char response[4096] = {0};
-                fread(response, 1, sizeof(response) - 1, fp);
-                pclose(fp);
-
+            char error[256] = {0};
+            char *response = fetch_text_with_progress_ui("Joke", url, "joke data", error, sizeof(error));
+            if (response) {
                 cJSON *json = cJSON_Parse(response);
                 if (json) {
                     cJSON *joke_node = cJSON_GetObjectItemCaseSensitive(json, "joke");
@@ -263,8 +255,9 @@ void handle_joke() {
                 } else {
                     strcpy(joke_text, "Error parsing API response.");
                 }
+                free(response);
             } else {
-                strcpy(joke_text, "Failed to connect to Joke API.");
+                snprintf(joke_text, sizeof(joke_text), "%s", error[0] ? error : "Failed to connect to Joke API.");
             }
             fetch_new = 0;
         }
@@ -282,7 +275,9 @@ void handle_joke() {
 
 void handle_short_stories() {
     const char *story_file = "Downloads/ShortStories.json";
+    const char *url = "https://shortstories-api.onrender.com/stories";
     char *data = NULL;
+    char error[256] = {0};
     FILE *f = fopen(story_file, "rb");
 
     if (f) {
@@ -296,45 +291,18 @@ void handle_short_stories() {
         data[len] = '\0';
         fclose(f);
     } else {
-        printf("\033[H\033[J--- Short Stories ---\nDownloading stories...\n");
-        fflush(stdout);
-
-        const char *url = "https://shortstories-api.onrender.com/stories";
-        char cmd[256];
-        snprintf(cmd, sizeof(cmd), "curl -s \"%s\"", url);
-
-        FILE *fp = popen(cmd, "r");
-        if (!fp) {
-            printf("Failed to fetch stories.\nPress any key..."); fflush(stdout); read_key();
-            return;
-        }
-
-        size_t response_len = 0;
-        size_t response_size = 16384;
-        data = (char *)malloc(response_size);
-        
-        char buffer[4096];
-        while (fgets(buffer, sizeof(buffer), fp) != NULL) {
-            size_t len = strlen(buffer);
-            if (response_len + len + 1 > response_size) {
-                response_size *= 2;
-                data = (char *)realloc(data, response_size);
-            }
-            strcpy(data + response_len, buffer);
-            response_len += len;
-        }
-        pclose(fp);
-
-        if (response_len == 0) {
-            printf("\nNo response from server. Check internet connection.\nPress any key...");
-            fflush(stdout); read_key();
+        data = fetch_text_with_progress_ui("Short Stories", url, "short stories data", error, sizeof(error));
+        if (!data || !data[0]) {
+            printf("\033[H\033[J--- Short Stories ---\n%s\n\nPress any key...", error[0] ? error : "Failed to fetch stories.");
+            fflush(stdout);
+            read_key();
             free(data);
             return;
         }
 
         f = fopen(story_file, "wb");
         if (f) {
-            fwrite(data, 1, response_len, f);
+            fwrite(data, 1, strlen(data), f);
             fclose(f);
         }
     }
@@ -399,20 +367,12 @@ void handle_short_stories() {
 }
 
 void handle_poems() {
-    printf("\033[H\033[J--- Poems ---\n");
-    printf("Fetching a random poem...\n");
-    
     const char *url = "https://poetrydb.org/random/1";
-    char cmd[512];
-    snprintf(cmd, sizeof(cmd), "curl -s \"%s\"", url);
-
-    FILE *fp = popen(cmd, "r");
-    if (fp) {
-        char response[16384] = {0};
-        fread(response, 1, sizeof(response) - 1, fp);
-        pclose(fp);
-
+    char error[256] = {0};
+    char *response = fetch_text_with_progress_ui("Poems", url, "poem data", error, sizeof(error));
+    if (response) {
         cJSON *json = cJSON_Parse(response);
+        free(response);
         if (json && cJSON_IsArray(json)) {
             cJSON *item = cJSON_GetArrayItem(json, 0);
             cJSON *title = cJSON_GetObjectItemCaseSensitive(item, "title");
@@ -459,7 +419,7 @@ void handle_poems() {
             fflush(stdout); read_key();
         }
     } else {
-        printf("\nFailed to connect to Poem API. Press any key...");
+        printf("\n%s\nPress any key...", error[0] ? error : "Failed to connect to Poem API.");
         fflush(stdout); read_key();
     }
 }
@@ -484,7 +444,7 @@ void handle_word_by_word_viewer() {
         return;
     }
 
-    document_text = document_load_text(selected_path, error, sizeof(error));
+    document_text = document_load_text_with_progress(selected_path, error, sizeof(error));
     if (!document_text) {
         printf("\033[H\033[J--- Color Reader ---\n");
         printf("Failed to read file:\n%s\n", selected_path);

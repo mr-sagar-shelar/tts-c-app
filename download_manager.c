@@ -14,6 +14,39 @@ static void set_error(char *error, size_t error_size, const char *message) {
     }
 }
 
+static char *shell_quote(const char *text) {
+    size_t i;
+    size_t extra = 2;
+    char *quoted;
+    char *out;
+
+    for (i = 0; text && text[i]; i++) {
+        extra++;
+        if (text[i] == '\'') {
+            extra += 3;
+        }
+    }
+
+    quoted = (char *)malloc(extra + 1);
+    if (!quoted) {
+        return NULL;
+    }
+
+    out = quoted;
+    *out++ = '\'';
+    for (i = 0; text && text[i]; i++) {
+        if (text[i] == '\'') {
+            memcpy(out, "'\\''", 4);
+            out += 4;
+        } else {
+            *out++ = text[i];
+        }
+    }
+    *out++ = '\'';
+    *out = '\0';
+    return quoted;
+}
+
 void download_task_init(DownloadTask *task) {
     if (!task) {
         return;
@@ -125,6 +158,9 @@ int download_task_start(DownloadTask *task, const char *url, const char *output_
 
     if (pid == 0) {
         int devnull = open("/dev/null", O_WRONLY);
+        char *quoted_url = shell_quote(url);
+        char *quoted_path = shell_quote(output_path);
+        char command[PATH_MAX * 2];
 
         close(pipefd[0]);
         dup2(pipefd[1], STDERR_FILENO);
@@ -133,8 +169,13 @@ int download_task_start(DownloadTask *task, const char *url, const char *output_
             close(devnull);
         }
         close(pipefd[1]);
-
-        execlp("curl", "curl", "-L", "--fail", "--progress-bar", url, "-o", output_path, (char *)NULL);
+        if (!quoted_url || !quoted_path) {
+            _exit(1);
+        }
+        snprintf(command, sizeof(command), "curl -L --fail --progress-bar %s -o %s", quoted_url, quoted_path);
+        free(quoted_url);
+        free(quoted_path);
+        execl("/bin/sh", "sh", "-lc", command, (char *)NULL);
         _exit(1);
     }
 
@@ -179,6 +220,14 @@ void download_task_poll(DownloadTask *task) {
         task->progress_percent = 100;
         snprintf(task->status, sizeof(task->status), "Download completed for %s (100%%)", task->label);
     } else {
-        snprintf(task->status, sizeof(task->status), "Download failed for %s", task->label);
+        if (task->progress_text[0]) {
+            char *tail = task->progress_text + strlen(task->progress_text);
+            while (tail > task->progress_text && tail[-1] != '\n' && tail[-1] != '\r') {
+                tail--;
+            }
+            snprintf(task->status, sizeof(task->status), "%s", tail[0] ? tail : task->progress_text);
+        } else {
+            snprintf(task->status, sizeof(task->status), "Download failed for %s", task->label);
+        }
     }
 }

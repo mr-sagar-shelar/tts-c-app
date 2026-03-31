@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include "config.h"
 #include "cJSON.h"
+#include "download_ui.h"
 
 #define CONFIG_FILE "userConfig.json"
 #define SERVER_URL "https://api.example.com/sync/userConfig" // Placeholder URL
@@ -38,33 +39,17 @@ static void create_default_config() {
 }
 
 static int download_from_server() {
-    printf("\nAttempting to sync from server...\n");
-    char cmd[512];
-    // Use a temporary file for download
-    snprintf(cmd, sizeof(cmd), "curl -s -f \"%s\" -o /tmp/serverConfig.json", SERVER_URL);
-    int res = system(cmd);
-    if (res == 0) {
-        FILE *f = fopen("/tmp/serverConfig.json", "rb");
-        if (f) {
-            fseek(f, 0, SEEK_END);
-            long len = ftell(f);
-            fseek(f, 0, SEEK_SET);
-            char *data = (char*)malloc(len + 1);
-            if (data) {
-                fread(data, 1, len, f);
-                data[len] = '\0';
-                cJSON *parsed = cJSON_Parse(data);
-                if (parsed) {
-                    if (config_json) cJSON_Delete(config_json);
-                    config_json = parsed;
-                    free(data);
-                    fclose(f);
-                    return 1;
-                }
-                free(data);
-            }
-            fclose(f);
+    char error[256] = {0};
+    char *data = fetch_text_with_progress_ui("Config Sync", SERVER_URL, "server config", error, sizeof(error));
+    if (data) {
+        cJSON *parsed = cJSON_Parse(data);
+        if (parsed) {
+            if (config_json) cJSON_Delete(config_json);
+            config_json = parsed;
+            free(data);
+            return 1;
         }
+        free(data);
     }
     return 0;
 }
@@ -86,12 +71,10 @@ static void upload_to_server() {
         // and -d @filename or -d "json_data"
         FILE *f = fopen("/tmp/uploadConfig.json", "w");
         if (f) {
+            char error[256] = {0};
             fputs(data, f);
             fclose(f);
-            char cmd[512];
-            snprintf(cmd, sizeof(cmd), "curl -s -f -X POST -H \"Content-Type: application/json\" -d @/tmp/uploadConfig.json \"%s\"", SERVER_URL);
-            int res = system(cmd);
-            if (res == 0) {
+            if (upload_file_with_progress_ui("Config Sync", SERVER_URL, "/tmp/uploadConfig.json", "configuration", error, sizeof(error))) {
                 printf("Sync successful!\n");
             } else {
                 printf("Server sync failed (Upload). Local changes saved.\n");
