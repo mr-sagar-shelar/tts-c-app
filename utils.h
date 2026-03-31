@@ -16,6 +16,7 @@
 #define KEY_BACKSPACE 127
 #define KEY_TAB 9
 #define KEY_CTRL_I 9
+#define KEY_CTRL_E 5
 
 /**
  * Sets the terminal to non-canonical mode for raw input.
@@ -32,6 +33,13 @@ void reset_terminal_mode();
  * @return The key code or character read.
  */
 int read_key();
+
+/**
+ * Reads a single key press with an optional timeout.
+ * @param timeout_ms The timeout in milliseconds. Use 0 for immediate poll.
+ * @return The key code, 0 on timeout, or character read.
+ */
+int read_key_timeout(int timeout_ms);
 
 /**
  * Gets user input from stdin, temporarily resetting terminal mode.

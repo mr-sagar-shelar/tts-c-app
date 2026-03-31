@@ -2,7 +2,9 @@
 #include <ctype.h>
 #include <strings.h>
 
-void handle_calculator() {
+#include "download_ui.h"
+
+void system_ui_run_calculator(void) {
     double result = 0;
     char input[64];
     int first_op = 1;
@@ -64,28 +66,21 @@ void handle_calculator() {
     }
 }
 
-void handle_weather() {
+void system_ui_show_weather(void) {
     char *city = get_setting("city");
+    char error[256] = {0};
+    char *response;
     if (!city) city = strdup("Pune");
-
-    printf("\033[H\033[J--- Weather: %s ---\nFetching weather data...\n", city);
-    fflush(stdout);
 
     char *encoded_city = url_encode(city);
     char url[512];
     snprintf(url, sizeof(url), "https://goweather.xyz/weather/%s", encoded_city);
     free(encoded_city);
 
-    char cmd[1024];
-    snprintf(cmd, sizeof(cmd), "curl -s \"%s\"", url);
-
-    FILE *fp = popen(cmd, "r");
-    if (fp) {
-        char response[8192] = {0};
-        fread(response, 1, sizeof(response) - 1, fp);
-        pclose(fp);
-
+    response = fetch_text_with_progress_ui("Weather", url, "weather data", error, sizeof(error));
+    if (response) {
         cJSON *json = cJSON_Parse(response);
+        free(response);
         if (json) {
             cJSON *temp = cJSON_GetObjectItemCaseSensitive(json, "temperature");
             cJSON *wind = cJSON_GetObjectItemCaseSensitive(json, "wind");
@@ -116,7 +111,7 @@ void handle_weather() {
             printf("\nError parsing weather data.");
         }
     } else {
-        printf("\nFailed to connect to Weather API.");
+        printf("\n%s", error[0] ? error : "Failed to connect to Weather API.");
     }
 
     printf("\nPress any key to go back...");
@@ -125,14 +120,11 @@ void handle_weather() {
     free(city);
 }
 
-void handle_current_time_date() {
+void system_ui_show_current_time_date(void) {
     char *city = get_setting("city");
+    char error[256] = {0};
+    char *response;
     if (!city) city = strdup("Pune");
-
-    printf("\033[H\033[J--- Current Time and Date ---\n");
-    printf("City: %s\n", city);
-    printf("Fetching data...\n");
-    fflush(stdout);
 
     const char *timezone = "Asia/Kolkata";
     if (city) {
@@ -147,16 +139,10 @@ void handle_current_time_date() {
     char url[512];
     snprintf(url, sizeof(url), "http://worldtimeapi.org/api/timezone/%s", timezone);
 
-    char cmd[1024];
-    snprintf(cmd, sizeof(cmd), "curl -s \"%s\"", url);
-
-    FILE *fp = popen(cmd, "r");
-    if (fp) {
-        char response[8192] = {0};
-        fread(response, 1, sizeof(response) - 1, fp);
-        pclose(fp);
-
+    response = fetch_text_with_progress_ui("Current Time and Date", url, "time data", error, sizeof(error));
+    if (response) {
         cJSON *json = cJSON_Parse(response);
+        free(response);
         if (json) {
             cJSON *datetime = cJSON_GetObjectItemCaseSensitive(json, "datetime");
             if (datetime && cJSON_IsString(datetime)) {
@@ -179,7 +165,7 @@ void handle_current_time_date() {
             printf("\nError parsing time data.");
         }
     } else {
-        printf("\nFailed to connect to Time API.");
+        printf("\n%s", error[0] ? error : "Failed to connect to Time API.");
     }
 
     printf("\nPress any key to go back...");
@@ -188,7 +174,7 @@ void handle_current_time_date() {
     free(city);
 }
 
-void handle_news() {
+void system_ui_show_news(void) {
     printf("\033[H\033[J--- News ---\n");
     printf("Fetching latest news...\n");
     printf("\n(Placeholder: News feature coming soon!)\n");
@@ -197,7 +183,7 @@ void handle_news() {
     read_key();
 }
 
-void handle_set_city() {
+void system_ui_set_city(void) {
     char *current = get_setting("city");
     printf("\033[H\033[J--- Set City ---\n");
     printf("Current City: %s\n", current ? current : "Pune (Default)");
@@ -326,7 +312,7 @@ static void handle_change_timezone() {
     cJSON_Delete(json);
 }
 
-void handle_timezone() {
+void system_ui_change_timezone(void) {
     while (1) {
         char *current = get_setting("timezone");
         printf("\033[H\033[J--- Time Zone ---\n");
@@ -347,7 +333,7 @@ void handle_timezone() {
     }
 }
 
-void handle_time_format() {
+void system_ui_change_time_format(void) {
     int sel = 0;
     char *current = get_setting("time_format");
     if (current) {
@@ -381,7 +367,7 @@ void handle_time_format() {
     }
 }
 
-void handle_set_time_manual() {
+void system_ui_set_time_manual(void) {
     int h = 0, m = 0, s = 0;
     char *current = get_setting("manual_time");
     if (current) {
@@ -446,7 +432,7 @@ static int get_days_in_month(int month, int year) {
     return 31;
 }
 
-void handle_set_date_manual() {
+void system_ui_set_date_manual(void) {
     int day = 1, month = 1, year = 2026;
     char *current = get_setting("manual_date");
     if (current) {

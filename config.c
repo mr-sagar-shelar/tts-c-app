@@ -5,11 +5,23 @@
 #include <unistd.h>
 #include "config.h"
 #include "cJSON.h"
+#include "download_ui.h"
 
 #define CONFIG_FILE "userConfig.json"
 #define SERVER_URL "https://api.example.com/sync/userConfig" // Placeholder URL
 
 static cJSON *config_json = NULL;
+
+static void ensure_default_string(const char *key, const char *value) {
+    cJSON *item = cJSON_GetObjectItemCaseSensitive(config_json, key);
+    if (!cJSON_IsString(item) || item->valuestring == NULL) {
+        if (item) {
+            cJSON_ReplaceItemInObject(config_json, key, cJSON_CreateString(value));
+        } else {
+            cJSON_AddStringToObject(config_json, key, value);
+        }
+    }
+}
 
 static void create_default_config() {
     if (config_json) cJSON_Delete(config_json);
@@ -18,39 +30,26 @@ static void create_default_config() {
     cJSON_AddStringToObject(config_json, "city", "Pune");
     cJSON_AddStringToObject(config_json, "timezone", "Asia/Kolkata");
     cJSON_AddStringToObject(config_json, "time_format", "12h");
+    cJSON_AddStringToObject(config_json, "tts_voice", "kal");
+    cJSON_AddStringToObject(config_json, "tts_volume", "medium");
+    cJSON_AddStringToObject(config_json, "speech_mode", "on");
     cJSON_AddItemToObject(config_json, "contacts", cJSON_CreateArray());
     cJSON_AddItemToObject(config_json, "alarms", cJSON_CreateArray());
     cJSON_AddStringToObject(config_json, "last_sync", "Never");
 }
 
 static int download_from_server() {
-    printf("\nAttempting to sync from server...\n");
-    char cmd[512];
-    // Use a temporary file for download
-    snprintf(cmd, sizeof(cmd), "curl -s -f \"%s\" -o /tmp/serverConfig.json", SERVER_URL);
-    int res = system(cmd);
-    if (res == 0) {
-        FILE *f = fopen("/tmp/serverConfig.json", "rb");
-        if (f) {
-            fseek(f, 0, SEEK_END);
-            long len = ftell(f);
-            fseek(f, 0, SEEK_SET);
-            char *data = (char*)malloc(len + 1);
-            if (data) {
-                fread(data, 1, len, f);
-                data[len] = '\0';
-                cJSON *parsed = cJSON_Parse(data);
-                if (parsed) {
-                    if (config_json) cJSON_Delete(config_json);
-                    config_json = parsed;
-                    free(data);
-                    fclose(f);
-                    return 1;
-                }
-                free(data);
-            }
-            fclose(f);
+    char error[256] = {0};
+    char *data = fetch_text_with_progress_ui("Config Sync", SERVER_URL, "server config", error, sizeof(error));
+    if (data) {
+        cJSON *parsed = cJSON_Parse(data);
+        if (parsed) {
+            if (config_json) cJSON_Delete(config_json);
+            config_json = parsed;
+            free(data);
+            return 1;
         }
+        free(data);
     }
     return 0;
 }
@@ -72,12 +71,10 @@ static void upload_to_server() {
         // and -d @filename or -d "json_data"
         FILE *f = fopen("/tmp/uploadConfig.json", "w");
         if (f) {
+            char error[256] = {0};
             fputs(data, f);
             fclose(f);
-            char cmd[512];
-            snprintf(cmd, sizeof(cmd), "curl -s -f -X POST -H \"Content-Type: application/json\" -d @/tmp/uploadConfig.json \"%s\"", SERVER_URL);
-            int res = system(cmd);
-            if (res == 0) {
+            if (upload_file_with_progress_ui("Config Sync", SERVER_URL, "/tmp/uploadConfig.json", "configuration", error, sizeof(error))) {
                 printf("Sync successful!\n");
             } else {
                 printf("Server sync failed (Upload). Local changes saved.\n");
@@ -117,7 +114,18 @@ void init_config() {
     if (!config_json) {
         create_default_config();
         save_config();
+        return;
     }
+
+    ensure_default_string("language", "en");
+    ensure_default_string("city", "Pune");
+    ensure_default_string("timezone", "Asia/Kolkata");
+    ensure_default_string("time_format", "12h");
+    ensure_default_string("tts_voice", "kal");
+    ensure_default_string("tts_volume", "medium");
+    ensure_default_string("speech_mode", "on");
+    ensure_default_string("last_sync", "Never");
+    save_config();
 }
 
 void save_config() {

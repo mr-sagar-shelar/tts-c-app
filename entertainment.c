@@ -1,8 +1,12 @@
 #include "entertainment.h"
+#include "config.h"
+#include "download_ui.h"
 #include "document_reader.h"
 #include "file_manager.h"
+#include "speech_engine.h"
 #include "text_processor.h"
 #include <ctype.h>
+#include <limits.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 
@@ -160,30 +164,85 @@ static void render_word_reader(const TextProcessor *processor, const char *selec
         }
     }
 
-    printf("\n\n[Up: Previous | Down: Next | Enter: Next | Esc: Back]\n");
+    printf("\n\n[Up: Previous | Down: Next | Enter: Next | Ctrl+E: Export to wave | Esc: Back]\n");
     printf("The highlighted word represents the token currently being spoken.\n");
+    printf("Speech uses Flite when speech mode is enabled and Flite support is available.\n");
     fflush(stdout);
 }
 
-void handle_joke() {
+static void build_wave_export_path(const char *source_path, char *buffer, size_t buffer_size) {
+    const char *last_slash;
+    const char *last_dot;
+    char *voice_name;
+    size_t dir_len;
+    size_t name_len;
+
+    if (!source_path || !buffer || buffer_size == 0) {
+        return;
+    }
+
+    last_slash = strrchr(source_path, '/');
+    last_dot = strrchr(source_path, '.');
+
+    if (!last_slash) {
+        last_slash = source_path - 1;
+    }
+
+    dir_len = (size_t)(last_slash - source_path + 1);
+    if (!last_dot || last_dot < last_slash) {
+        last_dot = source_path + strlen(source_path);
+    }
+    name_len = (size_t)(last_dot - (last_slash + 1));
+
+    voice_name = get_setting("tts_voice");
+    if (!voice_name || !voice_name[0]) {
+        free(voice_name);
+        voice_name = strdup("kal");
+    }
+
+    snprintf(buffer, buffer_size, "%.*s%.*s_%s_export.wav",
+             (int)dir_len, source_path,
+             (int)name_len, last_slash + 1,
+             voice_name);
+
+    free(voice_name);
+}
+
+static void export_processor_to_wave(const TextProcessor *processor, const char *selected_path) {
+    char export_path[PATH_MAX];
+    char error[128] = {0};
+
+    if (!processor || processor->token_count == 0) {
+        return;
+    }
+
+    build_wave_export_path(selected_path, export_path, sizeof(export_path));
+
+    printf("\033[H\033[J--- Color Reader ---\n");
+    printf("Exporting audio to:\n%s\n\n", export_path);
+    printf("Processing the full document through Flite streaming...\n");
+    fflush(stdout);
+
+    if (speech_engine_export_text_to_wave(processor->content, export_path, error, sizeof(error))) {
+        printf("Export complete.\n");
+    } else {
+        printf("Export failed: %s\n", error[0] ? error : "Unknown speech export error");
+    }
+    printf("\nPress any key to continue...");
+    fflush(stdout);
+    read_key();
+}
+
+void content_ui_show_joke(void) {
     int fetch_new = 1;
     char joke_text[2048] = {0};
 
     while (1) {
         if (fetch_new) {
-            printf("\033[H\033[J--- Joke ---\nFetching a new joke...\n");
-            fflush(stdout);
-
             const char *url = "https://v2.jokeapi.dev/joke/Any?format=json&type=single&lang=en&amount=1";
-            char cmd[512];
-            snprintf(cmd, sizeof(cmd), "curl -s \"%s\"", url);
-
-            FILE *fp = popen(cmd, "r");
-            if (fp) {
-                char response[4096] = {0};
-                fread(response, 1, sizeof(response) - 1, fp);
-                pclose(fp);
-
+            char error[256] = {0};
+            char *response = fetch_text_with_progress_ui("Joke", url, "joke data", error, sizeof(error));
+            if (response) {
                 cJSON *json = cJSON_Parse(response);
                 if (json) {
                     cJSON *joke_node = cJSON_GetObjectItemCaseSensitive(json, "joke");
@@ -196,8 +255,9 @@ void handle_joke() {
                 } else {
                     strcpy(joke_text, "Error parsing API response.");
                 }
+                free(response);
             } else {
-                strcpy(joke_text, "Failed to connect to Joke API.");
+                snprintf(joke_text, sizeof(joke_text), "%s", error[0] ? error : "Failed to connect to Joke API.");
             }
             fetch_new = 0;
         }
@@ -213,9 +273,11 @@ void handle_joke() {
     }
 }
 
-void handle_short_stories() {
+void content_ui_show_short_stories(void) {
     const char *story_file = "Downloads/ShortStories.json";
+    const char *url = "https://shortstories-api.onrender.com/stories";
     char *data = NULL;
+    char error[256] = {0};
     FILE *f = fopen(story_file, "rb");
 
     if (f) {
@@ -229,45 +291,18 @@ void handle_short_stories() {
         data[len] = '\0';
         fclose(f);
     } else {
-        printf("\033[H\033[J--- Short Stories ---\nDownloading stories...\n");
-        fflush(stdout);
-
-        const char *url = "https://shortstories-api.onrender.com/stories";
-        char cmd[256];
-        snprintf(cmd, sizeof(cmd), "curl -s \"%s\"", url);
-
-        FILE *fp = popen(cmd, "r");
-        if (!fp) {
-            printf("Failed to fetch stories.\nPress any key..."); fflush(stdout); read_key();
-            return;
-        }
-
-        size_t response_len = 0;
-        size_t response_size = 16384;
-        data = (char *)malloc(response_size);
-        
-        char buffer[4096];
-        while (fgets(buffer, sizeof(buffer), fp) != NULL) {
-            size_t len = strlen(buffer);
-            if (response_len + len + 1 > response_size) {
-                response_size *= 2;
-                data = (char *)realloc(data, response_size);
-            }
-            strcpy(data + response_len, buffer);
-            response_len += len;
-        }
-        pclose(fp);
-
-        if (response_len == 0) {
-            printf("\nNo response from server. Check internet connection.\nPress any key...");
-            fflush(stdout); read_key();
+        data = fetch_text_with_progress_ui("Short Stories", url, "short stories data", error, sizeof(error));
+        if (!data || !data[0]) {
+            printf("\033[H\033[J--- Short Stories ---\n%s\n\nPress any key...", error[0] ? error : "Failed to fetch stories.");
+            fflush(stdout);
+            read_key();
             free(data);
             return;
         }
 
         f = fopen(story_file, "wb");
         if (f) {
-            fwrite(data, 1, response_len, f);
+            fwrite(data, 1, strlen(data), f);
             fclose(f);
         }
     }
@@ -331,21 +366,13 @@ void handle_short_stories() {
     cJSON_Delete(json);
 }
 
-void handle_poems() {
-    printf("\033[H\033[J--- Poems ---\n");
-    printf("Fetching a random poem...\n");
-    
+void content_ui_show_poems(void) {
     const char *url = "https://poetrydb.org/random/1";
-    char cmd[512];
-    snprintf(cmd, sizeof(cmd), "curl -s \"%s\"", url);
-
-    FILE *fp = popen(cmd, "r");
-    if (fp) {
-        char response[16384] = {0};
-        fread(response, 1, sizeof(response) - 1, fp);
-        pclose(fp);
-
+    char error[256] = {0};
+    char *response = fetch_text_with_progress_ui("Poems", url, "poem data", error, sizeof(error));
+    if (response) {
         cJSON *json = cJSON_Parse(response);
+        free(response);
         if (json && cJSON_IsArray(json)) {
             cJSON *item = cJSON_GetArrayItem(json, 0);
             cJSON *title = cJSON_GetObjectItemCaseSensitive(item, "title");
@@ -392,12 +419,12 @@ void handle_poems() {
             fflush(stdout); read_key();
         }
     } else {
-        printf("\nFailed to connect to Poem API. Press any key...");
+        printf("\n%s\nPress any key...", error[0] ? error : "Failed to connect to Poem API.");
         fflush(stdout); read_key();
     }
 }
 
-void handle_word_by_word_viewer() {
+void content_ui_run_word_viewer(void) {
     char *selected_path = file_navigator_supported(USER_SPACE);
     struct stat st;
     char error[128] = {0};
@@ -417,7 +444,7 @@ void handle_word_by_word_viewer() {
         return;
     }
 
-    document_text = document_load_text(selected_path, error, sizeof(error));
+    document_text = document_load_text_with_progress(selected_path, error, sizeof(error));
     if (!document_text) {
         printf("\033[H\033[J--- Color Reader ---\n");
         printf("Failed to read file:\n%s\n", selected_path);
@@ -453,23 +480,41 @@ void handle_word_by_word_viewer() {
     }
 
     size_t index = 0;
+    size_t last_spoken_index = (size_t)-1;
     while (1) {
-        if (!text_processor_get_word(processor, index)) {
+        const TextWord *current_word = text_processor_get_word(processor, index);
+        char speech_error[128] = {0};
+        size_t next_index = index;
+
+        if (!current_word) {
             break;
         }
 
         render_word_reader(processor, selected_path, index);
 
+        if (speech_engine_is_enabled() && last_spoken_index != index) {
+            speech_engine_speak_text(current_word->word, speech_error, sizeof(speech_error));
+            last_spoken_index = index;
+        }
+
         int key = read_key();
         if (key == KEY_ESC) {
             break;
+        } else if (key == KEY_CTRL_E) {
+            export_processor_to_wave(processor, selected_path);
+            last_spoken_index = (size_t)-1;
         } else if ((key == KEY_DOWN || key == KEY_ENTER) && index + 1 < processor->token_count) {
-            index++;
+            next_index = index + 1;
         } else if (key == KEY_UP && index > 0) {
-            index--;
+            next_index = index - 1;
+        }
+
+        if (next_index != index) {
+            index = next_index;
         }
     }
 
+    speech_engine_shutdown();
     text_processor_free(processor);
     free(selected_path);
 }

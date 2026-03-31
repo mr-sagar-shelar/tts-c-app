@@ -7,21 +7,21 @@
 /**
  * UI handler for jokes.
  */
-void handle_joke();
+void content_ui_show_joke(void);
 
 /**
  * UI handler for short stories.
  */
-void handle_short_stories();
+void content_ui_show_short_stories(void);
 
 /**
  * UI handler for poems.
  */
-void handle_poems();
+void content_ui_show_poems(void);
 
 /**
  * UI handler for the text reader prototype that tokenizes files word by word.
  */
-void handle_word_by_word_viewer();
+void content_ui_run_word_viewer(void);
 
 #endif /* ENTERTAINMENT_H */

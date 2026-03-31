@@ -6,6 +6,7 @@
 #include "radio.h"
 #include "utils.h"
 #include "cJSON.h"
+#include "download_ui.h"
 
 // For Reference:
 // https://jonasrmichel.github.io/radio-garden-openapi/
@@ -37,43 +38,18 @@ static void play_station(RadioStation *station_list, int index) {
 }
 
 static void fetch_radio_stations() {
+    const char *url = "https://www.dummyradios.com";
+    char error[256] = {0};
+    char *data;
+
     if (dynamic_stations) {
         free(dynamic_stations);
         dynamic_stations = NULL;
         dynamic_count = 0;
     }
 
-    printf("\033[H\033[J--- Internet Radio ---\nFetching station list from API...\n");
-    fflush(stdout);
-
-    const char *url = "https://www.dummyradios.com";
-    char cmd[512];
-    snprintf(cmd, sizeof(cmd), "curl -s -L \"%s\"", url); // -L to follow redirects if any
-
-    FILE *fp = popen(cmd, "r");
-    if (!fp) return;
-
-    size_t response_len = 0;
-    size_t response_size = 8192;
-    char *data = (char *)malloc(response_size);
-    if (!data) {
-        pclose(fp);
-        return;
-    }
-
-    char buffer[4096];
-    while (fgets(buffer, sizeof(buffer), fp) != NULL) {
-        size_t len = strlen(buffer);
-        if (response_len + len + 1 > response_size) {
-            response_size *= 2;
-            data = (char *)realloc(data, response_size);
-        }
-        strcpy(data + response_len, buffer);
-        response_len += len;
-    }
-    pclose(fp);
-
-    if (response_len > 0) {
+    data = fetch_text_with_progress_ui("Internet Radio", url, "radio station list", error, sizeof(error));
+    if (data && data[0]) {
         cJSON *json = cJSON_Parse(data);
         if (json && cJSON_IsArray(json)) {
             dynamic_count = cJSON_GetArraySize(json);
@@ -95,7 +71,7 @@ static void fetch_radio_stations() {
     free(data);
 }
 
-void handle_internet_radio() {
+void radio_ui_show_menu(void) {
     fetch_radio_stations();
 
     RadioStation *active_list = (dynamic_stations && dynamic_count > 0) ? dynamic_stations : fallback_stations;

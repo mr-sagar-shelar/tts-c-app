@@ -5,6 +5,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "task_ui.h"
+
 typedef struct {
     char **items;
     size_t count;
@@ -769,4 +771,13 @@ char *document_load_text(const char *path, char *error, size_t error_size) {
 
     set_error(error, error_size, "No loader available for this file");
     return NULL;
+}
+
+char *document_load_text_with_progress(const char *path, char *error, size_t error_size) {
+    return run_text_task_with_progress_ui("Document Reader",
+                                          "Reading and extracting document content",
+                                          path,
+                                          document_load_text,
+                                          error,
+                                          error_size);
 }

@@ -104,9 +104,9 @@ char* file_navigator_supported(const char *start_path) {
     return file_navigator_internal(start_path, 0, 1);
 }
 
-void handle_file_viewer(const char *filename) {
+void file_manager_open_viewer(const char *filename) {
     char error[128] = {0};
-    char *text = document_load_text(filename, error, sizeof(error));
+    char *text = document_load_text_with_progress(filename, error, sizeof(error));
     printf("\033[H\033[J");
     printf("--- File Viewer: %s ---\n", filename);
     printf("----------------------------------\n");
@@ -184,25 +184,25 @@ void handle_fm_search() {
                 if (path) {
                     struct stat st;
                     if (stat(path, &st) == 0 && S_ISREG(st.st_mode)) {
-                        handle_file_viewer(path);
+                        file_manager_open_viewer(path);
                     }
                     free(path);
                 }
             } else {
-                handle_file_viewer(results[sel].path);
+                file_manager_open_viewer(results[sel].path);
             }
             break;
         } else if (key == KEY_ESC) break;
     }
 }
 
-void handle_file_manager(MenuNode *node) {
+void file_manager_handle_menu(MenuNode *node) {
     if (strcmp(node->key, "fm_browse") == 0) {
         char *path = file_navigator_supported(USER_SPACE);
         if (path) {
             struct stat st;
             if (stat(path, &st) == 0 && S_ISREG(st.st_mode)) {
-                handle_file_viewer(path);
+                file_manager_open_viewer(path);
             }
             free(path);
         }

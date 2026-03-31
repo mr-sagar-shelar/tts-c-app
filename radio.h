@@ -11,6 +11,6 @@ typedef struct {
 /**
  * UI handler for internet radio.
  */
-void handle_internet_radio();
+void radio_ui_show_menu(void);
 
 #endif /* RADIO_H */

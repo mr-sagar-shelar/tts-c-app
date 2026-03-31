@@ -1,5 +1,45 @@
 #include "dictionary.h"
 #include <ctype.h>
+#include <stdlib.h>
+#include <sys/wait.h>
+#include <unistd.h>
+
+#include "download_ui.h"
+
+static void play_downloaded_audio_file(const char *path) {
+    pid_t pid = fork();
+
+    if (pid == 0) {
+        execlp("afplay", "afplay", path, (char *)NULL);
+        _exit(1);
+    }
+
+    if (pid > 0) {
+        waitpid(pid, NULL, 0);
+    }
+}
+
+static void download_and_play_audio(const char *screen_title, const char *audio_url) {
+    char error[256] = {0};
+    const char *audio_path = "/tmp/dict_audio.mp3";
+
+    if (!audio_url || !audio_url[0]) {
+        return;
+    }
+
+    if (!download_file_with_progress_ui(screen_title, audio_url, audio_path, "dict_audio.mp3", error, sizeof(error))) {
+        printf("\033[H\033[J--- %s ---\n%s\n\nPress any key...", screen_title, error[0] ? error : "Audio download failed.");
+        fflush(stdout);
+        read_key();
+        return;
+    }
+
+    printf("\033[H\033[J--- %s ---\nPlaying audio...\n", screen_title);
+    fflush(stdout);
+    play_downloaded_audio_file(audio_path);
+    printf("Done. Press Esc to go back or 'p' to replay.");
+    fflush(stdout);
+}
 
 void handle_dictionary() {
     char *lang = get_setting("language");
@@ -105,6 +145,8 @@ void handle_dictionary() {
 
 void handle_english_only_dictionary() {
     char word[256];
+    char error[256] = {0};
+    char *response;
     get_user_input(word, sizeof(word), "Enter word for English Only Dictionary");
     if (strlen(word) == 0) return;
 
@@ -118,35 +160,11 @@ void handle_english_only_dictionary() {
     snprintf(url, sizeof(url), "https://api.dictionaryapi.dev/api/v2/entries/en/%s", encoded_word);
     free(encoded_word);
 
-    char cmd[2048];
-    snprintf(cmd, sizeof(cmd), "curl -s \"%s\"", url);
-
-    FILE *fp = popen(cmd, "r");
-    if (!fp) {
-        printf("Failed to run curl command.\nPress any key..."); fflush(stdout); read_key();
-        return;
-    }
-
-    char *response = NULL;
-    size_t response_len = 0;
-    size_t response_size = 4096;
-    response = (char *)malloc(response_size);
-    
-    char buffer[1024];
-    while (fgets(buffer, sizeof(buffer), fp) != NULL) {
-        size_t len = strlen(buffer);
-        if (response_len + len + 1 > response_size) {
-            response_size *= 2;
-            response = (char *)realloc(response, response_size);
-        }
-        strcpy(response + response_len, buffer);
-        response_len += len;
-    }
-    pclose(fp);
-
-    if (response_len == 0) {
-        printf("\nNo response from server. Check internet connection.\nPress any key...");
-        fflush(stdout); read_key();
+    response = fetch_text_with_progress_ui("English Only Dictionary", url, "dictionary lookup", error, sizeof(error));
+    if (!response || !response[0]) {
+        printf("\n%s\nPress any key...", error[0] ? error : "No response from server. Check internet connection.");
+        fflush(stdout);
+        read_key();
         free(response);
         return;
     }
@@ -224,11 +242,7 @@ void handle_english_only_dictionary() {
         if (key == KEY_ESC) break;
         else if (key == 'p' || key == 'P') {
             if (strlen(audio_url) > 0) {
-                printf("\nPlaying audio...\n"); fflush(stdout);
-                char play_cmd[2048];
-                snprintf(play_cmd, sizeof(play_cmd), "curl -s \"%s\" > /tmp/dict_audio.mp3 && afplay /tmp/dict_audio.mp3", audio_url);
-                system(play_cmd);
-                printf("Done. Press Esc to go back or 'p' to replay."); fflush(stdout);
+                download_and_play_audio("English Only Dictionary", audio_url);
             }
         } else if (strlen(audio_url) == 0) break;
     }
@@ -237,6 +251,8 @@ void handle_english_only_dictionary() {
 
 void handle_multi_lang_dictionary() {
     char word[256];
+    char error[256] = {0};
+    char *response;
     get_user_input(word, sizeof(word), "Enter word for Multi Language Dictionary");
     if (strlen(word) == 0) return;
 
@@ -261,35 +277,11 @@ void handle_multi_lang_dictionary() {
     snprintf(url, sizeof(url), "https://freedictionaryapi.com/api/v1/entries/%s/%s", api_lang, encoded_word);
     free(encoded_word);
 
-    char cmd[2048];
-    snprintf(cmd, sizeof(cmd), "curl -s \"%s\"", url);
-
-    FILE *fp = popen(cmd, "r");
-    if (!fp) {
-        printf("Failed to run curl command.\nPress any key..."); fflush(stdout); read_key();
-        return;
-    }
-
-    char *response = NULL;
-    size_t response_len = 0;
-    size_t response_size = 4096;
-    response = (char *)malloc(response_size);
-    
-    char buffer[1024];
-    while (fgets(buffer, sizeof(buffer), fp) != NULL) {
-        size_t len = strlen(buffer);
-        if (response_len + len + 1 > response_size) {
-            response_size *= 2;
-            response = (char *)realloc(response, response_size);
-        }
-        strcpy(response + response_len, buffer);
-        response_len += len;
-    }
-    pclose(fp);
-
-    if (response_len == 0) {
-        printf("\nNo response from server. Check internet connection.\nPress any key...");
-        fflush(stdout); read_key();
+    response = fetch_text_with_progress_ui("Multi Language Dictionary", url, "dictionary lookup", error, sizeof(error));
+    if (!response || !response[0]) {
+        printf("\n%s\nPress any key...", error[0] ? error : "No response from server. Check internet connection.");
+        fflush(stdout);
+        read_key();
         free(response);
         return;
     }
@@ -361,11 +353,7 @@ void handle_multi_lang_dictionary() {
         if (key == KEY_ESC) break;
         else if (key == 'p' || key == 'P') {
             if (strlen(audio_url) > 0) {
-                printf("\nPlaying audio...\n"); fflush(stdout);
-                char play_cmd[2048];
-                snprintf(play_cmd, sizeof(play_cmd), "curl -s \"%s\" > /tmp/dict_audio.mp3 && afplay /tmp/dict_audio.mp3", audio_url);
-                system(play_cmd);
-                printf("Done. Press Esc to go back or 'p' to replay."); fflush(stdout);
+                download_and_play_audio("Multi Language Dictionary", audio_url);
             }
         } else if (strlen(audio_url) == 0) break;
     }
