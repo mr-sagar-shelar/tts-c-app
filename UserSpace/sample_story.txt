@@ -1,0 +1,5 @@
+Color Reader demo text.
+Each line is short and clear.
+The reader should open this file quickly.
+Words can be highlighted one by one.
+Flite playback can be connected later.

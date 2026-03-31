@@ -15,6 +15,12 @@
           "description_key": "fm_browse_desc"
         },
         {
+          "title_key": "fm_word_viewer",
+          "key": "fm_word_viewer",
+          "shortcut": "v",
+          "description_key": "fm_word_viewer_desc"
+        },
+        {
           "title_key": "fm_search",
           "key": "fm_search",
           "shortcut": "s",

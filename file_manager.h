@@ -7,6 +7,7 @@
 #include <dirent.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include "document_reader.h"
 #include "menu.h"
 #include "utils.h"
 
@@ -29,6 +30,7 @@ typedef struct {
  * @return A newly allocated path string (must be freed) or NULL.
  */
 char* file_navigator(const char *start_path, int select_dir_only);
+char* file_navigator_supported(const char *start_path);
 
 /**
  * Displays the content of a file.

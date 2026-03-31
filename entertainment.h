@@ -19,4 +19,9 @@ void handle_short_stories();
  */
 void handle_poems();
 
+/**
+ * UI handler for the text reader prototype that tokenizes files word by word.
+ */
+void handle_word_by_word_viewer();
+
 #endif /* ENTERTAINMENT_H */

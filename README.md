@@ -33,6 +33,10 @@ tts application based on C language to load when Tinycore linux loads on raspber
   - Convert project to use it in this project
   - Use epub, (x) html reading logic
   - use keyboard input and selection logic
+- `Word by Word File Read` now includes a root-level word tokenizer inspired by Bard's text pipeline.
+  It reads a text file, splits it into word-sized tokens, and preserves punctuation,
+  whitespace, byte offset, line, and column metadata so the stream can be handed to
+  Flite later.
 - Poem: Save locally option
 - Books (Txt, Docx, PDF, Excel, Daisy), ePUB
 - Book-reader – read your favorite books and files in DAISY, DOCX, PDF and ePUB formats
