@@ -10,6 +10,7 @@
 #include <unistd.h>
 
 #include "download_manager.h"
+#include "download_ui.h"
 #include "utils.h"
 
 #define VOICE_LIBRARY_DIR "voices"
@@ -54,15 +55,15 @@ static const VoiceLibraryEntry voice_entries[] = {
 static VoiceOperationState voice_operation = {0};
 static DownloadTask voice_download = {0};
 
-static void build_voice_path(const char *filename, char *buffer, size_t buffer_size) {
+void voice_library_get_voice_path(const char *filename, char *buffer, size_t buffer_size) {
     snprintf(buffer, buffer_size, "%s/%s", VOICE_LIBRARY_DIR, filename);
 }
 
-static int voice_file_exists(const char *filename) {
+int voice_library_voice_exists(const char *filename) {
     char path[PATH_MAX];
     struct stat st;
 
-    build_voice_path(filename, path, sizeof(path));
+    voice_library_get_voice_path(filename, path, sizeof(path));
     return stat(path, &st) == 0 && S_ISREG(st.st_mode);
 }
 
@@ -90,7 +91,7 @@ static int start_download_voice_file(const char *filename, char *message, size_t
         return 0;
     }
 
-    build_voice_path(filename, path, sizeof(path));
+    voice_library_get_voice_path(filename, path, sizeof(path));
     snprintf(url, sizeof(url), "%s%s", VOICE_LIBRARY_URL, filename);
     download_task_init(&voice_download);
     if (!download_task_start(&voice_download, url, path, filename, message, message_size)) {
@@ -117,8 +118,8 @@ static int start_delete_voice_file(const char *filename, char *message, size_t m
         return 0;
     }
 
-    build_voice_path(filename, path, sizeof(path));
-    if (!voice_file_exists(filename)) {
+    voice_library_get_voice_path(filename, path, sizeof(path));
+    if (!voice_library_voice_exists(filename)) {
         snprintf(message, message_size, "%s is not downloaded.", filename);
         return 0;
     }
@@ -219,7 +220,7 @@ static void handle_voice_actions(const VoiceLibraryEntry *entry) {
         char spin[2];
 
         update_voice_operation();
-        downloaded = voice_file_exists(entry->filename);
+        downloaded = voice_library_voice_exists(entry->filename);
         current_operation = voice_operation.in_progress &&
                             strcmp(voice_operation.filename, entry->filename) == 0;
         spin[0] = spinner[spinner_index++ % 4];
@@ -298,7 +299,7 @@ void voice_library_show_menu(void) {
         printf("Local folder: %s\n\n", VOICE_LIBRARY_DIR);
 
         for (int i = page_start; i < page_end; i++) {
-            const char *status = voice_file_exists(voice_entries[i].filename) ? "downloaded" : "not downloaded";
+            const char *status = voice_library_voice_exists(voice_entries[i].filename) ? "downloaded" : "not downloaded";
 
             if (i == selected_index) {
                 printf("> %s [%s]\n", voice_entries[i].label, status);
@@ -342,4 +343,29 @@ void voice_library_show_menu(void) {
             return;
         }
     }
+}
+int voice_library_download_voice(const char *filename, const char *title, char *error, size_t error_size) {
+    char path[PATH_MAX];
+    char url[PATH_MAX];
+
+    if (!ensure_voice_directory()) {
+        snprintf(error, error_size, "Unable to create '%s' directory.", VOICE_LIBRARY_DIR);
+        return 0;
+    }
+
+    if (voice_library_voice_exists(filename)) {
+        if (error && error_size > 0) {
+            error[0] = '\0';
+        }
+        return 1;
+    }
+
+    voice_library_get_voice_path(filename, path, sizeof(path));
+    snprintf(url, sizeof(url), "%s%s", VOICE_LIBRARY_URL, filename);
+    return download_file_with_progress_ui(title ? title : "Voice Download",
+                                          url,
+                                          path,
+                                          filename,
+                                          error,
+                                          error_size);
 }

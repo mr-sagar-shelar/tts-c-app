@@ -80,6 +80,11 @@ static char *lookup_selected_label(const SpeechSettingOption *options, size_t co
         }
     }
 
+    if (strstr(current_value, "cmu_indic_hin_ab.flitevox") != NULL) {
+        free(current_value);
+        return strdup("Hindi");
+    }
+
     free(current_value);
     return NULL;
 }

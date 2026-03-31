@@ -174,6 +174,7 @@ static void build_wave_export_path(const char *source_path, char *buffer, size_t
     const char *last_slash;
     const char *last_dot;
     char *voice_name;
+    char voice_label[128];
     size_t dir_len;
     size_t name_len;
 
@@ -200,10 +201,41 @@ static void build_wave_export_path(const char *source_path, char *buffer, size_t
         voice_name = strdup("kal");
     }
 
+    {
+        const char *voice_base = strrchr(voice_name, '/');
+        const char *voice_end;
+        size_t voice_len;
+
+        if (voice_base) {
+            voice_base++;
+        } else {
+            voice_base = voice_name;
+        }
+
+        voice_end = strrchr(voice_base, '.');
+        if (!voice_end || voice_end <= voice_base) {
+            voice_end = voice_base + strlen(voice_base);
+        }
+
+        voice_len = (size_t)(voice_end - voice_base);
+        if (voice_len >= sizeof(voice_label)) {
+            voice_len = sizeof(voice_label) - 1;
+        }
+
+        memcpy(voice_label, voice_base, voice_len);
+        voice_label[voice_len] = '\0';
+
+        for (size_t i = 0; voice_label[i]; i++) {
+            if (!isalnum((unsigned char)voice_label[i]) && voice_label[i] != '_' && voice_label[i] != '-') {
+                voice_label[i] = '_';
+            }
+        }
+    }
+
     snprintf(buffer, buffer_size, "%.*s%.*s_%s_export.wav",
              (int)dir_len, source_path,
              (int)name_len, last_slash + 1,
-             voice_name);
+             voice_label);
 
     free(voice_name);
 }

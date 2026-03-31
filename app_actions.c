@@ -21,6 +21,109 @@
 #include "utils.h"
 #include "voice_library.h"
 
+static int app_confirm_action(const char *title, const char *message) {
+    int selected_index = 0;
+    const char *options[] = {"Yes", "No"};
+
+    while (1) {
+        printf("\033[H\033[J--- %s ---\n", title);
+        printf("%s\n\n", message);
+        for (int i = 0; i < 2; i++) {
+            if (i == selected_index) {
+                printf("> %s\n", options[i]);
+            } else {
+                printf("  %s\n", options[i]);
+            }
+        }
+        printf("\n[Arrows: Navigate | Enter: Select | Esc: Cancel]\n");
+        fflush(stdout);
+
+        {
+            int key = read_key();
+            if (key == KEY_UP) {
+                selected_index = menu_next_index(selected_index, -1, 2);
+            } else if (key == KEY_DOWN) {
+                selected_index = menu_next_index(selected_index, 1, 2);
+            } else if (key == KEY_ENTER) {
+                return selected_index == 0;
+            } else if (key == KEY_ESC) {
+                return 0;
+            }
+        }
+    }
+}
+
+static int app_apply_language_voice(const char *language_code) {
+    char hindi_voice_path[256];
+    char *current_voice;
+
+    if (!language_code) {
+        return 1;
+    }
+
+    voice_library_get_voice_path(VOICE_LIBRARY_HINDI_FILENAME, hindi_voice_path, sizeof(hindi_voice_path));
+    current_voice = get_setting("tts_voice");
+
+    if (strcmp(language_code, "hi") == 0) {
+        char error[256] = {0};
+
+        if (!voice_library_voice_exists(VOICE_LIBRARY_HINDI_FILENAME)) {
+            if (!app_confirm_action("Hindi Voice",
+                                    "Hindi speech requires the Hindi Flite voice.\nDownload it now?")) {
+                free(current_voice);
+                return 0;
+            }
+
+            if (!voice_library_download_voice(VOICE_LIBRARY_HINDI_FILENAME,
+                                              "Hindi Voice Download",
+                                              error,
+                                              sizeof(error))) {
+                printf("\033[H\033[J--- Hindi Voice ---\n%s\n\nPress any key to continue...",
+                       error[0] ? error : "Hindi voice download failed.");
+                fflush(stdout);
+                read_key();
+                free(current_voice);
+                return 0;
+            }
+        }
+
+        save_setting("tts_voice", hindi_voice_path);
+    } else if (!current_voice || strcmp(current_voice, hindi_voice_path) == 0) {
+        save_setting("tts_voice", "kal");
+    }
+
+    free(current_voice);
+    speech_engine_reload_settings();
+    return 1;
+}
+
+void app_sync_language_voice_on_startup(MenuNode *root) {
+    char *language_code = get_setting("language");
+
+    if (!language_code) {
+        return;
+    }
+
+    if (root) {
+        set_language(root, language_code);
+    }
+
+    if (!app_apply_language_voice(language_code)) {
+        if (strcmp(language_code, "hi") == 0) {
+            save_setting("language", "en");
+            if (root) {
+                set_language(root, "en");
+            }
+            app_apply_language_voice("en");
+        }
+    } else {
+        char speech_error[128];
+        speech_engine_startup(speech_error, sizeof(speech_error));
+    }
+
+    free(language_code);
+}
+
 int app_collect_visible_menu_items(MenuNode *node, const char *language, MenuNode **items, int max_items) {
     int visible_count = 0;
     int i;
@@ -85,9 +188,11 @@ void app_handle_settings_menu(MenuNode *node, MenuNode *root) {
                 } else if (key == KEY_DOWN) {
                     selected_index = menu_next_index(selected_index, 1, 2);
                 } else if (key == KEY_ENTER) {
-                    save_setting("language", values[selected_index]);
-                    set_language(root, values[selected_index]);
-                    break;
+                    if (app_apply_language_voice(values[selected_index])) {
+                        save_setting("language", values[selected_index]);
+                        set_language(root, values[selected_index]);
+                        break;
+                    }
                 } else if (key == KEY_ESC) {
                     break;
                 }

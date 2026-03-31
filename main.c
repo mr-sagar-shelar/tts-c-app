@@ -41,6 +41,7 @@ int main() {
     }
 
     set_conio_terminal_mode();
+    app_sync_language_voice_on_startup(root);
 
     MenuNode *current_node = root;
     int selected_index = 0;
