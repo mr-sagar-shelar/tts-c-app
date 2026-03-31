@@ -23,7 +23,10 @@
 
 static int app_confirm_action(const char *title, const char *message) {
     int selected_index = 0;
-    const char *options[] = {"Yes", "No"};
+    const char *options[] = {
+        menu_translate("ui_yes", "Yes"),
+        menu_translate("ui_no", "No")
+    };
 
     while (1) {
         printf("\033[H\033[J--- %s ---\n", title);
@@ -35,7 +38,7 @@ static int app_confirm_action(const char *title, const char *message) {
                 printf("  %s\n", options[i]);
             }
         }
-        printf("\n[Arrows: Navigate | Enter: Select | Esc: Cancel]\n");
+        printf("\n%s\n", menu_translate("ui_footer_cancel", "[Arrows: Navigate | Enter: Select | Esc: Cancel]"));
         fflush(stdout);
 
         {
@@ -78,8 +81,9 @@ static int app_apply_language_voice(const char *language_code) {
                                               "Hindi Voice Download",
                                               error,
                                               sizeof(error))) {
-                printf("\033[H\033[J--- Hindi Voice ---\n%s\n\nPress any key to continue...",
-                       error[0] ? error : "Hindi voice download failed.");
+                printf("\033[H\033[J--- Hindi Voice ---\n%s\n\n%s",
+                       error[0] ? error : "Hindi voice download failed.",
+                       menu_translate("ui_press_any_key_to_continue", "Press any key to continue..."));
                 fflush(stdout);
                 read_key();
                 free(current_voice);
@@ -160,7 +164,10 @@ void app_handle_settings_menu(MenuNode *node, MenuNode *root) {
 
     if (strcmp(node->key, "language_switch") == 0) {
         int selected_index = 0;
-        const char *titles[] = {"English", "Hindi"};
+        const char *titles[] = {
+            menu_translate("ui_language_english", "English"),
+            menu_translate("ui_language_hindi", "Hindi")
+        };
         const char *values[] = {"en", "hi"};
         char *current_lang = get_setting("language");
         if (current_lang && strcmp(current_lang, "hi") == 0) {
@@ -170,7 +177,7 @@ void app_handle_settings_menu(MenuNode *node, MenuNode *root) {
         while (1) {
             printf("\033[H\033[J");
             printf("--- %s ---\n", node->title);
-            printf("Selected Value: %s\n\n", titles[selected_index]);
+            printf("%s: %s\n\n", menu_translate("ui_selected_value", "Selected Value"), titles[selected_index]);
             for (int i = 0; i < 2; i++) {
                 if (i == selected_index) {
                     printf("> %s\n", titles[i]);
@@ -178,7 +185,7 @@ void app_handle_settings_menu(MenuNode *node, MenuNode *root) {
                     printf("  %s\n", titles[i]);
                 }
             }
-            printf("\n[Arrows: Navigate | Enter: Select | Esc: Back]\n");
+            printf("\n%s\n", menu_translate("ui_footer_back", "[Arrows: Navigate | Enter: Select | Esc: Back]"));
             fflush(stdout);
 
             {
@@ -208,9 +215,9 @@ void app_handle_settings_menu(MenuNode *node, MenuNode *root) {
         printf("--- %s ---\n", node->title);
         printf("%s\n", speech_message);
         if (speech_engine_startup(speech_error, sizeof(speech_error))) {
-            printf("Speech engine updated with the selected voice.\n");
+            printf("%s\n", menu_translate("ui_speech_engine_updated", "Speech engine updated with the selected voice."));
         }
-        printf("\nPress any key to continue...");
+        printf("\n%s", menu_translate("ui_press_any_key_to_continue", "Press any key to continue..."));
         fflush(stdout);
         read_key();
         return;
@@ -225,10 +232,12 @@ void app_handle_settings_menu(MenuNode *node, MenuNode *root) {
         char *current_val = get_setting(node->key);
         printf("\033[H\033[J");
         printf("--- %s ---\n", node->title);
-        printf("Current Value: %s\n", current_val ? current_val : "Not set");
+        printf("%s: %s\n",
+               menu_translate("ui_current_value", "Current Value"),
+               current_val ? current_val : menu_translate("ui_not_set", "Not set"));
         free(current_val);
 
-        printf("\nPress Enter to change or Esc to go back.");
+        printf("\n%s", menu_translate("ui_press_enter_change_or_esc_back", "Press Enter to change or Esc to go back"));
         fflush(stdout);
 
         while (1) {
@@ -237,7 +246,9 @@ void app_handle_settings_menu(MenuNode *node, MenuNode *root) {
                 char new_val[256];
                 get_user_input(new_val, sizeof(new_val), "Enter new value");
                 save_setting(node->key, new_val);
-                printf("\nValue saved! Press any key to continue...");
+                printf("\n%s %s",
+                       menu_translate("ui_value_saved", "Value saved!"),
+                       menu_translate("ui_press_any_key_to_continue", "Press any key to continue..."));
                 fflush(stdout);
                 read_key();
                 break;

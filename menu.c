@@ -4,6 +4,7 @@
 #include "utils.h"
 
 static char *current_lang_code = NULL;
+static cJSON *current_lang_json = NULL;
 
 static char *menu_selected_value_label(MenuNode *node) {
     char *value;
@@ -20,14 +21,14 @@ static char *menu_selected_value_label(MenuNode *node) {
     if (strcmp(node->key, "language_switch") == 0) {
         char *language = get_setting("language");
         if (!language) {
-            return strdup("English");
+            return strdup(menu_translate("ui_language_english", "English"));
         }
         if (strcmp(language, "hi") == 0) {
             free(language);
-            return strdup("Hindi");
+            return strdup(menu_translate("ui_language_hindi", "Hindi"));
         }
         free(language);
-        return strdup("English");
+        return strdup(menu_translate("ui_language_english", "English"));
     }
 
     return NULL;
@@ -142,7 +143,7 @@ void print_menu(MenuNode *node, int selected_index) {
     printf("\033[H\033[J");
     printf("--- %s ---\n", node->title);
     if (selected_value) {
-        printf("Selected Value: %s\n\n", selected_value);
+        printf("%s: %s\n\n", menu_translate("ui_selected_value", "Selected Value"), selected_value);
         free(selected_value);
     }
     
@@ -154,7 +155,7 @@ void print_menu(MenuNode *node, int selected_index) {
     }
 
     if (visible_count == 0) {
-        printf("  (No items available in this language)\n");
+        printf("  (%s)\n", menu_translate("ui_no_items_available_in_language", "No items available in this language"));
     } else {
         int current_visible_idx = 0;
         for (int i = 0; i < node->num_items; i++) {
@@ -172,7 +173,7 @@ void print_menu(MenuNode *node, int selected_index) {
             current_visible_idx++;
         }
     }
-    printf("\n[Arrows: Navigate | Enter: Select | Esc: Back/Exit | Ctrl+I: Info]\n");
+    printf("\n%s\n", menu_translate("ui_footer_menu_info", "[Arrows: Navigate | Enter: Select | Esc: Back/Exit | Ctrl+I: Info]"));
 }
 
 void print_description(MenuNode *node) {
@@ -182,11 +183,26 @@ void print_description(MenuNode *node) {
     if (node->description) {
         printf("%s\n", node->description);
     } else {
-        printf("No description available.\n");
+        printf("%s\n", menu_translate("ui_no_description_available", "No description available."));
     }
-    printf("\n\nPress Esc to return to menu...");
+    printf("\n\n%s", menu_translate("ui_press_esc_to_return", "Press Esc to return to menu..."));
     fflush(stdout);
     while (read_key() != KEY_ESC);
+}
+
+const char *menu_translate(const char *key, const char *fallback) {
+    cJSON *translated;
+
+    if (!key || !current_lang_json) {
+        return fallback;
+    }
+
+    translated = cJSON_GetObjectItemCaseSensitive(current_lang_json, key);
+    if (translated && cJSON_IsString(translated) && translated->valuestring) {
+        return translated->valuestring;
+    }
+
+    return fallback;
 }
 
 static void update_titles_recursive(MenuNode *node, cJSON *lang_json) {
@@ -234,6 +250,9 @@ void set_language(MenuNode *root, const char *lang_code) {
     free(data);
     if (!lang_json) return;
 
+    if (current_lang_json) {
+        cJSON_Delete(current_lang_json);
+    }
+    current_lang_json = lang_json;
     update_titles_recursive(root, lang_json);
-    cJSON_Delete(lang_json);
 }

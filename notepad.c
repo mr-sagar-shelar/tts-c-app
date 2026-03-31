@@ -1,4 +1,5 @@
 #include "notepad.h"
+#include "menu.h"
 
 static void handle_notepad_save(const char *buffer, char *filename) {
     if (strlen(filename) == 0) {
@@ -109,7 +110,7 @@ void handle_notepad(const char *initial_content, const char *initial_filename) {
 
 void handle_notepad_search() {
     char query[256];
-    get_user_input(query, sizeof(query), "Enter search term");
+    get_user_input(query, sizeof(query), menu_translate("ui_enter_search_term", "Enter search term"));
     if (strlen(query) == 0) return;
 
     SearchResult results[100];
@@ -117,7 +118,7 @@ void handle_notepad_search() {
     recursive_file_search(USER_SPACE, query, results, &count, 100);
 
     if (count == 0) {
-        printf("\nNo results found. Press any key..."); fflush(stdout); read_key();
+        printf("\n%s", menu_translate("ui_no_results_found_press_any_key", "No results found. Press any key...")); fflush(stdout); read_key();
         return;
     }
 

@@ -1,5 +1,6 @@
 #include "file_manager.h"
 #include <ctype.h>
+#include "menu.h"
 
 static char* file_navigator_internal(const char *start_path, int select_dir_only, int supported_only) {
     char current_path[1024];
@@ -116,7 +117,7 @@ void file_manager_open_viewer(const char *filename) {
         printf("%s", text);
         free(text);
     }
-    printf("\n\nPress any key to go back...");
+    printf("\n\n%s", menu_translate("ui_press_any_key_to_go_back", "Press any key to go back..."));
     fflush(stdout);
     read_key();
 }
@@ -155,7 +156,7 @@ void recursive_file_search(const char *base_path, const char *pattern, SearchRes
 
 void handle_fm_search() {
     char query[256];
-    get_user_input(query, sizeof(query), "Enter search term");
+    get_user_input(query, sizeof(query), menu_translate("ui_enter_search_term", "Enter search term"));
     if (strlen(query) == 0) return;
 
     SearchResult results[100];
@@ -163,7 +164,7 @@ void handle_fm_search() {
     recursive_file_search(USER_SPACE, query, results, &count, 100);
 
     if (count == 0) {
-        printf("\nNo results found. Press any key..."); fflush(stdout); read_key();
+        printf("\n%s", menu_translate("ui_no_results_found_press_any_key", "No results found. Press any key...")); fflush(stdout); read_key();
         return;
     }
 

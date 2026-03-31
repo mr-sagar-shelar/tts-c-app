@@ -4,6 +4,7 @@
 #include <ctype.h>
 #include "calendar.h"
 #include "cJSON.h"
+#include "menu.h"
 #include "utils.h"
 #include "config.h"
 
@@ -133,7 +134,7 @@ void handle_calendar(MenuNode *node) {
     if (strcmp(node->key, "calendar_list") == 0) {
         int count = get_event_count();
         if (count == 0) {
-            printf("\033[H\033[J--- Calendar ---\nNo events found. Press any key...");
+            printf("\033[H\033[J--- Calendar ---\n%s", menu_translate("ui_no_events_found_press_any_key", "No events found. Press any key..."));
             fflush(stdout); read_key();
             return;
         }
@@ -159,7 +160,7 @@ void handle_calendar(MenuNode *node) {
         }
     } else if (strcmp(node->key, "calendar_search") == 0) {
         char query[256];
-        get_user_input(query, sizeof(query), "Enter search term");
+        get_user_input(query, sizeof(query), menu_translate("ui_enter_search_term", "Enter search term"));
         if (strlen(query) == 0) return;
 
         int total_count = get_event_count();
@@ -183,7 +184,7 @@ void handle_calendar(MenuNode *node) {
         }
 
         if (match_count == 0) {
-            printf("\nNo events found. Press any key..."); fflush(stdout); read_key();
+            printf("\n%s", menu_translate("ui_no_events_found_press_any_key", "No events found. Press any key...")); fflush(stdout); read_key();
             return;
         }
 

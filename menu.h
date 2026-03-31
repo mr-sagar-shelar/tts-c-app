@@ -26,5 +26,6 @@ void print_menu(MenuNode *node, int selected_index);
 void set_language(MenuNode *root, const char *lang_code);
 int is_menu_visible(MenuNode *node, const char *current_lang);
 void print_description(MenuNode *node);
+const char *menu_translate(const char *key, const char *fallback);
 
 #endif

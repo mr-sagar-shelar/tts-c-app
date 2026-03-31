@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <signal.h>
 #include "radio.h"
+#include "menu.h"
 #include "utils.h"
 #include "cJSON.h"
 #include "download_ui.h"
@@ -84,7 +85,7 @@ void radio_ui_show_menu(void) {
     while (1) {
         printf("\033[H\033[J--- Internet Radio ---\n");
         if (active_list == fallback_stations) {
-            printf("(Note: Using fallback station list)\n\n");
+            printf("(%s)\n\n", menu_translate("ui_fallback_station_list", "Note: Using fallback station list"));
         }
 
         int PAGE_SIZE = 10;
@@ -94,16 +95,16 @@ void radio_ui_show_menu(void) {
 
         for (int i = start_idx; i < end_idx; i++) {
             if (i == current_sel) {
-                printf("> %s %s\n", active_list[i].name, (is_playing && playing_idx == i) ? "(Playing)" : "");
+                printf("> %s %s\n", active_list[i].name, (is_playing && playing_idx == i) ? menu_translate("ui_playing_inline", "(Playing)") : "");
             } else {
-                printf("  %s %s\n", active_list[i].name, (is_playing && playing_idx == i) ? "(Playing)" : "");
+                printf("  %s %s\n", active_list[i].name, (is_playing && playing_idx == i) ? menu_translate("ui_playing_inline", "(Playing)") : "");
             }
         }
 
         printf("\n------------------------------------------\n");
-        printf("[Enter: Play/Pause | N: Next | P: Previous | R: Refresh | Esc: Stop & Back]\n");
+        printf("%s\n", menu_translate("ui_footer_radio", "[Enter: Play/Pause | N: Next | P: Previous | R: Refresh | Esc: Stop & Back]"));
         if (is_playing) {
-            printf("Currently Streaming: %s\n", active_list[playing_idx].name);
+            printf("%s: %s\n", menu_translate("ui_currently_streaming", "Currently Streaming"), active_list[playing_idx].name);
         }
         fflush(stdout);
 

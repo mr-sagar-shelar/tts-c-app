@@ -11,6 +11,7 @@
 
 #include "download_manager.h"
 #include "download_ui.h"
+#include "menu.h"
 #include "utils.h"
 
 #define VOICE_LIBRARY_DIR "voices"
@@ -199,7 +200,7 @@ static void show_voice_action_result(const char *voice_name, const char *message
     printf("\033[H\033[J--- Voice File ---\n");
     printf("%s\n\n", voice_name);
     printf("%s\n", message);
-    printf("\nPress any key to continue...");
+    printf("\n%s", menu_translate("ui_press_any_key_to_continue", "Press any key to continue..."));
     fflush(stdout);
     read_key();
 }
@@ -242,12 +243,12 @@ static void handle_voice_actions(const VoiceLibraryEntry *entry) {
         if (current_operation || voice_operation.in_progress) {
             printf("\n%s %s\n", spin, voice_operation.message);
             if (strcmp(voice_operation.action, "download") == 0) {
-                printf("Progress: %d%%\n", voice_download.progress_percent);
+                printf("%s: %d%%\n", menu_translate("ui_progress", "Progress"), voice_download.progress_percent);
             }
             printf("Navigation stays within this voice menu until the current operation finishes.\n");
-            printf("[Arrows: Navigate locally | Enter: Disabled | Esc: Disabled]\n");
+            printf("%s\n", menu_translate("ui_footer_voice_busy", "[Arrows: Navigate locally | Enter: Disabled | Esc: Disabled]"));
         } else {
-            printf("\n[Arrows: Navigate | Enter: Select | Esc: Back]\n");
+            printf("\n%s\n", menu_translate("ui_footer_back", "[Arrows: Navigate | Enter: Select | Esc: Back]"));
         }
         fflush(stdout);
 
@@ -317,12 +318,12 @@ void voice_library_show_menu(void) {
             spin[1] = '\0';
             printf("\n%s %s\n", spin, voice_operation.message);
             if (strcmp(voice_operation.action, "download") == 0) {
-                printf("Progress: %d%%\n", voice_download.progress_percent);
+                printf("%s: %d%%\n", menu_translate("ui_progress", "Progress"), voice_download.progress_percent);
             }
             printf("You can move within Download Voice, but back and new actions stay locked until it finishes.\n");
-            printf("[Arrows: Navigate | Enter: Disabled | Esc: Disabled]\n");
+            printf("%s\n", menu_translate("ui_footer_voice_busy", "[Arrows: Navigate locally | Enter: Disabled | Esc: Disabled]"));
         } else {
-            printf("\n[Arrows: Navigate | Enter: Open voice actions | Esc: Back]\n");
+            printf("\n%s\n", menu_translate("ui_footer_open_back", "[Arrows: Navigate | Enter: Open voice actions | Esc: Back]"));
         }
         fflush(stdout);
 

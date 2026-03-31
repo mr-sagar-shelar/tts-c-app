@@ -3,6 +3,7 @@
 #include "download_ui.h"
 #include "document_reader.h"
 #include "file_manager.h"
+#include "menu.h"
 #include "speech_engine.h"
 #include "text_processor.h"
 #include <ctype.h>
@@ -148,11 +149,13 @@ static void render_word_reader(const TextProcessor *processor, const char *selec
 
     page = compute_reader_page(processor, current_index, cols, content_lines);
 
-    printf("\033[H\033[J--- Color Reader ---\n");
-    printf("File: %s\n", selected_path);
-    printf("Word %zu of %zu", current_index + 1, processor->token_count);
+    printf("\033[H\033[J--- %s ---\n", menu_translate("color_reader", "Color Reader"));
+    printf("%s: %s\n", menu_translate("ui_file_label", "File"), selected_path);
+    printf(menu_translate("ui_word_position_format", "Word %zu of %zu"), current_index + 1, processor->token_count);
     if (current_word) {
-        printf("  [line %d, col %d]", current_word->line, current_word->column);
+        printf("  [");
+        printf(menu_translate("ui_line_column_format", "line %d, col %d"), current_word->line, current_word->column);
+        printf("]");
     }
     printf("\n\n");
 
@@ -164,9 +167,9 @@ static void render_word_reader(const TextProcessor *processor, const char *selec
         }
     }
 
-    printf("\n\n[Up: Previous | Down: Next | Enter: Next | Ctrl+E: Export to wave | Esc: Back]\n");
-    printf("The highlighted word represents the token currently being spoken.\n");
-    printf("Speech uses Flite when speech mode is enabled and Flite support is available.\n");
+    printf("\n\n%s\n", menu_translate("ui_footer_word_reader", "[Up: Previous | Down: Next | Enter: Next | Ctrl+E: Export to wave | Esc: Back]"));
+    printf("%s\n", menu_translate("ui_reader_highlight_help", "The highlighted word represents the token currently being spoken."));
+    printf("%s\n", menu_translate("ui_reader_export_help", "Use Ctrl+E to export the current document to a WAV file."));
     fflush(stdout);
 }
 
@@ -296,7 +299,7 @@ void content_ui_show_joke(void) {
 
         printf("\033[H\033[J--- Joke ---\n\n%s\n\n", joke_text);
         printf("------------------------------------------\n");
-        printf("[Space: New Joke | Esc: Back]\n");
+        printf("%s\n", menu_translate("ui_footer_joke", "[Space: New Joke | Esc: Back]"));
         fflush(stdout);
 
         int key = read_key();
@@ -370,7 +373,7 @@ void content_ui_show_short_stories(void) {
         if (end_idx < story_count) printf("  ... (Next page below) ...\n");
         if (start_idx > 0) printf("  ... (Previous page above) ...\n");
         
-        printf("\n[Arrows: Navigate | Enter: Read | Esc: Back]\n");
+        printf("\n%s\n", menu_translate("ui_footer_read_back", "[Arrows: Navigate | Enter: Read | Esc: Back]"));
         fflush(stdout);
 
         int key = read_key();
@@ -390,7 +393,7 @@ void content_ui_show_short_stories(void) {
             if (moral_node) {
                 printf("\n\nMoral: %s\n", moral_node->valuestring);
             }
-            printf("\n\nPress any key to go back...");
+            printf("\n\n%s", menu_translate("ui_press_any_key_to_go_back", "Press any key to go back..."));
             fflush(stdout); read_key();
         }
     }
@@ -432,7 +435,7 @@ void content_ui_show_poems(void) {
                     if (end_line < total_lines) {
                         printf("\n[Space: Next Page | Esc: Back]\n");
                     } else {
-                        printf("\n[End of Poem. Press any key to go back...]\n");
+                        printf("\n[%s]\n", menu_translate("ui_end_of_poem_go_back", "End of Poem. Press any key to go back..."));
                     }
                     fflush(stdout);
 

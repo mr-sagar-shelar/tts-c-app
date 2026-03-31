@@ -5,6 +5,7 @@
 #include <unistd.h>
 
 #include "download_ui.h"
+#include "menu.h"
 
 static void play_downloaded_audio_file(const char *path) {
     pid_t pid = fork();
@@ -51,7 +52,8 @@ void handle_dictionary() {
 
     FILE *f = fopen(dict_file, "rb");
     if (!f) {
-        printf("\033[H\033[J--- Sense Dictionary ---\nDictionary file '%s' not found. Press any key...", dict_file);
+        printf("\033[H\033[J--- Sense Dictionary ---\n");
+        printf(menu_translate("ui_dictionary_file_missing_format", "Dictionary file '%s' not found. Press any key..."), dict_file);
         fflush(stdout); read_key();
         return;
     }
@@ -80,7 +82,7 @@ void handle_dictionary() {
 
     while (1) {
         printf("\033[H\033[J--- Sense Dictionary ---\n");
-        printf("Search: %s_\n", search_term);
+        printf("%s: %s_\n", menu_translate("ui_search", "Search"), search_term);
         printf("---------------------------\n");
 
         int matches[512];
@@ -184,7 +186,7 @@ void handle_english_only_dictionary() {
         printf("\033[H\033[J--- English Only Dictionary ---\n\n");
         if (title && cJSON_IsString(title)) printf("%s\n\n", title->valuestring);
         if (message && cJSON_IsString(message)) printf("%s\n", message->valuestring);
-        printf("\nPress any key to go back...");
+        printf("\n%s", menu_translate("ui_press_any_key_to_go_back", "Press any key to go back..."));
         fflush(stdout); read_key();
         cJSON_Delete(json);
         return;
@@ -233,7 +235,7 @@ void handle_english_only_dictionary() {
     if (strlen(audio_url) > 0) {
         printf("Press 'p' to play audio, Esc to go back.");
     } else {
-        printf("Press any key to go back...");
+        printf("%s", menu_translate("ui_press_any_key_to_go_back", "Press any key to go back..."));
     }
     fflush(stdout);
 
@@ -300,7 +302,7 @@ void handle_multi_lang_dictionary() {
 
     if (!word_node || !cJSON_IsArray(entries)) {
         printf("\033[H\033[J--- Multi Language Dictionary ---\n\nWord not found or error in response.\n");
-        printf("\nPress any key to go back...");
+        printf("\n%s", menu_translate("ui_press_any_key_to_go_back", "Press any key to go back..."));
         fflush(stdout); read_key();
         cJSON_Delete(json);
         return;
@@ -344,7 +346,7 @@ void handle_multi_lang_dictionary() {
     if (strlen(audio_url) > 0) {
         printf("Press 'p' to play audio, Esc to go back.");
     } else {
-        printf("Press any key to go back...");
+        printf("%s", menu_translate("ui_press_any_key_to_go_back", "Press any key to go back..."));
     }
     fflush(stdout);
 

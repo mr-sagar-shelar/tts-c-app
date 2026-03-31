@@ -1,4 +1,5 @@
 #include "utils.h"
+#include "menu.h"
 
 static struct termios original_termios;
 static int is_conio_mode = 0;
@@ -140,7 +141,7 @@ int handle_value_picker(const char *title, int min, int max, int current) {
             if (i == sel) printf("> %02d\n", i + min);
             else printf("  %02d\n", i + min);
         }
-        printf("\n[Arrows: Navigate | Enter: Select | Esc: Back]\n");
+        printf("\n%s\n", menu_translate("ui_footer_back", "[Arrows: Navigate | Enter: Select | Esc: Back]"));
         fflush(stdout);
 
         int key = read_key();

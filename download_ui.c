@@ -9,6 +9,7 @@
 #include <unistd.h>
 
 #include "download_manager.h"
+#include "menu.h"
 #include "utils.h"
 
 static char *shell_quote(const char *text) {
@@ -101,11 +102,11 @@ static int run_transfer_progress_ui(const char *title,
         spin[0] = spinner[spinner_index++ % 4];
         spin[1] = '\0';
 
-        printf("\033[H\033[J--- %s ---\n", title ? title : "Transfer");
-        printf("%s %s\n", spin, initial_status ? initial_status : "Transferring");
-        printf("Target: %s\n", target_path ? target_path : "(none)");
-        printf("Progress: %d%%\n\n", progress);
-        printf("The current menu remains active until the transfer finishes.\n");
+        printf("\033[H\033[J--- %s ---\n", title ? title : menu_translate("ui_transfer", "Transfer"));
+        printf("%s %s\n", spin, initial_status ? initial_status : menu_translate("ui_transferring", "Transferring"));
+        printf("%s: %s\n", menu_translate("ui_target", "Target"), target_path ? target_path : "(none)");
+        printf("%s: %d%%\n\n", menu_translate("ui_progress", "Progress"), progress);
+        printf("%s\n", menu_translate("ui_transfer_lock_message", "The current menu remains active until the transfer finishes."));
         fflush(stdout);
         read_key_timeout(150);
     }
@@ -116,7 +117,7 @@ static int run_transfer_progress_ui(const char *title,
 
     if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
         if (error && error_size > 0) {
-            snprintf(error, error_size, "%s failed", title ? title : "Transfer");
+            snprintf(error, error_size, "%s failed", title ? title : menu_translate("ui_transfer", "Transfer"));
         }
         return 0;
     }
@@ -151,9 +152,9 @@ int download_file_with_progress_ui(const char *title,
 
         printf("\033[H\033[J--- %s ---\n", title ? title : "Download");
         printf("%s %s\n", spin, task.status);
-        printf("Target: %s\n", output_path);
-        printf("Progress: %d%%\n\n", task.progress_percent);
-        printf("Current menu remains active until the download finishes.\n");
+        printf("%s: %s\n", menu_translate("ui_target", "Target"), output_path);
+        printf("%s: %d%%\n\n", menu_translate("ui_progress", "Progress"), task.progress_percent);
+        printf("%s\n", menu_translate("ui_transfer_lock_message", "The current menu remains active until the transfer finishes."));
         fflush(stdout);
 
         if (task.active) {

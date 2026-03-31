@@ -3,6 +3,7 @@
 #include <string.h>
 #include <ctype.h>
 #include "alarm.h"
+#include "menu.h"
 #include "utils.h"
 #include "cJSON.h"
 #include "config.h"
@@ -76,7 +77,13 @@ static void remove_alarm(int index) {
 
 static void alarm_form(Alarm *a, const char *title) {
     int sel = 0;
-    const char *options[] = {"Label", "Hour", "Minute", "Enabled", "Save and Back"};
+    const char *options[] = {
+        "Label",
+        menu_translate("hour", "Hour"),
+        menu_translate("minute", "Minute"),
+        "Enabled",
+        menu_translate("ui_save_and_back", "Save and Back")
+    };
     int num_options = 5;
 
     while (1) {
@@ -89,7 +96,7 @@ static void alarm_form(Alarm *a, const char *title) {
             else printf("  %s\n", options[i]);
         }
         
-        printf("\n[Arrows: Navigate | Enter: Select | Esc: Cancel]\n");
+        printf("\n%s\n", menu_translate("ui_footer_cancel", "[Arrows: Navigate | Enter: Select | Esc: Cancel]"));
         fflush(stdout);
 
         int key = read_key();
@@ -101,10 +108,10 @@ static void alarm_form(Alarm *a, const char *title) {
             if (sel == 0) { // Label
                 get_user_input(a->label, sizeof(a->label), "Enter alarm label");
             } else if (sel == 1) { // Hour
-                int val = handle_value_picker("Select Hour", 0, 23, a->hour);
+                int val = handle_value_picker(menu_translate("ui_select_hour", "Select Hour"), 0, 23, a->hour);
                 if (val != -1) a->hour = val;
             } else if (sel == 2) { // Minute
-                int val = handle_value_picker("Select Minute", 0, 59, a->minute);
+                int val = handle_value_picker(menu_translate("ui_select_minute", "Select Minute"), 0, 59, a->minute);
                 if (val != -1) a->minute = val;
             } else if (sel == 3) { // Enabled
                 a->enabled = !a->enabled;
@@ -124,7 +131,12 @@ void handle_alarm() {
     }
 
     int sel = 0;
-    const char *options[] = {"Add Alarm", "Update Alarm", "Remove Alarm", "Go Back"};
+    const char *options[] = {
+        menu_translate("ui_add_alarm", "Add Alarm"),
+        menu_translate("ui_update_alarm", "Update Alarm"),
+        menu_translate("ui_remove_alarm", "Remove Alarm"),
+        menu_translate("ui_go_back", "Go Back")
+    };
     int num_options = 4;
 
     while (1) {
@@ -146,7 +158,7 @@ void handle_alarm() {
             else printf("  %s\n", options[i]);
         }
         
-        printf("\n[Arrows: Navigate | Enter: Select | Shortcuts: a, u, r | Esc: Back]\n");
+        printf("\n%s\n", menu_translate("ui_footer_alarm_shortcuts", "[Arrows: Navigate | Enter: Select | Shortcuts: a, u, r | Esc: Back]"));
         fflush(stdout);
 
         int key = read_key();
@@ -188,7 +200,7 @@ void handle_alarm() {
             if (idx >= 0 && idx < alarm_count) {
                 Alarm a;
                 get_alarm_at(idx, &a);
-                alarm_form(&a, "Update Alarm");
+                alarm_form(&a, menu_translate("ui_update_alarm", "Update Alarm"));
                 if (a.hour != -1) {
                     update_alarm(idx, &a);
                     printf("\nAlarm updated! Press any key...");
