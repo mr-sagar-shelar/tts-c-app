@@ -503,10 +503,10 @@ void content_ui_run_word_viewer(void) {
         } else if (key == KEY_CTRL_E) {
             export_processor_to_wave(processor, selected_path);
             last_spoken_index = (size_t)-1;
-        } else if ((key == KEY_DOWN || key == KEY_ENTER) && index + 1 < processor->token_count) {
-            next_index = index + 1;
-        } else if (key == KEY_UP && index > 0) {
-            next_index = index - 1;
+        } else if (key == KEY_DOWN || key == KEY_ENTER) {
+            next_index = (size_t)menu_next_index((int)index, 1, (int)processor->token_count);
+        } else if (key == KEY_UP) {
+            next_index = (size_t)menu_next_index((int)index, -1, (int)processor->token_count);
         }
 
         if (next_index != index) {

@@ -1,7 +1,37 @@
 #include "menu.h"
+#include "config.h"
+#include "speech_settings.h"
 #include "utils.h"
 
 static char *current_lang_code = NULL;
+
+static char *menu_selected_value_label(MenuNode *node) {
+    char *value;
+
+    if (!node) {
+        return NULL;
+    }
+
+    value = speech_settings_get_selected_label(node->key);
+    if (value) {
+        return value;
+    }
+
+    if (strcmp(node->key, "language_switch") == 0) {
+        char *language = get_setting("language");
+        if (!language) {
+            return strdup("English");
+        }
+        if (strcmp(language, "hi") == 0) {
+            free(language);
+            return strdup("Hindi");
+        }
+        free(language);
+        return strdup("English");
+    }
+
+    return NULL;
+}
 
 int is_menu_visible(MenuNode *node, const char *current_lang) {
     if (!node) return 0;
@@ -106,9 +136,15 @@ void free_menu(MenuNode *node) {
 }
 
 void print_menu(MenuNode *node, int selected_index) {
+    char *selected_value = menu_selected_value_label(node);
+
     // Clear screen (ANSI escape code)
     printf("\033[H\033[J");
     printf("--- %s ---\n", node->title);
+    if (selected_value) {
+        printf("Selected Value: %s\n\n", selected_value);
+        free(selected_value);
+    }
     
     int visible_count = 0;
     for (int i = 0; i < node->num_items; i++) {
@@ -136,7 +172,7 @@ void print_menu(MenuNode *node, int selected_index) {
             current_visible_idx++;
         }
     }
-    printf("\n[Arrows: Navigate | Enter: Select | Esc: Back/Exit | Shortcut Keys | Ctrl+I: Info]\n");
+    printf("\n[Arrows: Navigate | Enter: Select | Esc: Back/Exit | Ctrl+I: Info]\n");
 }
 
 void print_description(MenuNode *node) {

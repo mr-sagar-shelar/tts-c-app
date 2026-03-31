@@ -66,4 +66,13 @@ char *url_encode(const char *str);
  */
 int handle_value_picker(const char *title, int min, int max, int current);
 
+/**
+ * Moves a menu selection with wrap-around behavior.
+ * @param current The current index.
+ * @param direction Use -1 for up and +1 for down.
+ * @param count The total number of items.
+ * @return The next wrapped index.
+ */
+int menu_next_index(int current, int direction, int count);
+
 #endif /* UTILS_H */

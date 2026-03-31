@@ -144,16 +144,33 @@ int handle_value_picker(const char *title, int min, int max, int current) {
         fflush(stdout);
 
         int key = read_key();
-        if (key == KEY_UP && sel > 0) {
-            sel--;
+        if (key == KEY_UP) {
+            sel = menu_next_index(sel, -1, count);
             if (sel < scroll) scroll = (sel / PAGE_SIZE) * PAGE_SIZE;
-        } else if (key == KEY_DOWN && sel < count - 1) {
-            sel++;
+            else if (sel >= scroll + PAGE_SIZE) scroll = (sel / PAGE_SIZE) * PAGE_SIZE;
+        } else if (key == KEY_DOWN) {
+            sel = menu_next_index(sel, 1, count);
             if (sel >= scroll + PAGE_SIZE) scroll = (sel / PAGE_SIZE) * PAGE_SIZE;
+            else if (sel < scroll) scroll = (sel / PAGE_SIZE) * PAGE_SIZE;
         } else if (key == KEY_ENTER) {
             return sel + min;
         } else if (key == KEY_ESC) {
             return -1;
         }
     }
+}
+
+int menu_next_index(int current, int direction, int count) {
+    if (count <= 0) {
+        return 0;
+    }
+
+    current += direction;
+    if (current < 0) {
+        return count - 1;
+    }
+    if (current >= count) {
+        return 0;
+    }
+    return current;
 }

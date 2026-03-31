@@ -56,31 +56,41 @@ void app_handle_settings_menu(MenuNode *node, MenuNode *root) {
     char speech_error[128];
 
     if (strcmp(node->key, "language_switch") == 0) {
+        int selected_index = 0;
+        const char *titles[] = {"English", "Hindi"};
+        const char *values[] = {"en", "hi"};
         char *current_lang = get_setting("language");
-        if (!current_lang) {
-            current_lang = strdup("en");
+        if (current_lang && strcmp(current_lang, "hi") == 0) {
+            selected_index = 1;
         }
 
-        printf("\033[H\033[J");
-        printf("--- %s ---\n", node->title);
-        printf("Current Language: %s\n", current_lang);
-        printf("\n1. English (en)\n");
-        printf("2. Hindi (hi)\n");
-        printf("\nSelect (1 or 2), or Esc to go back.");
-        fflush(stdout);
-
         while (1) {
-            int key = read_key();
-            if (key == '1') {
-                save_setting("language", "en");
-                set_language(root, "en");
-                break;
-            } else if (key == '2') {
-                save_setting("language", "hi");
-                set_language(root, "hi");
-                break;
-            } else if (key == KEY_ESC) {
-                break;
+            printf("\033[H\033[J");
+            printf("--- %s ---\n", node->title);
+            printf("Selected Value: %s\n\n", titles[selected_index]);
+            for (int i = 0; i < 2; i++) {
+                if (i == selected_index) {
+                    printf("> %s\n", titles[i]);
+                } else {
+                    printf("  %s\n", titles[i]);
+                }
+            }
+            printf("\n[Arrows: Navigate | Enter: Select | Esc: Back]\n");
+            fflush(stdout);
+
+            {
+                int key = read_key();
+                if (key == KEY_UP) {
+                    selected_index = menu_next_index(selected_index, -1, 2);
+                } else if (key == KEY_DOWN) {
+                    selected_index = menu_next_index(selected_index, 1, 2);
+                } else if (key == KEY_ENTER) {
+                    save_setting("language", values[selected_index]);
+                    set_language(root, values[selected_index]);
+                    break;
+                } else if (key == KEY_ESC) {
+                    break;
+                }
             }
         }
         free(current_lang);

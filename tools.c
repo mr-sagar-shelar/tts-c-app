@@ -240,9 +240,12 @@ static void handle_change_timezone() {
     int PAGE_SIZE = 15;
 
     while (1) {
+        char *current_timezone = get_setting("timezone");
         printf("\033[H\033[J--- Select Time Zone ---\n");
+        printf("Selected Value: %s\n", current_timezone ? current_timezone : "Asia/Kolkata");
         printf("Search: %s_\n", search_term);
         printf("---------------------------\n");
+        free(current_timezone);
 
         int matches[total_count];
         int match_count = 0;
@@ -280,15 +283,13 @@ static void handle_change_timezone() {
         fflush(stdout);
 
         int key = read_key();
-        if (key == KEY_UP && sel > 0) {
-            sel--;
-        } else if (key == KEY_DOWN && sel < match_count - 1) {
-            sel++;
+        if (key == KEY_UP) {
+            sel = menu_next_index(sel, -1, match_count);
+        } else if (key == KEY_DOWN) {
+            sel = menu_next_index(sel, 1, match_count);
         } else if (key == KEY_ENTER && match_count > 0) {
             const char *selected_tz = cJSON_GetArrayItem(tz_array, matches[sel])->valuestring;
             save_setting("timezone", selected_tz);
-            printf("\nTime Zone updated to '%s'! Press any key...", selected_tz);
-            fflush(stdout); read_key();
             break;
         } else if (key == KEY_ESC) {
             break;
@@ -313,24 +314,7 @@ static void handle_change_timezone() {
 }
 
 void system_ui_change_timezone(void) {
-    while (1) {
-        char *current = get_setting("timezone");
-        printf("\033[H\033[J--- Time Zone ---\n");
-        printf("Current Time Zone: %s\n", current ? current : "Asia/Kolkata (Default)");
-        if (current) free(current);
-
-        printf("\n1. Change Time Zone\n");
-        printf("Esc. Go Back\n");
-        printf("\nSelect option: ");
-        fflush(stdout);
-
-        int key = read_key();
-        if (key == '1') {
-            handle_change_timezone();
-        } else if (key == KEY_ESC) {
-            break;
-        }
-    }
+    handle_change_timezone();
 }
 
 void system_ui_change_time_format(void) {
@@ -346,6 +330,7 @@ void system_ui_change_time_format(void) {
 
     while (1) {
         printf("\033[H\033[J--- Time Format ---\n");
+        printf("Selected Value: %s\n\n", options[sel]);
         for (int i = 0; i < 2; i++) {
             if (i == sel) printf("> %s\n", options[i]);
             else printf("  %s\n", options[i]);
@@ -354,12 +339,10 @@ void system_ui_change_time_format(void) {
         fflush(stdout);
 
         int key = read_key();
-        if (key == KEY_UP && sel > 0) sel--;
-        else if (key == KEY_DOWN && sel < 1) sel++;
+        if (key == KEY_UP) sel = menu_next_index(sel, -1, 2);
+        else if (key == KEY_DOWN) sel = menu_next_index(sel, 1, 2);
         else if (key == KEY_ENTER) {
             save_setting("time_format", keys[sel]);
-            printf("\nTime Format updated to '%s'! Press any key...", options[sel]);
-            fflush(stdout); read_key();
             break;
         } else if (key == KEY_ESC) {
             break;
@@ -381,8 +364,7 @@ void system_ui_set_time_manual(void) {
 
     while (1) {
         printf("\033[H\033[J--- Set Time ---\n");
-        printf("Current Selection: %02d:%02d:%02d\n", h, m, s);
-        printf("---------------------------\n");
+        printf("Selected Value: %02d:%02d:%02d\n\n", h, m, s);
         
         for (int i = 0; i < num_options; i++) {
             if (i == sel) printf("> %s\n", options[i]);
@@ -393,10 +375,10 @@ void system_ui_set_time_manual(void) {
         fflush(stdout);
 
         int key = read_key();
-        if (key == KEY_UP && sel > 0) {
-            sel--;
-        } else if (key == KEY_DOWN && sel < num_options - 1) {
-            sel++;
+        if (key == KEY_UP) {
+            sel = menu_next_index(sel, -1, num_options);
+        } else if (key == KEY_DOWN) {
+            sel = menu_next_index(sel, 1, num_options);
         } else if (key == KEY_ENTER) {
             if (sel == 0) {
                 int val = handle_value_picker("Select Hour", 0, 23, h);
@@ -446,8 +428,7 @@ void system_ui_set_date_manual(void) {
 
     while (1) {
         printf("\033[H\033[J--- Set Date ---\n");
-        printf("Current Selection: %04d-%02d-%02d\n", year, month, day);
-        printf("---------------------------\n");
+        printf("Selected Value: %04d-%02d-%02d\n\n", year, month, day);
         
         for (int i = 0; i < num_options; i++) {
             if (i == sel) printf("> %s\n", options[i]);
@@ -458,10 +439,10 @@ void system_ui_set_date_manual(void) {
         fflush(stdout);
 
         int key = read_key();
-        if (key == KEY_UP && sel > 0) {
-            sel--;
-        } else if (key == KEY_DOWN && sel < num_options - 1) {
-            sel++;
+        if (key == KEY_UP) {
+            sel = menu_next_index(sel, -1, num_options);
+        } else if (key == KEY_DOWN) {
+            sel = menu_next_index(sel, 1, num_options);
         } else if (key == KEY_ENTER) {
             if (sel == 0) {
                 int val = handle_value_picker("Select Month", 1, 12, month);

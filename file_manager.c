@@ -68,8 +68,8 @@ static char* file_navigator_internal(const char *start_path, int select_dir_only
             fflush(stdout);
 
             int key = read_key();
-            if (key == KEY_UP && selected > 0) selected--;
-            else if (key == KEY_DOWN && selected < count - 1) selected++;
+            if (key == KEY_UP) selected = menu_next_index(selected, -1, count);
+            else if (key == KEY_DOWN) selected = menu_next_index(selected, 1, count);
             else if (key == KEY_ENTER && count > 0) confirmed = 1;
             else if (key == KEY_ESC) return NULL;
             else if (key == ' ' && select_dir_only) {
@@ -176,8 +176,8 @@ void handle_fm_search() {
         }
         fflush(stdout);
         int key = read_key();
-        if (key == KEY_UP && sel > 0) sel--;
-        else if (key == KEY_DOWN && sel < count - 1) sel++;
+        if (key == KEY_UP) sel = menu_next_index(sel, -1, count);
+        else if (key == KEY_DOWN) sel = menu_next_index(sel, 1, count);
         else if (key == KEY_ENTER) {
             if (results[sel].is_dir) {
                 char *path = file_navigator(results[sel].path, 0);

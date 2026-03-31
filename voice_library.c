@@ -257,10 +257,10 @@ static void handle_voice_actions(const VoiceLibraryEntry *entry) {
         }
 
         int key = voice_operation.in_progress ? read_key_timeout(150) : read_key();
-        if (key == KEY_UP && selected_index > 0) {
-            selected_index--;
-        } else if (key == KEY_DOWN && selected_index < 2) {
-            selected_index++;
+        if (key == KEY_UP) {
+            selected_index = menu_next_index(selected_index, -1, 3);
+        } else if (key == KEY_DOWN) {
+            selected_index = menu_next_index(selected_index, 1, 3);
         } else if (!voice_operation.in_progress && (key == KEY_ESC || (key == KEY_ENTER && selected_index == 2))) {
             return;
         } else if (!voice_operation.in_progress && key == KEY_ENTER) {
@@ -332,10 +332,10 @@ void voice_library_show_menu(void) {
         }
 
         int key = voice_operation.in_progress ? read_key_timeout(150) : read_key();
-        if (key == KEY_UP && selected_index > 0) {
-            selected_index--;
-        } else if (key == KEY_DOWN && selected_index < total - 1) {
-            selected_index++;
+        if (key == KEY_UP) {
+            selected_index = menu_next_index(selected_index, -1, total);
+        } else if (key == KEY_DOWN) {
+            selected_index = menu_next_index(selected_index, 1, total);
         } else if (!voice_operation.in_progress && key == KEY_ENTER) {
             handle_voice_actions(&voice_entries[selected_index]);
         } else if (!voice_operation.in_progress && key == KEY_ESC) {
