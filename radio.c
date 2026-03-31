@@ -71,7 +71,7 @@ static void fetch_radio_stations() {
     free(data);
 }
 
-void handle_internet_radio() {
+void radio_ui_show_menu(void) {
     fetch_radio_stations();
 
     RadioStation *active_list = (dynamic_stations && dynamic_count > 0) ? dynamic_stations : fallback_stations;

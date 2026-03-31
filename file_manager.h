@@ -36,7 +36,7 @@ char* file_navigator_supported(const char *start_path);
  * Displays the content of a file.
  * @param filename The path to the file.
  */
-void handle_file_viewer(const char *filename);
+void file_manager_open_viewer(const char *filename);
 
 /**
  * Recursively searches for files matching a pattern.
@@ -51,6 +51,6 @@ void handle_fm_search();
 /**
  * Main dispatcher for file manager menu items.
  */
-void handle_file_manager(MenuNode *node);
+void file_manager_handle_menu(MenuNode *node);
 
 #endif /* FILE_MANAGER_H */

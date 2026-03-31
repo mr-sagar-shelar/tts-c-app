@@ -1,7 +1,7 @@
 CC=gcc
 CFLAGS=-Wall -Wextra -O2
 TARGET=sai
-OBJS=main.o menu.o cJSON.o config.o contacts.o utils.o file_manager.o notepad.o dictionary.o entertainment.o tools.o typing_tutor.o alarm.o calendar.o radio.o text_processor.o document_reader.o speech_settings.o speech_engine.o voice_library.o download_manager.o download_ui.o task_ui.o
+OBJS=main.o app_actions.o menu.o cJSON.o config.o contacts.o utils.o file_manager.o notepad.o dictionary.o entertainment.o tools.o typing_tutor.o alarm.o calendar.o radio.o text_processor.o document_reader.o speech_settings.o speech_engine.o voice_library.o download_manager.o download_ui.o task_ui.o
 
 FLITEDIR ?=
 ifeq ($(FLITEDIR),)
@@ -31,6 +31,9 @@ $(TARGET): $(OBJS)
 
 main.o: main.c menu.h config.h contacts.h utils.h file_manager.h notepad.h dictionary.h entertainment.h tools.h typing_tutor.h alarm.h calendar.h radio.h
 	$(CC) $(CFLAGS) -c main.c
+
+app_actions.o: app_actions.c app_actions.h menu.h
+	$(CC) $(CFLAGS) -c app_actions.c
 
 text_processor.o: text_processor.c text_processor.h
 	$(CC) $(CFLAGS) -c text_processor.c

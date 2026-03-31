@@ -279,7 +279,7 @@ static void handle_voice_actions(const VoiceLibraryEntry *entry) {
     }
 }
 
-void handle_voice_library_menu(void) {
+void voice_library_show_menu(void) {
     int selected_index = 0;
     const int total = (int)(sizeof(voice_entries) / sizeof(voice_entries[0]));
 

@@ -233,7 +233,7 @@ static void export_processor_to_wave(const TextProcessor *processor, const char 
     read_key();
 }
 
-void handle_joke() {
+void content_ui_show_joke(void) {
     int fetch_new = 1;
     char joke_text[2048] = {0};
 
@@ -273,7 +273,7 @@ void handle_joke() {
     }
 }
 
-void handle_short_stories() {
+void content_ui_show_short_stories(void) {
     const char *story_file = "Downloads/ShortStories.json";
     const char *url = "https://shortstories-api.onrender.com/stories";
     char *data = NULL;
@@ -366,7 +366,7 @@ void handle_short_stories() {
     cJSON_Delete(json);
 }
 
-void handle_poems() {
+void content_ui_show_poems(void) {
     const char *url = "https://poetrydb.org/random/1";
     char error[256] = {0};
     char *response = fetch_text_with_progress_ui("Poems", url, "poem data", error, sizeof(error));
@@ -424,7 +424,7 @@ void handle_poems() {
     }
 }
 
-void handle_word_by_word_viewer() {
+void content_ui_run_word_viewer(void) {
     char *selected_path = file_navigator_supported(USER_SPACE);
     struct stat st;
     char error[128] = {0};

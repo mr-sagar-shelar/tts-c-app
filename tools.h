@@ -8,46 +8,46 @@
 /**
  * UI handler for the calculator.
  */
-void handle_calculator();
+void system_ui_run_calculator(void);
 
 /**
  * UI handler for weather information.
  */
-void handle_weather();
+void system_ui_show_weather(void);
 
 /**
  * UI handler for current time and date.
  */
-void handle_current_time_date();
+void system_ui_show_current_time_date(void);
 
 /**
  * UI handler for news (placeholder).
  */
-void handle_news();
+void system_ui_show_news(void);
 
 /**
  * UI handler to set the city for weather and time.
  */
-void handle_set_city();
+void system_ui_set_city(void);
 
 /**
  * UI handler to change the timezone.
  */
-void handle_timezone();
+void system_ui_change_timezone(void);
 
 /**
  * UI handler for time format (12h/24h).
  */
-void handle_time_format();
+void system_ui_change_time_format(void);
 
 /**
  * UI handler for manual time setting.
  */
-void handle_set_time_manual();
+void system_ui_set_time_manual(void);
 
 /**
  * UI handler for manual date setting.
  */
-void handle_set_date_manual();
+void system_ui_set_date_manual(void);
 
 #endif /* TOOLS_H */
