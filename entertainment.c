@@ -2,7 +2,167 @@
 #include "file_manager.h"
 #include "text_processor.h"
 #include <ctype.h>
+#include <sys/ioctl.h>
 #include <sys/stat.h>
+
+typedef struct {
+    size_t start_token;
+    size_t end_token;
+} ReaderPage;
+
+static void get_terminal_size(int *rows, int *cols) {
+    struct winsize ws;
+
+    *rows = 24;
+    *cols = 80;
+
+    if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == 0) {
+        if (ws.ws_row > 0) {
+            *rows = ws.ws_row;
+        }
+        if (ws.ws_col > 0) {
+            *cols = ws.ws_col;
+        }
+    }
+}
+
+static void advance_reader_cursor(const char *text, int width, int *line, int *col) {
+    const unsigned char *p = (const unsigned char *)text;
+
+    while (*p) {
+        if (*p == '\n') {
+            (*line)++;
+            *col = 1;
+        } else if (*p == '\t') {
+            int spaces = 4;
+            while (spaces-- > 0) {
+                if (*col > width) {
+                    (*line)++;
+                    *col = 1;
+                }
+                (*col)++;
+            }
+        } else {
+            if (*col > width) {
+                (*line)++;
+                *col = 1;
+            }
+            (*col)++;
+        }
+        p++;
+    }
+}
+
+static int token_starts_on_new_line(const TextWord *word) {
+    const unsigned char *p = (const unsigned char *)word->whitespace;
+
+    while (*p) {
+        if (*p == '\n') {
+            return 1;
+        }
+        p++;
+    }
+
+    return 0;
+}
+
+static ReaderPage compute_reader_page(const TextProcessor *processor, size_t current_index, int width, int content_lines) {
+    ReaderPage page;
+    size_t i;
+    int line = 1;
+    int col = 1;
+
+    page.start_token = current_index;
+    page.end_token = current_index;
+
+    if (!processor || processor->token_count == 0) {
+        return page;
+    }
+
+    if (current_index > 0) {
+        for (i = current_index; i > 0; i--) {
+            size_t candidate = i - 1;
+            int test_line = 1;
+            int test_col = 1;
+            size_t j;
+
+            for (j = candidate; j <= current_index; j++) {
+                advance_reader_cursor(processor->tokens[j].surface, width, &test_line, &test_col);
+            }
+
+            if (test_line > (content_lines / 2) + 1) {
+                break;
+            }
+
+            page.start_token = candidate;
+        }
+    }
+
+    for (i = page.start_token; i < processor->token_count; i++) {
+        if (i != page.start_token && token_starts_on_new_line(&processor->tokens[i]) && line >= content_lines) {
+            break;
+        }
+
+        if (i != page.start_token && line > content_lines) {
+            break;
+        }
+
+        page.end_token = i;
+        advance_reader_cursor(processor->tokens[i].surface, width, &line, &col);
+        if (line > content_lines) {
+            break;
+        }
+    }
+
+    if (page.end_token < current_index) {
+        page.end_token = current_index;
+    }
+
+    return page;
+}
+
+static void print_highlighted_word(const TextWord *word) {
+    printf("%s%s", word->whitespace, word->prepunctuation);
+    printf("\033[30;47m%s\033[0m", word->word[0] ? word->word : " ");
+    printf("%s", word->postpunctuation);
+}
+
+static void render_word_reader(const TextProcessor *processor, const char *selected_path, size_t current_index) {
+    int rows;
+    int cols;
+    int content_lines;
+    ReaderPage page;
+    size_t i;
+    const TextWord *current_word = text_processor_get_word(processor, current_index);
+
+    get_terminal_size(&rows, &cols);
+    content_lines = rows - 7;
+    if (content_lines < 5) {
+        content_lines = 5;
+    }
+
+    page = compute_reader_page(processor, current_index, cols, content_lines);
+
+    printf("\033[H\033[J--- Color Reader ---\n");
+    printf("File: %s\n", selected_path);
+    printf("Word %zu of %zu", current_index + 1, processor->token_count);
+    if (current_word) {
+        printf("  [line %d, col %d]", current_word->line, current_word->column);
+    }
+    printf("\n\n");
+
+    for (i = page.start_token; i <= page.end_token && i < processor->token_count; i++) {
+        if (i == current_index) {
+            print_highlighted_word(&processor->tokens[i]);
+        } else {
+            printf("%s", processor->tokens[i].surface);
+        }
+    }
+
+    printf("\n\n[Up: Previous | Down: Next | Enter: Next | Esc: Back]\n");
+    printf("The highlighted word represents the token currently being spoken.\n");
+    fflush(stdout);
+}
 
 void handle_joke() {
     int fetch_new = 1;
@@ -278,24 +438,11 @@ void handle_word_by_word_viewer() {
 
     size_t index = 0;
     while (1) {
-        const TextWord *word = text_processor_get_word(processor, index);
-        if (!word) {
+        if (!text_processor_get_word(processor, index)) {
             break;
         }
 
-        printf("\033[H\033[J--- Color Reader ---\n");
-        printf("File: %s\n", selected_path);
-        printf("Word %zu of %zu\n\n", index + 1, processor->token_count);
-        printf("Surface: %s\n", word->surface);
-        printf("Word: %s\n", word->word);
-        printf("Pre-punctuation: %s\n", word->prepunctuation[0] ? word->prepunctuation : "(none)");
-        printf("Post-punctuation: %s\n", word->postpunctuation[0] ? word->postpunctuation : "(none)");
-        printf("Leading whitespace length: %zu\n", strlen(word->whitespace));
-        printf("File offset: %zu\n", word->content_offset);
-        printf("Line: %d  Column: %d\n", word->line, word->column);
-        printf("\nThis token stream is ready to be passed word-by-word into Flite later.\n");
-        printf("[Up: Previous | Down: Next | Enter: Next | Esc: Back]\n");
-        fflush(stdout);
+        render_word_reader(processor, selected_path, index);
 
         int key = read_key();
         if (key == KEY_ESC) {
