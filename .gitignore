@@ -1,3 +1,4 @@
 sai
 *.o
 .DS_Store
+*.wav

@@ -28,6 +28,7 @@
  */
 void handle_settings_ui(MenuNode *node, MenuNode *root) {
     char speech_message[128];
+    char speech_error[128];
 
     if (strcmp(node->key, "language_switch") == 0) {
         char *current_lang = get_setting("language");
@@ -57,9 +58,13 @@ void handle_settings_ui(MenuNode *node, MenuNode *root) {
         }
         free(current_lang);
     } else if (handle_speech_setting_selection(node->key, speech_message, sizeof(speech_message))) {
+        speech_engine_reload_settings();
         printf("\033[H\033[J");
         printf("--- %s ---\n", node->title);
         printf("%s\n", speech_message);
+        if (speech_engine_startup(speech_error, sizeof(speech_error))) {
+            printf("Speech engine updated with the selected voice.\n");
+        }
         printf("\nPress any key to continue...");
         fflush(stdout);
         read_key();
@@ -92,6 +97,10 @@ void handle_settings_ui(MenuNode *node, MenuNode *root) {
 
 int main() {
     init_config();
+    {
+        char speech_error[128];
+        speech_engine_startup(speech_error, sizeof(speech_error));
+    }
     init_contacts();
     init_calendar();
     

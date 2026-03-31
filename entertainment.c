@@ -1,4 +1,5 @@
 #include "entertainment.h"
+#include "config.h"
 #include "document_reader.h"
 #include "file_manager.h"
 #include "speech_engine.h"
@@ -171,6 +172,7 @@ static void render_word_reader(const TextProcessor *processor, const char *selec
 static void build_wave_export_path(const char *source_path, char *buffer, size_t buffer_size) {
     const char *last_slash;
     const char *last_dot;
+    char *voice_name;
     size_t dir_len;
     size_t name_len;
 
@@ -191,9 +193,18 @@ static void build_wave_export_path(const char *source_path, char *buffer, size_t
     }
     name_len = (size_t)(last_dot - (last_slash + 1));
 
-    snprintf(buffer, buffer_size, "%.*s%.*s_export.wav",
+    voice_name = get_setting("tts_voice");
+    if (!voice_name || !voice_name[0]) {
+        free(voice_name);
+        voice_name = strdup("kal");
+    }
+
+    snprintf(buffer, buffer_size, "%.*s%.*s_%s_export.wav",
              (int)dir_len, source_path,
-             (int)name_len, last_slash + 1);
+             (int)name_len, last_slash + 1,
+             voice_name);
+
+    free(voice_name);
 }
 
 static void export_processor_to_wave(const TextProcessor *processor, const char *selected_path) {
