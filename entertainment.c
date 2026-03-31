@@ -4,6 +4,7 @@
 #include "speech_engine.h"
 #include "text_processor.h"
 #include <ctype.h>
+#include <limits.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 
@@ -161,10 +162,81 @@ static void render_word_reader(const TextProcessor *processor, const char *selec
         }
     }
 
-    printf("\n\n[Up: Previous | Down: Next | Enter: Next | Esc: Back]\n");
+    printf("\n\n[Up: Previous | Down: Next | Enter: Next | Ctrl+E: Export to wave | Esc: Back]\n");
     printf("The highlighted word represents the token currently being spoken.\n");
     printf("Speech uses Flite when speech mode is enabled and Flite support is available.\n");
     fflush(stdout);
+}
+
+static void build_wave_export_path(const char *source_path, char *buffer, size_t buffer_size) {
+    const char *last_slash;
+    const char *last_dot;
+    size_t dir_len;
+    size_t name_len;
+
+    if (!source_path || !buffer || buffer_size == 0) {
+        return;
+    }
+
+    last_slash = strrchr(source_path, '/');
+    last_dot = strrchr(source_path, '.');
+
+    if (!last_slash) {
+        last_slash = source_path - 1;
+    }
+
+    dir_len = (size_t)(last_slash - source_path + 1);
+    if (!last_dot || last_dot < last_slash) {
+        last_dot = source_path + strlen(source_path);
+    }
+    name_len = (size_t)(last_dot - (last_slash + 1));
+
+    snprintf(buffer, buffer_size, "%.*s%.*s_export.wav",
+             (int)dir_len, source_path,
+             (int)name_len, last_slash + 1);
+}
+
+static void export_processor_to_wave(const TextProcessor *processor, const char *selected_path) {
+    const char **segments;
+    char export_path[PATH_MAX];
+    char error[128] = {0};
+    size_t i;
+
+    if (!processor || processor->token_count == 0) {
+        return;
+    }
+
+    segments = (const char **)malloc(processor->token_count * sizeof(char *));
+    if (!segments) {
+        printf("\033[H\033[J--- Color Reader ---\n");
+        printf("Unable to allocate export buffer.\n");
+        printf("\nPress any key to continue...");
+        fflush(stdout);
+        read_key();
+        return;
+    }
+
+    for (i = 0; i < processor->token_count; i++) {
+        segments[i] = processor->tokens[i].surface;
+    }
+
+    build_wave_export_path(selected_path, export_path, sizeof(export_path));
+
+    printf("\033[H\033[J--- Color Reader ---\n");
+    printf("Exporting audio to:\n%s\n\n", export_path);
+    printf("Processing file word by word through Flite streaming...\n");
+    fflush(stdout);
+
+    if (speech_engine_export_segments_to_wave(segments, processor->token_count, export_path, error, sizeof(error))) {
+        printf("Export complete.\n");
+    } else {
+        printf("Export failed: %s\n", error[0] ? error : "Unknown speech export error");
+    }
+    printf("\nPress any key to continue...");
+    fflush(stdout);
+    read_key();
+
+    free(segments);
 }
 
 void handle_joke() {
@@ -475,6 +547,9 @@ void handle_word_by_word_viewer() {
         int key = read_key();
         if (key == KEY_ESC) {
             break;
+        } else if (key == KEY_CTRL_E) {
+            export_processor_to_wave(processor, selected_path);
+            last_spoken_index = (size_t)-1;
         } else if ((key == KEY_DOWN || key == KEY_ENTER) && index + 1 < processor->token_count) {
             next_index = index + 1;
         } else if (key == KEY_UP && index > 0) {

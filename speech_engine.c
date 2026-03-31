@@ -19,6 +19,14 @@ cst_voice *register_cmu_us_rms(const char *voxdir);
 cst_voice *register_cmu_us_awb(const char *voxdir);
 
 typedef struct {
+    short *samples;
+    size_t sample_count;
+    size_t capacity;
+    int sample_rate;
+    int channels;
+} SpeechExportBuffer;
+
+typedef struct {
     int initialized;
     cst_voice *voice;
     cst_audio_streaming_info *asi;
@@ -100,6 +108,122 @@ static int speech_stream_chunk(const cst_wave *w, int start, int size, int last,
     return CST_AUDIO_STREAM_CONT;
 }
 
+static int ensure_export_capacity(SpeechExportBuffer *buffer, size_t extra_samples) {
+    size_t required;
+    short *grown;
+
+    if (!buffer) {
+        return 0;
+    }
+
+    required = buffer->sample_count + extra_samples;
+    if (required <= buffer->capacity) {
+        return 1;
+    }
+
+    if (buffer->capacity == 0) {
+        buffer->capacity = 8192;
+    }
+    while (buffer->capacity < required) {
+        buffer->capacity *= 2;
+    }
+
+    grown = (short *)realloc(buffer->samples, buffer->capacity * sizeof(short));
+    if (!grown) {
+        return 0;
+    }
+
+    buffer->samples = grown;
+    return 1;
+}
+
+static int speech_export_chunk(const cst_wave *w, int start, int size, int last, cst_audio_streaming_info *asi) {
+    SpeechExportBuffer *buffer = (SpeechExportBuffer *)asi->userdata;
+    int i;
+
+    (void)last;
+
+    if (!buffer) {
+        return CST_AUDIO_STREAM_STOP;
+    }
+
+    if (!ensure_export_capacity(buffer, (size_t)size)) {
+        return CST_AUDIO_STREAM_STOP;
+    }
+
+    if (buffer->sample_rate == 0) {
+        buffer->sample_rate = w->sample_rate;
+        buffer->channels = w->num_channels;
+    }
+
+    for (i = 0; i < size; i++) {
+        buffer->samples[buffer->sample_count++] = w->samples[start + i];
+    }
+
+    return CST_AUDIO_STREAM_CONT;
+}
+
+static int write_little_endian_16(FILE *file, unsigned short value) {
+    unsigned char data[2];
+
+    data[0] = (unsigned char)(value & 0xFF);
+    data[1] = (unsigned char)((value >> 8) & 0xFF);
+    return fwrite(data, 1, sizeof(data), file) == sizeof(data);
+}
+
+static int write_little_endian_32(FILE *file, unsigned int value) {
+    unsigned char data[4];
+
+    data[0] = (unsigned char)(value & 0xFF);
+    data[1] = (unsigned char)((value >> 8) & 0xFF);
+    data[2] = (unsigned char)((value >> 16) & 0xFF);
+    data[3] = (unsigned char)((value >> 24) & 0xFF);
+    return fwrite(data, 1, sizeof(data), file) == sizeof(data);
+}
+
+static int write_wave_file(const char *path, const SpeechExportBuffer *buffer) {
+    FILE *file;
+    unsigned int data_bytes;
+    unsigned int riff_size;
+    unsigned int byte_rate;
+    unsigned short block_align;
+
+    if (!buffer || !buffer->samples || buffer->sample_count == 0 || buffer->sample_rate <= 0 || buffer->channels <= 0) {
+        return 0;
+    }
+
+    file = fopen(path, "wb");
+    if (!file) {
+        return 0;
+    }
+
+    data_bytes = (unsigned int)(buffer->sample_count * sizeof(short));
+    riff_size = 36U + data_bytes;
+    byte_rate = (unsigned int)(buffer->sample_rate * buffer->channels * (int)sizeof(short));
+    block_align = (unsigned short)(buffer->channels * (int)sizeof(short));
+
+    if (fwrite("RIFF", 1, 4, file) != 4 ||
+        !write_little_endian_32(file, riff_size) ||
+        fwrite("WAVE", 1, 4, file) != 4 ||
+        fwrite("fmt ", 1, 4, file) != 4 ||
+        !write_little_endian_32(file, 16) ||
+        !write_little_endian_16(file, 1) ||
+        !write_little_endian_16(file, (unsigned short)buffer->channels) ||
+        !write_little_endian_32(file, (unsigned int)buffer->sample_rate) ||
+        !write_little_endian_32(file, byte_rate) ||
+        !write_little_endian_16(file, block_align) ||
+        !write_little_endian_16(file, 16) ||
+        fwrite("data", 1, 4, file) != 4 ||
+        !write_little_endian_32(file, data_bytes) ||
+        fwrite(buffer->samples, sizeof(short), buffer->sample_count, file) != buffer->sample_count) {
+        fclose(file);
+        return 0;
+    }
+
+    fclose(file);
+    return 1;
+}
+
 static int speech_engine_init(char *error, size_t error_size) {
     char *voice_name;
     cst_voice *selected_voice;
@@ -146,6 +270,7 @@ static int speech_engine_init(char *error, size_t error_size) {
     speech_state.asi->userdata = &speech_state;
     speech_state.voice = selected_voice;
     speech_state.gain = current_gain_from_settings();
+    feat_set(speech_state.voice->features, "streaming_info", audio_streaming_info_val(speech_state.asi));
     speech_state.initialized = 1;
 
     return 1;
@@ -202,7 +327,6 @@ int speech_engine_speak_text(const char *text, char *error, size_t error_size) {
     }
 
     speech_engine_refresh_settings();
-    feat_set(speech_state.voice->features, "streaming_info", audio_streaming_info_val(speech_state.asi));
 
     if (flite_text_to_speech(text, speech_state.voice, "stream") < 0.0f) {
         set_error(error, error_size, "Flite synthesis failed");
@@ -212,14 +336,57 @@ int speech_engine_speak_text(const char *text, char *error, size_t error_size) {
     return 1;
 }
 
+int speech_engine_export_segments_to_wave(const char **segments, size_t count, const char *output_path, char *error, size_t error_size) {
+    SpeechExportBuffer buffer;
+    cst_audio_stream_callback original_callback;
+    void *original_userdata;
+    size_t i;
+
+    if (!segments || count == 0 || !output_path) {
+        set_error(error, error_size, "Nothing to export");
+        return 0;
+    }
+
+    if (!speech_engine_init(error, error_size)) {
+        return 0;
+    }
+
+    speech_engine_refresh_settings();
+    memset(&buffer, 0, sizeof(buffer));
+    original_callback = speech_state.asi->asc;
+    original_userdata = speech_state.asi->userdata;
+    speech_state.asi->asc = speech_export_chunk;
+    speech_state.asi->userdata = &buffer;
+
+    for (i = 0; i < count; i++) {
+        if (segments[i] && segments[i][0]) {
+            if (flite_text_to_speech(segments[i], speech_state.voice, "stream") < 0.0f) {
+                speech_state.asi->asc = original_callback;
+                speech_state.asi->userdata = original_userdata;
+                free(buffer.samples);
+                set_error(error, error_size, "Flite export synthesis failed");
+                return 0;
+            }
+        }
+    }
+
+    speech_state.asi->asc = original_callback;
+    speech_state.asi->userdata = original_userdata;
+
+    if (!write_wave_file(output_path, &buffer)) {
+        free(buffer.samples);
+        set_error(error, error_size, "Unable to write WAV file");
+        return 0;
+    }
+
+    free(buffer.samples);
+    return 1;
+}
+
 void speech_engine_shutdown(void) {
     if (speech_state.audio_device) {
         audio_close(speech_state.audio_device);
         speech_state.audio_device = NULL;
-    }
-    if (speech_state.asi) {
-        delete_audio_streaming_info(speech_state.asi);
-        speech_state.asi = NULL;
     }
     memset(&speech_state, 0, sizeof(speech_state));
 }
@@ -244,6 +411,14 @@ int speech_engine_is_enabled(void) {
 
 int speech_engine_speak_text(const char *text, char *error, size_t error_size) {
     (void)text;
+    set_error(error, error_size, "Flite support was not built into this binary");
+    return 0;
+}
+
+int speech_engine_export_segments_to_wave(const char **segments, size_t count, const char *output_path, char *error, size_t error_size) {
+    (void)segments;
+    (void)count;
+    (void)output_path;
     set_error(error, error_size, "Flite support was not built into this binary");
     return 0;
 }
