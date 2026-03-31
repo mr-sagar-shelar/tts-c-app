@@ -18,6 +18,7 @@
 #include "alarm.h"
 #include "calendar.h"
 #include "radio.h"
+#include "text_processor.h"
 
 /**
  * UI handler for settings.
@@ -235,7 +236,18 @@ int main() {
                                 handle_settings_ui(selected_node, root);
                             }
                         } else if (is_fm) {
-                            handle_file_manager(selected_node);
+                            if (strcmp(selected_node->key, "fm_word_viewer") == 0) {
+                                char *path = file_navigator(USER_SPACE, 0);
+                                if (path) {
+                                    struct stat st;
+                                    if (stat(path, &st) == 0 && S_ISREG(st.st_mode)) {
+                                        handle_word_by_word_viewer(path);
+                                    }
+                                    free(path);
+                                }
+                            } else {
+                                handle_file_manager(selected_node);
+                            }
                         } else if (is_contacts) {
                             handle_address_manager(selected_node);
                         } else if (is_calendar) {
