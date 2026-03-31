@@ -1,6 +1,7 @@
 #include "entertainment.h"
 #include "document_reader.h"
 #include "file_manager.h"
+#include "speech_engine.h"
 #include "text_processor.h"
 #include <ctype.h>
 #include <sys/ioctl.h>
@@ -162,6 +163,7 @@ static void render_word_reader(const TextProcessor *processor, const char *selec
 
     printf("\n\n[Up: Previous | Down: Next | Enter: Next | Esc: Back]\n");
     printf("The highlighted word represents the token currently being spoken.\n");
+    printf("Speech uses Flite when speech mode is enabled and Flite support is available.\n");
     fflush(stdout);
 }
 
@@ -453,23 +455,38 @@ void handle_word_by_word_viewer() {
     }
 
     size_t index = 0;
+    size_t last_spoken_index = (size_t)-1;
     while (1) {
-        if (!text_processor_get_word(processor, index)) {
+        const TextWord *current_word = text_processor_get_word(processor, index);
+        char speech_error[128] = {0};
+        size_t next_index = index;
+
+        if (!current_word) {
             break;
         }
 
         render_word_reader(processor, selected_path, index);
 
+        if (speech_engine_is_enabled() && last_spoken_index != index) {
+            speech_engine_speak_text(current_word->word, speech_error, sizeof(speech_error));
+            last_spoken_index = index;
+        }
+
         int key = read_key();
         if (key == KEY_ESC) {
             break;
         } else if ((key == KEY_DOWN || key == KEY_ENTER) && index + 1 < processor->token_count) {
-            index++;
+            next_index = index + 1;
         } else if (key == KEY_UP && index > 0) {
-            index--;
+            next_index = index - 1;
+        }
+
+        if (next_index != index) {
+            index = next_index;
         }
     }
 
+    speech_engine_shutdown();
     text_processor_free(processor);
     free(selected_path);
 }

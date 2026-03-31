@@ -18,6 +18,7 @@
 #include "alarm.h"
 #include "calendar.h"
 #include "radio.h"
+#include "speech_engine.h"
 #include "speech_settings.h"
 
 /**
@@ -149,6 +150,7 @@ int main() {
             } else {
                 printf("\nExiting...\n");
                 free(lang);
+                speech_engine_shutdown();
                 break;
             }
         } else if (key == KEY_UP) {
