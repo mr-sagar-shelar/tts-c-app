@@ -1,6 +1,7 @@
 #include "speech_settings.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "config.h"
@@ -60,4 +61,44 @@ int handle_speech_setting_selection(const char *menu_key, char *message, size_t 
     }
 
     return 0;
+}
+
+static char *lookup_selected_label(const SpeechSettingOption *options, size_t count, const char *config_key) {
+    char *current_value;
+    size_t i;
+
+    current_value = get_setting(config_key);
+    if (!current_value) {
+        return NULL;
+    }
+
+    for (i = 0; i < count; i++) {
+        if (strcmp(options[i].config_value, current_value) == 0) {
+            char *label = strdup(options[i].label);
+            free(current_value);
+            return label;
+        }
+    }
+
+    if (strstr(current_value, "cmu_indic_hin_ab.flitevox") != NULL) {
+        free(current_value);
+        return strdup("Hindi");
+    }
+
+    free(current_value);
+    return NULL;
+}
+
+char *speech_settings_get_selected_label(const char *menu_key) {
+    if (strcmp(menu_key, "voice_select") == 0) {
+        return lookup_selected_label(voice_options, sizeof(voice_options) / sizeof(voice_options[0]), "tts_voice");
+    }
+    if (strcmp(menu_key, "set_volume") == 0) {
+        return lookup_selected_label(volume_options, sizeof(volume_options) / sizeof(volume_options[0]), "tts_volume");
+    }
+    if (strcmp(menu_key, "toggle_speech_mode") == 0) {
+        return lookup_selected_label(speech_mode_options, sizeof(speech_mode_options) / sizeof(speech_mode_options[0]), "speech_mode");
+    }
+
+    return NULL;
 }

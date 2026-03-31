@@ -3,6 +3,7 @@
 #include <string.h>
 #include <time.h>
 #include <sys/time.h>
+#include "menu.h"
 #include "typing_tutor.h"
 #include "utils.h"
 #include "cJSON.h"
@@ -155,7 +156,7 @@ void play_level(TypingLevel *level) {
     printf("Total Time: %.2f seconds\n", total_time);
     printf("Overall Accuracy: %.2f%%\n", (double)correct_chars / total_chars * 100.0);
     printf("Average Speed: %.2f WPM\n", (correct_chars / 5.0) / (total_time / 60.0));
-    printf("\nPress any key to go back...");
+    printf("\n%s", menu_translate("ui_press_any_key_to_go_back", "Press any key to go back..."));
     fflush(stdout);
     read_key();
 }
@@ -173,12 +174,12 @@ void handle_typing_tutor() {
     int sel = 0;
     while (1) {
         printf("\033[H\033[J--- Typing Tutor ---\n");
-        printf("Select Level:\n");
+        printf("%s:\n", menu_translate("ui_select_level", "Select Level"));
         for (int i = 0; i < level_count; i++) {
             if (i == sel) printf("> %s\n", levels[i].name);
             else printf("  %s\n", levels[i].name);
         }
-        printf("\n[Arrows: Navigate | Enter: Start | Esc: Back]\n");
+        printf("\n%s\n", menu_translate("ui_footer_start_back", "[Arrows: Navigate | Enter: Start | Esc: Back]"));
         fflush(stdout);
 
         int key = read_key();

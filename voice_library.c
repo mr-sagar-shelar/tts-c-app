@@ -10,6 +10,8 @@
 #include <unistd.h>
 
 #include "download_manager.h"
+#include "download_ui.h"
+#include "menu.h"
 #include "utils.h"
 
 #define VOICE_LIBRARY_DIR "voices"
@@ -54,15 +56,15 @@ static const VoiceLibraryEntry voice_entries[] = {
 static VoiceOperationState voice_operation = {0};
 static DownloadTask voice_download = {0};
 
-static void build_voice_path(const char *filename, char *buffer, size_t buffer_size) {
+void voice_library_get_voice_path(const char *filename, char *buffer, size_t buffer_size) {
     snprintf(buffer, buffer_size, "%s/%s", VOICE_LIBRARY_DIR, filename);
 }
 
-static int voice_file_exists(const char *filename) {
+int voice_library_voice_exists(const char *filename) {
     char path[PATH_MAX];
     struct stat st;
 
-    build_voice_path(filename, path, sizeof(path));
+    voice_library_get_voice_path(filename, path, sizeof(path));
     return stat(path, &st) == 0 && S_ISREG(st.st_mode);
 }
 
@@ -90,7 +92,7 @@ static int start_download_voice_file(const char *filename, char *message, size_t
         return 0;
     }
 
-    build_voice_path(filename, path, sizeof(path));
+    voice_library_get_voice_path(filename, path, sizeof(path));
     snprintf(url, sizeof(url), "%s%s", VOICE_LIBRARY_URL, filename);
     download_task_init(&voice_download);
     if (!download_task_start(&voice_download, url, path, filename, message, message_size)) {
@@ -117,8 +119,8 @@ static int start_delete_voice_file(const char *filename, char *message, size_t m
         return 0;
     }
 
-    build_voice_path(filename, path, sizeof(path));
-    if (!voice_file_exists(filename)) {
+    voice_library_get_voice_path(filename, path, sizeof(path));
+    if (!voice_library_voice_exists(filename)) {
         snprintf(message, message_size, "%s is not downloaded.", filename);
         return 0;
     }
@@ -198,7 +200,7 @@ static void show_voice_action_result(const char *voice_name, const char *message
     printf("\033[H\033[J--- Voice File ---\n");
     printf("%s\n\n", voice_name);
     printf("%s\n", message);
-    printf("\nPress any key to continue...");
+    printf("\n%s", menu_translate("ui_press_any_key_to_continue", "Press any key to continue..."));
     fflush(stdout);
     read_key();
 }
@@ -219,7 +221,7 @@ static void handle_voice_actions(const VoiceLibraryEntry *entry) {
         char spin[2];
 
         update_voice_operation();
-        downloaded = voice_file_exists(entry->filename);
+        downloaded = voice_library_voice_exists(entry->filename);
         current_operation = voice_operation.in_progress &&
                             strcmp(voice_operation.filename, entry->filename) == 0;
         spin[0] = spinner[spinner_index++ % 4];
@@ -241,12 +243,12 @@ static void handle_voice_actions(const VoiceLibraryEntry *entry) {
         if (current_operation || voice_operation.in_progress) {
             printf("\n%s %s\n", spin, voice_operation.message);
             if (strcmp(voice_operation.action, "download") == 0) {
-                printf("Progress: %d%%\n", voice_download.progress_percent);
+                printf("%s: %d%%\n", menu_translate("ui_progress", "Progress"), voice_download.progress_percent);
             }
             printf("Navigation stays within this voice menu until the current operation finishes.\n");
-            printf("[Arrows: Navigate locally | Enter: Disabled | Esc: Disabled]\n");
+            printf("%s\n", menu_translate("ui_footer_voice_busy", "[Arrows: Navigate locally | Enter: Disabled | Esc: Disabled]"));
         } else {
-            printf("\n[Arrows: Navigate | Enter: Select | Esc: Back]\n");
+            printf("\n%s\n", menu_translate("ui_footer_back", "[Arrows: Navigate | Enter: Select | Esc: Back]"));
         }
         fflush(stdout);
 
@@ -257,10 +259,10 @@ static void handle_voice_actions(const VoiceLibraryEntry *entry) {
         }
 
         int key = voice_operation.in_progress ? read_key_timeout(150) : read_key();
-        if (key == KEY_UP && selected_index > 0) {
-            selected_index--;
-        } else if (key == KEY_DOWN && selected_index < 2) {
-            selected_index++;
+        if (key == KEY_UP) {
+            selected_index = menu_next_index(selected_index, -1, 3);
+        } else if (key == KEY_DOWN) {
+            selected_index = menu_next_index(selected_index, 1, 3);
         } else if (!voice_operation.in_progress && (key == KEY_ESC || (key == KEY_ENTER && selected_index == 2))) {
             return;
         } else if (!voice_operation.in_progress && key == KEY_ENTER) {
@@ -298,7 +300,7 @@ void voice_library_show_menu(void) {
         printf("Local folder: %s\n\n", VOICE_LIBRARY_DIR);
 
         for (int i = page_start; i < page_end; i++) {
-            const char *status = voice_file_exists(voice_entries[i].filename) ? "downloaded" : "not downloaded";
+            const char *status = voice_library_voice_exists(voice_entries[i].filename) ? "downloaded" : "not downloaded";
 
             if (i == selected_index) {
                 printf("> %s [%s]\n", voice_entries[i].label, status);
@@ -316,12 +318,12 @@ void voice_library_show_menu(void) {
             spin[1] = '\0';
             printf("\n%s %s\n", spin, voice_operation.message);
             if (strcmp(voice_operation.action, "download") == 0) {
-                printf("Progress: %d%%\n", voice_download.progress_percent);
+                printf("%s: %d%%\n", menu_translate("ui_progress", "Progress"), voice_download.progress_percent);
             }
             printf("You can move within Download Voice, but back and new actions stay locked until it finishes.\n");
-            printf("[Arrows: Navigate | Enter: Disabled | Esc: Disabled]\n");
+            printf("%s\n", menu_translate("ui_footer_voice_busy", "[Arrows: Navigate locally | Enter: Disabled | Esc: Disabled]"));
         } else {
-            printf("\n[Arrows: Navigate | Enter: Open voice actions | Esc: Back]\n");
+            printf("\n%s\n", menu_translate("ui_footer_open_back", "[Arrows: Navigate | Enter: Open voice actions | Esc: Back]"));
         }
         fflush(stdout);
 
@@ -332,14 +334,39 @@ void voice_library_show_menu(void) {
         }
 
         int key = voice_operation.in_progress ? read_key_timeout(150) : read_key();
-        if (key == KEY_UP && selected_index > 0) {
-            selected_index--;
-        } else if (key == KEY_DOWN && selected_index < total - 1) {
-            selected_index++;
+        if (key == KEY_UP) {
+            selected_index = menu_next_index(selected_index, -1, total);
+        } else if (key == KEY_DOWN) {
+            selected_index = menu_next_index(selected_index, 1, total);
         } else if (!voice_operation.in_progress && key == KEY_ENTER) {
             handle_voice_actions(&voice_entries[selected_index]);
         } else if (!voice_operation.in_progress && key == KEY_ESC) {
             return;
         }
     }
+}
+int voice_library_download_voice(const char *filename, const char *title, char *error, size_t error_size) {
+    char path[PATH_MAX];
+    char url[PATH_MAX];
+
+    if (!ensure_voice_directory()) {
+        snprintf(error, error_size, "Unable to create '%s' directory.", VOICE_LIBRARY_DIR);
+        return 0;
+    }
+
+    if (voice_library_voice_exists(filename)) {
+        if (error && error_size > 0) {
+            error[0] = '\0';
+        }
+        return 1;
+    }
+
+    voice_library_get_voice_path(filename, path, sizeof(path));
+    snprintf(url, sizeof(url), "%s%s", VOICE_LIBRARY_URL, filename);
+    return download_file_with_progress_ui(title ? title : "Voice Download",
+                                          url,
+                                          path,
+                                          filename,
+                                          error,
+                                          error_size);
 }

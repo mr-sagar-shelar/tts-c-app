@@ -6,6 +6,7 @@
 #include "config.h"
 #include "cJSON.h"
 #include "download_ui.h"
+#include "menu.h"
 
 #define CONFIG_FILE "userConfig.json"
 #define SERVER_URL "https://api.example.com/sync/userConfig" // Placeholder URL
@@ -77,7 +78,7 @@ static void upload_to_server() {
             if (upload_file_with_progress_ui("Config Sync", SERVER_URL, "/tmp/uploadConfig.json", "configuration", error, sizeof(error))) {
                 printf("Sync successful!\n");
             } else {
-                printf("Server sync failed (Upload). Local changes saved.\n");
+                printf("%s\n", menu_translate("ui_server_sync_failed_upload", "Server sync failed (Upload). Local changes saved"));
             }
         }
         free(data);

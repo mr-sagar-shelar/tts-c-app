@@ -96,7 +96,7 @@
             {
               "title_key": "wp_exit",
               "key": "wp_exit",
-              "shortcut": "z",
+              "shortcut": "x",
               "description_key": "wp_exit_desc"
             }
           ],
@@ -181,7 +181,7 @@
         {
           "title_key": "wp_format",
           "key": "wp_format",
-          "shortcut": "o",
+          "shortcut": "r",
           "items": [
             {
               "title_key": "wp_font",
@@ -401,7 +401,7 @@
         {
           "title_key": "excel_viewer",
           "key": "excel_viewer",
-          "shortcut": "e",
+          "shortcut": "x",
           "description_key": "excel_viewer_desc"
         },
         {
@@ -413,7 +413,7 @@
         {
           "title_key": "english_only_dictionary",
           "key": "english_only_dictionary",
-          "shortcut": "n",
+          "shortcut": "e",
           "languages": [
             "en"
           ],
@@ -431,7 +431,7 @@
         {
           "title_key": "short_stories",
           "key": "short_stories",
-          "shortcut": "h",
+          "shortcut": "t",
           "description_key": "short_stories_desc"
         },
         {
@@ -449,7 +449,7 @@
         {
           "title_key": "news",
           "key": "news",
-          "shortcut": "i",
+          "shortcut": "n",
           "description_key": "news_desc"
         },
         {
@@ -505,19 +505,19 @@
         {
           "title_key": "compass",
           "key": "compass",
-          "shortcut": "p",
+          "shortcut": "o",
           "description_key": "compass_desc"
         },
         {
           "title_key": "current_time_date",
           "key": "current_time_date",
-          "shortcut": "n",
+          "shortcut": "t",
           "description_key": "current_time_date_desc"
         },
         {
           "title_key": "display_time_date",
           "key": "display_time_date",
-          "shortcut": "t",
+          "shortcut": "d",
           "description_key": "display_time_date_desc"
         },
         {
@@ -555,7 +555,7 @@
         {
           "title_key": "setup_internet",
           "key": "setup_internet",
-          "shortcut": "w",
+          "shortcut": "i",
           "description_key": "setup_internet_desc"
         },
         {
@@ -573,13 +573,13 @@
         {
           "title_key": "global_options",
           "key": "global_options",
-          "shortcut": "o",
+          "shortcut": "g",
           "description_key": "global_options_desc"
         },
         {
           "title_key": "android_settings",
           "key": "android_settings",
-          "shortcut": "e",
+          "shortcut": "a",
           "description_key": "android_settings_desc"
         },
         {
@@ -623,7 +623,7 @@
         {
           "title_key": "download_voice",
           "key": "download_voice",
-          "shortcut": "w",
+          "shortcut": "d",
           "description_key": "download_voice_desc"
         },
         {
@@ -693,13 +693,13 @@
         {
           "title_key": "set_time_manual",
           "key": "set_time_manual",
-          "shortcut": "m",
+          "shortcut": "n",
           "description_key": "set_time_manual_desc"
         },
         {
           "title_key": "set_date_manual",
           "key": "set_date_manual",
-          "shortcut": "d",
+          "shortcut": "y",
           "description_key": "set_date_manual_desc"
         },
         {

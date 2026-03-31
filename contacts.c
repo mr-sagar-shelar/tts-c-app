@@ -4,6 +4,7 @@
 #include <ctype.h>
 #include "contacts.h"
 #include "cJSON.h"
+#include "menu.h"
 #include "utils.h"
 #include "config.h"
 
@@ -152,7 +153,7 @@ void handle_address_manager(MenuNode *node) {
         }
     } else if (strcmp(node->key, "contacts_search") == 0) {
         char query[256];
-        get_user_input(query, sizeof(query), "Enter search term");
+        get_user_input(query, sizeof(query), menu_translate("ui_enter_search_term", "Enter search term"));
         if (strlen(query) == 0) return;
 
         int total_count = get_contact_count();

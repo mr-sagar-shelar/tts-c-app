@@ -9,6 +9,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include "menu.h"
 #include "utils.h"
 
 static void write_result_file(const char *result_path, const char *status, const char *payload) {
@@ -91,17 +92,17 @@ char *run_text_task_with_progress_ui(const char *title,
 
         printf("\033[H\033[J--- %s ---\n", title ? title : "Working");
         printf("%s %s\n", spin, label ? label : "Processing");
-        printf("Target: %s\n", path);
-        printf("Progress: %d%%\n\n", progress);
-        printf("Please wait. The current menu stays active until processing finishes.\n");
+        printf("%s: %s\n", menu_translate("ui_target", "Target"), path);
+        printf("%s: %d%%\n\n", menu_translate("ui_progress", "Progress"), progress);
+        printf("%s\n", menu_translate("ui_transfer_lock_message", "The current menu remains active until the transfer finishes."));
         fflush(stdout);
         read_key_timeout(150);
     }
 
     printf("\033[H\033[J--- %s ---\n", title ? title : "Working");
     printf("Processing complete.\n");
-    printf("Target: %s\n", path);
-    printf("Progress: 100%%\n");
+    printf("%s: %s\n", menu_translate("ui_target", "Target"), path);
+    printf("%s: 100%%\n", menu_translate("ui_progress", "Progress"));
     fflush(stdout);
 
     file = fopen(result_template, "rb");

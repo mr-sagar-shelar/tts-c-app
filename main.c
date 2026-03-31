@@ -41,6 +41,7 @@ int main() {
     }
 
     set_conio_terminal_mode();
+    app_sync_language_voice_on_startup(root);
 
     MenuNode *current_node = root;
     int selected_index = 0;
@@ -76,9 +77,9 @@ int main() {
                 break;
             }
         } else if (key == KEY_UP) {
-            if (selected_index > 0) selected_index--;
+            selected_index = menu_next_index(selected_index, -1, visible_count);
         } else if (key == KEY_DOWN) {
-            if (selected_index < visible_count - 1) selected_index++;
+            selected_index = menu_next_index(selected_index, 1, visible_count);
         } else if (key == KEY_CTRL_I) {
             if (visible_count > 0) {
                 print_description(visible_items[selected_index]);

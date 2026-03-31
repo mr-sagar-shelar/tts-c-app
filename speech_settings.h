@@ -23,5 +23,6 @@ typedef enum {
 } SpeechMode;
 
 int handle_speech_setting_selection(const char *menu_key, char *message, size_t message_size);
+char *speech_settings_get_selected_label(const char *menu_key);
 
 #endif /* SPEECH_SETTINGS_H */

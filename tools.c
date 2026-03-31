@@ -3,65 +3,137 @@
 #include <strings.h>
 
 #include "download_ui.h"
+#include "menu.h"
+
+static int calculator_is_input_char(int key) {
+    return (key >= '0' && key <= '9') || key == '.' || key == '-';
+}
+
+static int calculator_apply(double *result, char op, double operand) {
+    if (!result) {
+        return 0;
+    }
+
+    switch (op) {
+        case '+':
+            *result += operand;
+            return 1;
+        case '-':
+            *result -= operand;
+            return 1;
+        case '*':
+            *result *= operand;
+            return 1;
+        case '/':
+            if (operand == 0.0) {
+                return 0;
+            }
+            *result /= operand;
+            return 1;
+        default:
+            return 0;
+    }
+}
 
 void system_ui_run_calculator(void) {
     double result = 0;
-    char input[64];
-    int first_op = 1;
+    char current_input[64] = {0};
+    char pending_op = 0;
+    char message[128] = {0};
+    int input_len = 0;
+    int has_result = 0;
 
     while (1) {
         printf("\033[H\033[J--- Calculator ---\n");
-        if (!first_op) {
+        if (has_result) {
             printf("Current Result: %g\n", result);
         } else {
-            printf("Ready for new calculation.\n");
+            printf("%s\n", menu_translate("ui_ready_for_new_calculation", "Ready for new calculation."));
         }
+        if (pending_op) {
+            printf("%s: %c\n", menu_translate("ui_pending_operator", "Pending Operator"), pending_op);
+        }
+        printf("%s: %s\n",
+               menu_translate("ui_current_input", "Current Input"),
+               input_len > 0 ? current_input : menu_translate("ui_empty_value", "(empty)"));
         printf("---------------------------\n");
-        printf("[Esc: Exit | 'c': Clear | '=': Final Result]\n");
+        printf("%s\n", menu_translate("ui_footer_calculator", "[Esc: Exit | 'c': Clear | '=': Final Result]"));
+        printf("%s\n", menu_translate("ui_calculator_help", "Type numbers and operators directly."));
+        if (message[0]) {
+            printf("\n%s\n", message);
+        }
         fflush(stdout);
 
-        if (first_op) {
-            get_user_input(input, sizeof(input), "Enter first number");
-            if (strlen(input) == 0) return;
-            result = atof(input);
-            first_op = 0;
-            continue;
-        }
+        {
+            int key = read_key();
 
-        get_user_input(input, sizeof(input), "Enter operator (+, -, *, /) or '=' or 'c'");
-        if (strlen(input) == 0) continue;
-        char op = input[0];
+            if (key == KEY_ESC) {
+                return;
+            }
 
-        if (op == '=') {
-            printf("\nFinal Result: %g\nPress any key to start over...", result);
-            fflush(stdout);
-            read_key();
-            first_op = 1;
-            continue;
-        } else if (tolower(op) == 'c') {
-            first_op = 1;
-            continue;
-        }
+            message[0] = '\0';
 
-        get_user_input(input, sizeof(input), "Enter next number");
-        if (strlen(input) == 0) continue;
-        double next_num = atof(input);
-
-        switch (op) {
-            case '+': result += next_num; break;
-            case '-': result -= next_num; break;
-            case '*': result *= next_num; break;
-            case '/': 
-                if (next_num != 0) result /= next_num; 
-                else {
-                    printf("\nError: Division by zero!\nPress any key...");
-                    fflush(stdout); read_key();
+            if (key == KEY_BACKSPACE) {
+                if (input_len > 0) {
+                    input_len--;
+                    current_input[input_len] = '\0';
                 }
-                break;
-            default:
-                printf("\nInvalid operator! Use +, -, *, or /.\nPress any key...");
-                fflush(stdout); read_key();
-                break;
+                continue;
+            }
+
+            if (tolower(key) == 'c') {
+                result = 0;
+                pending_op = 0;
+                input_len = 0;
+                current_input[0] = '\0';
+                has_result = 0;
+                continue;
+            }
+
+            if (calculator_is_input_char(key)) {
+                if (input_len < (int)sizeof(current_input) - 1) {
+                    current_input[input_len++] = (char)key;
+                    current_input[input_len] = '\0';
+                }
+                continue;
+            }
+
+            if (key == '+' || key == '-' || key == '*' || key == '/' || key == '=') {
+                double value;
+
+                if (input_len == 0 && !has_result) {
+                    snprintf(message, sizeof(message), "%s", menu_translate("ui_enter_first_number", "Enter first number"));
+                    continue;
+                }
+
+                if (input_len > 0) {
+                    value = atof(current_input);
+                    if (!has_result) {
+                        result = value;
+                        has_result = 1;
+                    } else if (pending_op) {
+                        if (!calculator_apply(&result, pending_op, value)) {
+                            snprintf(message, sizeof(message), "%s", menu_translate("ui_division_by_zero", "Error: Division by zero!"));
+                            pending_op = 0;
+                            input_len = 0;
+                            current_input[0] = '\0';
+                            continue;
+                        }
+                    }
+                    input_len = 0;
+                    current_input[0] = '\0';
+                }
+
+                if (key == '=') {
+                    pending_op = 0;
+                    snprintf(message, sizeof(message), "%s: %g",
+                             menu_translate("ui_final_result", "Final Result"),
+                             result);
+                } else {
+                    pending_op = (char)key;
+                }
+                continue;
+            }
         }
     }
 }
@@ -114,7 +186,7 @@ void system_ui_show_weather(void) {
         printf("\n%s", error[0] ? error : "Failed to connect to Weather API.");
     }
 
-    printf("\nPress any key to go back...");
+    printf("\n%s", menu_translate("ui_press_any_key_to_go_back", "Press any key to go back..."));
     fflush(stdout);
     read_key();
     free(city);
@@ -168,7 +240,7 @@ void system_ui_show_current_time_date(void) {
         printf("\n%s", error[0] ? error : "Failed to connect to Time API.");
     }
 
-    printf("\nPress any key to go back...");
+    printf("\n%s", menu_translate("ui_press_any_key_to_go_back", "Press any key to go back..."));
     fflush(stdout);
     read_key();
     free(city);
@@ -176,9 +248,9 @@ void system_ui_show_current_time_date(void) {
 
 void system_ui_show_news(void) {
     printf("\033[H\033[J--- News ---\n");
-    printf("Fetching latest news...\n");
+    printf("%s\n", menu_translate("ui_fetching_latest_news", "Fetching latest news"));
     printf("\n(Placeholder: News feature coming soon!)\n");
-    printf("\nPress any key to go back...");
+    printf("\n%s", menu_translate("ui_press_any_key_to_go_back", "Press any key to go back..."));
     fflush(stdout);
     read_key();
 }
@@ -186,14 +258,19 @@ void system_ui_show_news(void) {
 void system_ui_set_city(void) {
     char *current = get_setting("city");
     printf("\033[H\033[J--- Set City ---\n");
-    printf("Current City: %s\n", current ? current : "Pune (Default)");
+    printf("%s: %s\n",
+           menu_translate("ui_current_city", "Current City"),
+           current ? current : "Pune (Default)");
     if (current) free(current);
 
     char new_city[256];
-    get_user_input(new_city, sizeof(new_city), "Enter new city name");
+    get_user_input(new_city, sizeof(new_city), menu_translate("ui_enter_new_city_name", "Enter new city name"));
     if (strlen(new_city) > 0) {
         save_setting("city", new_city);
-        printf("\nCity updated to '%s'! Press any key...", new_city);
+        printf("\n%s '%s'! %s",
+               menu_translate("ui_city_updated_to", "City updated to"),
+               new_city,
+               menu_translate("ui_press_any_key", "Press any key..."));
     } else {
         printf("\nNo changes made. Press any key...");
     }
@@ -240,9 +317,14 @@ static void handle_change_timezone() {
     int PAGE_SIZE = 15;
 
     while (1) {
+        char *current_timezone = get_setting("timezone");
         printf("\033[H\033[J--- Select Time Zone ---\n");
-        printf("Search: %s_\n", search_term);
+        printf("%s: %s\n",
+               menu_translate("ui_selected_value", "Selected Value"),
+               current_timezone ? current_timezone : "Asia/Kolkata");
+        printf("%s: %s_\n", menu_translate("ui_search", "Search"), search_term);
         printf("---------------------------\n");
+        free(current_timezone);
 
         int matches[total_count];
         int match_count = 0;
@@ -264,7 +346,7 @@ static void handle_change_timezone() {
         if (sel >= scroll + PAGE_SIZE) scroll = sel - PAGE_SIZE + 1;
 
         if (match_count == 0) {
-            printf("  (No matching time zones)\n");
+            printf("  (%s)\n", menu_translate("ui_no_matching_timezones", "No matching time zones"));
         } else {
             int end = scroll + PAGE_SIZE;
             if (end > match_count) end = match_count;
@@ -276,19 +358,17 @@ static void handle_change_timezone() {
             }
         }
 
-        printf("\n[Arrows: Navigate | Enter: Select | Esc: Cancel | Type to Search]\n");
+        printf("\n%s\n", menu_translate("ui_footer_search", "[Arrows: Navigate | Enter: Select | Esc: Cancel | Type to Search]"));
         fflush(stdout);
 
         int key = read_key();
-        if (key == KEY_UP && sel > 0) {
-            sel--;
-        } else if (key == KEY_DOWN && sel < match_count - 1) {
-            sel++;
+        if (key == KEY_UP) {
+            sel = menu_next_index(sel, -1, match_count);
+        } else if (key == KEY_DOWN) {
+            sel = menu_next_index(sel, 1, match_count);
         } else if (key == KEY_ENTER && match_count > 0) {
             const char *selected_tz = cJSON_GetArrayItem(tz_array, matches[sel])->valuestring;
             save_setting("timezone", selected_tz);
-            printf("\nTime Zone updated to '%s'! Press any key...", selected_tz);
-            fflush(stdout); read_key();
             break;
         } else if (key == KEY_ESC) {
             break;
@@ -313,24 +393,7 @@ static void handle_change_timezone() {
 }
 
 void system_ui_change_timezone(void) {
-    while (1) {
-        char *current = get_setting("timezone");
-        printf("\033[H\033[J--- Time Zone ---\n");
-        printf("Current Time Zone: %s\n", current ? current : "Asia/Kolkata (Default)");
-        if (current) free(current);
-
-        printf("\n1. Change Time Zone\n");
-        printf("Esc. Go Back\n");
-        printf("\nSelect option: ");
-        fflush(stdout);
-
-        int key = read_key();
-        if (key == '1') {
-            handle_change_timezone();
-        } else if (key == KEY_ESC) {
-            break;
-        }
-    }
+    handle_change_timezone();
 }
 
 void system_ui_change_time_format(void) {
@@ -341,25 +404,27 @@ void system_ui_change_time_format(void) {
         free(current);
     }
 
-    const char *options[] = {"12 Hours", "24 Hours"};
+    const char *options[] = {
+        menu_translate("format_12h", "12 Hours"),
+        menu_translate("format_24h", "24 Hours")
+    };
     const char *keys[] = {"12h", "24h"};
 
     while (1) {
         printf("\033[H\033[J--- Time Format ---\n");
+        printf("%s: %s\n\n", menu_translate("ui_selected_value", "Selected Value"), options[sel]);
         for (int i = 0; i < 2; i++) {
             if (i == sel) printf("> %s\n", options[i]);
             else printf("  %s\n", options[i]);
         }
-        printf("\n[Arrows: Navigate | Enter: Select | Esc: Back]\n");
+        printf("\n%s\n", menu_translate("ui_footer_back", "[Arrows: Navigate | Enter: Select | Esc: Back]"));
         fflush(stdout);
 
         int key = read_key();
-        if (key == KEY_UP && sel > 0) sel--;
-        else if (key == KEY_DOWN && sel < 1) sel++;
+        if (key == KEY_UP) sel = menu_next_index(sel, -1, 2);
+        else if (key == KEY_DOWN) sel = menu_next_index(sel, 1, 2);
         else if (key == KEY_ENTER) {
             save_setting("time_format", keys[sel]);
-            printf("\nTime Format updated to '%s'! Press any key...", options[sel]);
-            fflush(stdout); read_key();
             break;
         } else if (key == KEY_ESC) {
             break;
@@ -376,42 +441,48 @@ void system_ui_set_time_manual(void) {
     }
 
     int sel = 0;
-    const char *options[] = {"Hour", "Minute", "Second", "Save and Back"};
+    const char *options[] = {
+        menu_translate("hour", "Hour"),
+        menu_translate("minute", "Minute"),
+        menu_translate("second", "Second"),
+        menu_translate("ui_save_and_back", "Save and Back")
+    };
     int num_options = 4;
 
     while (1) {
         printf("\033[H\033[J--- Set Time ---\n");
-        printf("Current Selection: %02d:%02d:%02d\n", h, m, s);
-        printf("---------------------------\n");
+        printf("%s: %02d:%02d:%02d\n\n", menu_translate("ui_selected_value", "Selected Value"), h, m, s);
         
         for (int i = 0; i < num_options; i++) {
             if (i == sel) printf("> %s\n", options[i]);
             else printf("  %s\n", options[i]);
         }
         
-        printf("\n[Arrows: Navigate | Enter: Select | Esc: Cancel]\n");
+        printf("\n%s\n", menu_translate("ui_footer_cancel", "[Arrows: Navigate | Enter: Select | Esc: Cancel]"));
         fflush(stdout);
 
         int key = read_key();
-        if (key == KEY_UP && sel > 0) {
-            sel--;
-        } else if (key == KEY_DOWN && sel < num_options - 1) {
-            sel++;
+        if (key == KEY_UP) {
+            sel = menu_next_index(sel, -1, num_options);
+        } else if (key == KEY_DOWN) {
+            sel = menu_next_index(sel, 1, num_options);
         } else if (key == KEY_ENTER) {
             if (sel == 0) {
-                int val = handle_value_picker("Select Hour", 0, 23, h);
+                int val = handle_value_picker(menu_translate("ui_select_hour", "Select Hour"), 0, 23, h);
                 if (val != -1) h = val;
             } else if (sel == 1) {
-                int val = handle_value_picker("Select Minute", 0, 59, m);
+                int val = handle_value_picker(menu_translate("ui_select_minute", "Select Minute"), 0, 59, m);
                 if (val != -1) m = val;
             } else if (sel == 2) {
-                int val = handle_value_picker("Select Second", 0, 59, s);
+                int val = handle_value_picker(menu_translate("ui_select_second", "Select Second"), 0, 59, s);
                 if (val != -1) s = val;
             } else if (sel == 3) {
                 char buffer[16];
                 snprintf(buffer, sizeof(buffer), "%02d:%02d:%02d", h, m, s);
                 save_setting("manual_time", buffer);
-                printf("\nTime saved! Press any key...");
+                printf("\n%s %s",
+                       menu_translate("ui_time_saved", "Time saved!"),
+                       menu_translate("ui_press_any_key", "Press any key..."));
                 fflush(stdout); read_key();
                 break;
             }
@@ -441,37 +512,41 @@ void system_ui_set_date_manual(void) {
     }
 
     int sel = 0;
-    const char *options[] = {"Month", "Year", "Date", "Save and Back"};
+    const char *options[] = {
+        menu_translate("month", "Month"),
+        menu_translate("year", "Year"),
+        menu_translate("date", "Date"),
+        menu_translate("ui_save_and_back", "Save and Back")
+    };
     int num_options = 4;
 
     while (1) {
         printf("\033[H\033[J--- Set Date ---\n");
-        printf("Current Selection: %04d-%02d-%02d\n", year, month, day);
-        printf("---------------------------\n");
+        printf("%s: %04d-%02d-%02d\n\n", menu_translate("ui_selected_value", "Selected Value"), year, month, day);
         
         for (int i = 0; i < num_options; i++) {
             if (i == sel) printf("> %s\n", options[i]);
             else printf("  %s\n", options[i]);
         }
         
-        printf("\n[Arrows: Navigate | Enter: Select | Esc: Cancel]\n");
+        printf("\n%s\n", menu_translate("ui_footer_cancel", "[Arrows: Navigate | Enter: Select | Esc: Cancel]"));
         fflush(stdout);
 
         int key = read_key();
-        if (key == KEY_UP && sel > 0) {
-            sel--;
-        } else if (key == KEY_DOWN && sel < num_options - 1) {
-            sel++;
+        if (key == KEY_UP) {
+            sel = menu_next_index(sel, -1, num_options);
+        } else if (key == KEY_DOWN) {
+            sel = menu_next_index(sel, 1, num_options);
         } else if (key == KEY_ENTER) {
             if (sel == 0) {
-                int val = handle_value_picker("Select Month", 1, 12, month);
+                int val = handle_value_picker(menu_translate("ui_select_month", "Select Month"), 1, 12, month);
                 if (val != -1) {
                     month = val;
                     int max_days = get_days_in_month(month, year);
                     if (day > max_days) day = max_days;
                 }
             } else if (sel == 1) {
-                int val = handle_value_picker("Select Year", 2000, 2100, year);
+                int val = handle_value_picker(menu_translate("ui_select_year", "Select Year"), 2000, 2100, year);
                 if (val != -1) {
                     year = val;
                     int max_days = get_days_in_month(month, year);
@@ -479,13 +554,15 @@ void system_ui_set_date_manual(void) {
                 }
             } else if (sel == 2) {
                 int max_days = get_days_in_month(month, year);
-                int val = handle_value_picker("Select Date", 1, max_days, day);
+                int val = handle_value_picker(menu_translate("ui_select_date", "Select Date"), 1, max_days, day);
                 if (val != -1) day = val;
             } else if (sel == 3) {
                 char buffer[16];
                 snprintf(buffer, sizeof(buffer), "%04d-%02d-%02d", year, month, day);
                 save_setting("manual_date", buffer);
-                printf("\nDate saved! Press any key...");
+                printf("\n%s %s",
+                       menu_translate("ui_date_saved", "Date saved!"),
+                       menu_translate("ui_press_any_key", "Press any key..."));
                 fflush(stdout); read_key();
                 break;
             }
