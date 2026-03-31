@@ -302,7 +302,8 @@ void app_dispatch_leaf_action(MenuNode *selected_node, MenuNode *root) {
         content_ui_show_joke();
     } else if (strcmp(selected_node->key, "calculator") == 0) {
         system_ui_run_calculator();
-    } else if (strcmp(selected_node->key, "typing_tutor") == 0) {
+    } else if (strcmp(selected_node->key, "typing_tutor") == 0 ||
+               strcmp(selected_node->key, "learn_typing") == 0) {
         handle_typing_tutor();
     } else if (strcmp(selected_node->key, "weather") == 0) {
         system_ui_show_weather();

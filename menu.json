@@ -474,6 +474,20 @@
       "description_key": "extras_desc"
     },
     {
+      "title_key": "learn",
+      "key": "learn",
+      "shortcut": "l",
+      "items": [
+        {
+          "title_key": "learn_typing",
+          "key": "learn_typing",
+          "shortcut": "t",
+          "description_key": "learn_typing_desc"
+        }
+      ],
+      "description_key": "learn_desc"
+    },
+    {
       "title_key": "utilities",
       "key": "utilities",
       "shortcut": "u",
@@ -483,12 +497,6 @@
           "key": "calculator",
           "shortcut": "c",
           "description_key": "calculator_desc"
-        },
-        {
-          "title_key": "typing_tutor",
-          "key": "typing_tutor",
-          "shortcut": "y",
-          "description_key": "typing_tutor_desc"
         },
         {
           "title_key": "bs_math",
