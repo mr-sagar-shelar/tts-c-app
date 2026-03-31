@@ -19,5 +19,12 @@
 			"enabled":	1,
 			"label":	"first"
 		}],
-	"city":	"Mumbai"
+	"city":	"Mumbai",
+	"calendar":	[{
+			"date":	"2026-03-30",
+			"time":	"11:30 AM",
+			"title":	"Hello World",
+			"description":	"This is hello world",
+			"reminder":	false
+		}]
 }
