@@ -1,4 +1,6 @@
 #include "entertainment.h"
+#include "file_manager.h"
+#include "text_processor.h"
 #include <ctype.h>
 #include <sys/stat.h>
 
@@ -232,4 +234,79 @@ void handle_poems() {
         printf("\nFailed to connect to Poem API. Press any key...");
         fflush(stdout); read_key();
     }
+}
+
+void handle_word_by_word_viewer() {
+    char *selected_path = file_navigator(USER_SPACE, 0);
+    struct stat st;
+
+    if (!selected_path) {
+        return;
+    }
+
+    if (stat(selected_path, &st) != 0 || S_ISDIR(st.st_mode)) {
+        printf("\033[H\033[J--- Color Reader ---\n");
+        printf("Please select a text file.\n");
+        printf("\nPress any key to continue...");
+        fflush(stdout);
+        read_key();
+        free(selected_path);
+        return;
+    }
+
+    TextProcessor *processor = text_processor_load(selected_path);
+    if (!processor) {
+        printf("\033[H\033[J--- Color Reader ---\n");
+        printf("Failed to parse file:\n%s\n", selected_path);
+        printf("\nPress any key to continue...");
+        fflush(stdout);
+        read_key();
+        free(selected_path);
+        return;
+    }
+
+    if (processor->token_count == 0) {
+        printf("\033[H\033[J--- Color Reader ---\n");
+        printf("No readable words found in:\n%s\n", selected_path);
+        printf("\nPress any key to continue...");
+        fflush(stdout);
+        read_key();
+        text_processor_free(processor);
+        free(selected_path);
+        return;
+    }
+
+    size_t index = 0;
+    while (1) {
+        const TextWord *word = text_processor_get_word(processor, index);
+        if (!word) {
+            break;
+        }
+
+        printf("\033[H\033[J--- Color Reader ---\n");
+        printf("File: %s\n", selected_path);
+        printf("Word %zu of %zu\n\n", index + 1, processor->token_count);
+        printf("Surface: %s\n", word->surface);
+        printf("Word: %s\n", word->word);
+        printf("Pre-punctuation: %s\n", word->prepunctuation[0] ? word->prepunctuation : "(none)");
+        printf("Post-punctuation: %s\n", word->postpunctuation[0] ? word->postpunctuation : "(none)");
+        printf("Leading whitespace length: %zu\n", strlen(word->whitespace));
+        printf("File offset: %zu\n", word->content_offset);
+        printf("Line: %d  Column: %d\n", word->line, word->column);
+        printf("\nThis token stream is ready to be passed word-by-word into Flite later.\n");
+        printf("[Up: Previous | Down: Next | Enter: Next | Esc: Back]\n");
+        fflush(stdout);
+
+        int key = read_key();
+        if (key == KEY_ESC) {
+            break;
+        } else if ((key == KEY_DOWN || key == KEY_ENTER) && index + 1 < processor->token_count) {
+            index++;
+        } else if (key == KEY_UP && index > 0) {
+            index--;
+        }
+    }
+
+    text_processor_free(processor);
+    free(selected_path);
 }

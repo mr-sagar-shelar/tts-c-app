@@ -201,6 +201,8 @@ int main() {
                         handle_news();
                     } else if (strcmp(selected_node->key, "poems") == 0) {
                         handle_poems();
+                    } else if (strcmp(selected_node->key, "fm_word_viewer") == 0) {
+                        handle_word_by_word_viewer();
                     } else if (strcmp(selected_node->key, "set_city") == 0) {
                         handle_set_city();
                     } else if (strcmp(selected_node->key, "timezone") == 0) {
