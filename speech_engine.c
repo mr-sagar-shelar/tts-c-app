@@ -336,13 +336,10 @@ int speech_engine_speak_text(const char *text, char *error, size_t error_size) {
     return 1;
 }
 
-int speech_engine_export_segments_to_wave(const char **segments, size_t count, const char *output_path, char *error, size_t error_size) {
-    SpeechExportBuffer buffer;
-    cst_audio_stream_callback original_callback;
-    void *original_userdata;
-    size_t i;
+int speech_engine_export_text_to_wave(const char *text, const char *output_path, char *error, size_t error_size) {
+    cst_wave *wave;
 
-    if (!segments || count == 0 || !output_path) {
+    if (!text || !text[0] || !output_path) {
         set_error(error, error_size, "Nothing to export");
         return 0;
     }
@@ -352,34 +349,20 @@ int speech_engine_export_segments_to_wave(const char **segments, size_t count, c
     }
 
     speech_engine_refresh_settings();
-    memset(&buffer, 0, sizeof(buffer));
-    original_callback = speech_state.asi->asc;
-    original_userdata = speech_state.asi->userdata;
-    speech_state.asi->asc = speech_export_chunk;
-    speech_state.asi->userdata = &buffer;
-
-    for (i = 0; i < count; i++) {
-        if (segments[i] && segments[i][0]) {
-            if (flite_text_to_speech(segments[i], speech_state.voice, "stream") < 0.0f) {
-                speech_state.asi->asc = original_callback;
-                speech_state.asi->userdata = original_userdata;
-                free(buffer.samples);
-                set_error(error, error_size, "Flite export synthesis failed");
-                return 0;
-            }
-        }
+    feat_set_float(speech_state.voice->features, "duration_stretch", 1.0f);
+    wave = flite_text_to_wave(text, speech_state.voice);
+    if (!wave) {
+        set_error(error, error_size, "Flite export synthesis failed");
+        return 0;
     }
 
-    speech_state.asi->asc = original_callback;
-    speech_state.asi->userdata = original_userdata;
-
-    if (!write_wave_file(output_path, &buffer)) {
-        free(buffer.samples);
+    if (cst_wave_save_riff(wave, output_path) != CST_OK_FORMAT) {
+        delete_wave(wave);
         set_error(error, error_size, "Unable to write WAV file");
         return 0;
     }
 
-    free(buffer.samples);
+    delete_wave(wave);
     return 1;
 }
 
@@ -415,9 +398,8 @@ int speech_engine_speak_text(const char *text, char *error, size_t error_size) {
     return 0;
 }
 
-int speech_engine_export_segments_to_wave(const char **segments, size_t count, const char *output_path, char *error, size_t error_size) {
-    (void)segments;
-    (void)count;
+int speech_engine_export_text_to_wave(const char *text, const char *output_path, char *error, size_t error_size) {
+    (void)text;
     (void)output_path;
     set_error(error, error_size, "Flite support was not built into this binary");
     return 0;

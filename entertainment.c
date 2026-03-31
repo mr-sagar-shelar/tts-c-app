@@ -197,37 +197,21 @@ static void build_wave_export_path(const char *source_path, char *buffer, size_t
 }
 
 static void export_processor_to_wave(const TextProcessor *processor, const char *selected_path) {
-    const char **segments;
     char export_path[PATH_MAX];
     char error[128] = {0};
-    size_t i;
 
     if (!processor || processor->token_count == 0) {
         return;
-    }
-
-    segments = (const char **)malloc(processor->token_count * sizeof(char *));
-    if (!segments) {
-        printf("\033[H\033[J--- Color Reader ---\n");
-        printf("Unable to allocate export buffer.\n");
-        printf("\nPress any key to continue...");
-        fflush(stdout);
-        read_key();
-        return;
-    }
-
-    for (i = 0; i < processor->token_count; i++) {
-        segments[i] = processor->tokens[i].surface;
     }
 
     build_wave_export_path(selected_path, export_path, sizeof(export_path));
 
     printf("\033[H\033[J--- Color Reader ---\n");
     printf("Exporting audio to:\n%s\n\n", export_path);
-    printf("Processing file word by word through Flite streaming...\n");
+    printf("Processing the full document through Flite streaming...\n");
     fflush(stdout);
 
-    if (speech_engine_export_segments_to_wave(segments, processor->token_count, export_path, error, sizeof(error))) {
+    if (speech_engine_export_text_to_wave(processor->content, export_path, error, sizeof(error))) {
         printf("Export complete.\n");
     } else {
         printf("Export failed: %s\n", error[0] ? error : "Unknown speech export error");
@@ -235,8 +219,6 @@ static void export_processor_to_wave(const TextProcessor *processor, const char 
     printf("\nPress any key to continue...");
     fflush(stdout);
     read_key();
-
-    free(segments);
 }
 
 void handle_joke() {
