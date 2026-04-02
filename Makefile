@@ -30,6 +30,13 @@ $(TARGET): $(OBJS) $(FLITE_BUILD_DEPS)
 	$(CC) $(CFLAGS) -o $(TARGET) $(OBJS) $(FLITE_LIBS)
 
 $(LOCAL_FLITEDIR)/build/.built:
+	@if [ "$(shell uname -s)" = "Linux" ]; then \
+		sed -i 's/-no-cpp-precomp//g' $(LOCAL_FLITEDIR)/config/config; \
+		sed -i 's/TARGET_OS    = darwin.*/TARGET_OS    = linux/g' $(LOCAL_FLITEDIR)/config/config; \
+		sed -i 's/OSTYPE		:= darwin.*/OSTYPE		:= linux/g' $(LOCAL_FLITEDIR)/config/system.mak; \
+		sed -i 's/PLATFORM	:= .*/PLATFORM	:= $(shell $(CC) -dumpmachine)/g' $(LOCAL_FLITEDIR)/config/system.mak; \
+		sed -i 's/FULLOSTYPE	:= .*/FULLOSTYPE	:= linux-gnu/g' $(LOCAL_FLITEDIR)/config/system.mak; \
+	fi
 	LD_LIBRARY_PATH=$(FLITELIBDIR):$(LD_LIBRARY_PATH) $(MAKE) -C $(LOCAL_FLITEDIR)
 	@mkdir -p $(LOCAL_FLITEDIR)/build
 	@touch $(LOCAL_FLITEDIR)/build/.built
