@@ -1,8 +1,11 @@
 #include "speech_engine.h"
 
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/wait.h>
+#include <unistd.h>
 
 #include "config.h"
 
@@ -244,9 +247,10 @@ int speech_engine_speak_text(const char *text, char *error, size_t error_size) {
 int speech_engine_speak_text_buffered(const char *text, char *error, size_t error_size) {
 #ifdef __linux__
     cst_wave *wave;
-    cst_audiodev *audio_device;
-    short *buffer;
-    int i;
+    char temp_path[] = "/tmp/sai_word_XXXXXX.wav";
+    int temp_fd;
+    pid_t child_pid;
+    int status;
 
     if (!text || !text[0]) {
         set_error(error, error_size, "No text available for speech");
@@ -269,36 +273,54 @@ int speech_engine_speak_text_buffered(const char *text, char *error, size_t erro
         set_error(error, error_size, "Flite playback synthesis failed");
         return 0;
     }
+    
 
-    audio_device = audio_open(wave->sample_rate, wave->num_channels, CST_AUDIO_LINEAR16);
-    if (!audio_device) {
+    temp_fd = mkstemps(temp_path, 4);
+    if (temp_fd < 0) {
         delete_wave(wave);
-        set_error(error, error_size, "Unable to open audio output device");
+        set_error(error, error_size, "Unable to create a temporary WAV file");
+        return 0;
+    }
+    close(temp_fd);
+
+    if (cst_wave_save_riff(wave, temp_path) != CST_OK_FORMAT) {
+        unlink(temp_path);
+        delete_wave(wave);
+        set_error(error, error_size, "Unable to write the temporary WAV file");
         return 0;
     }
 
-    buffer = (short *)malloc((size_t)wave->num_samples * sizeof(short));
-    if (!buffer) {
-        audio_close(audio_device);
+    child_pid = fork();
+    if (child_pid < 0) {
+        unlink(temp_path);
         delete_wave(wave);
-        set_error(error, error_size, "Unable to allocate playback buffer");
+        set_error(error, error_size, "Unable to start aplay for buffered playback");
         return 0;
     }
 
-    for (i = 0; i < wave->num_samples; i++) {
-        float scaled = (float)wave->samples[i] * speech_state.gain;
-        if (scaled > 32767.0f) {
-            scaled = 32767.0f;
-        } else if (scaled < -32768.0f) {
-            scaled = -32768.0f;
+    if (child_pid == 0) {
+        execlp("aplay", "aplay", "-q", temp_path, (char *)NULL);
+        _exit(127);
+    }
+
+    status = 0;
+    while (waitpid(child_pid, &status, 0) < 0) {
+        if (errno != EINTR) {
+            unlink(temp_path);
+            delete_wave(wave);
+            set_error(error, error_size, "Unable to wait for buffered playback to finish");
+            return 0;
         }
-        buffer[i] = (short)scaled;
     }
 
-    audio_write(audio_device, buffer, wave->num_samples * (int)sizeof(short));
-    audio_close(audio_device);
-    free(buffer);
+    unlink(temp_path);
     delete_wave(wave);
+
+    if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+        set_error(error, error_size, "aplay failed to play the synthesized audio");
+        return 0;
+    }
+
     return 1;
 #else
     (void)text;
