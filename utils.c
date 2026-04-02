@@ -1,8 +1,49 @@
 #include "utils.h"
 #include "menu.h"
 
+#include <langinfo.h>
+#include <locale.h>
+
 static struct termios original_termios;
 static int is_conio_mode = 0;
+
+static int locale_codeset_is_utf8() {
+    const char *codeset = nl_langinfo(CODESET);
+
+    return codeset &&
+           (strcmp(codeset, "UTF-8") == 0 || strcmp(codeset, "UTF8") == 0);
+}
+
+int init_utf8_locale() {
+    static const char *fallback_locales[] = {
+        "",
+        "C.UTF-8",
+        "en_US.UTF-8",
+        "hi_IN.UTF-8"
+    };
+    size_t i;
+
+    for (i = 0; i < sizeof(fallback_locales) / sizeof(fallback_locales[0]); i++) {
+        if (!setlocale(LC_ALL, fallback_locales[i])) {
+            continue;
+        }
+        if (locale_codeset_is_utf8()) {
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
+void enable_utf8_terminal_mode() {
+    if (!isatty(STDOUT_FILENO)) {
+        return;
+    }
+
+    /* Select UTF-8 character set on terminals that understand ISO-2022 escapes. */
+    fputs("\033%G", stdout);
+    fflush(stdout);
+}
 
 static int read_key_internal(int timeout_ms) {
     char c;

@@ -198,6 +198,8 @@ void app_handle_settings_menu(MenuNode *node, MenuNode *root) {
                     if (app_apply_language_voice(values[selected_index])) {
                         save_setting("language", values[selected_index]);
                         set_language(root, values[selected_index]);
+                        init_utf8_locale();
+                        enable_utf8_terminal_mode();
                         break;
                     }
                 } else if (key == KEY_ESC) {

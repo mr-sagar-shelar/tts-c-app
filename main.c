@@ -15,6 +15,11 @@
 #include "utils.h"
 
 int main() {
+    int has_utf8_locale;
+
+    has_utf8_locale = init_utf8_locale();
+    enable_utf8_terminal_mode();
+
     init_config();
     {
         char speech_error[128];
@@ -35,6 +40,10 @@ int main() {
     char *lang_setting = get_setting("language");
     if (lang_setting) {
         set_language(root, lang_setting);
+        if (strcmp(lang_setting, "hi") == 0 && !has_utf8_locale) {
+            fprintf(stderr,
+                    "Warning: UTF-8 locale unavailable. Hindi text may not render correctly on this terminal.\n");
+        }
         free(lang_setting);
     } else {
         set_language(root, "en");

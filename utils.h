@@ -19,6 +19,17 @@
 #define KEY_CTRL_E 5
 
 /**
+ * Initializes a UTF-8 locale for the process when possible.
+ * Returns 1 when a UTF-8 locale is active, 0 otherwise.
+ */
+int init_utf8_locale();
+
+/**
+ * Re-asserts UTF-8 mode on terminals that support the standard escape.
+ */
+void enable_utf8_terminal_mode();
+
+/**
  * Sets the terminal to non-canonical mode for raw input.
  */
 void set_conio_terminal_mode();

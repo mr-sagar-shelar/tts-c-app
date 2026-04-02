@@ -22,6 +22,7 @@ speech mode is enabled.
 
 ## Next Features
 
+- Hindi/Devnagari font default install on RPI OS
 - Typing Tutor
   - Expect specific character from user and maintain it's accuracy, time spent and other similar statics and show at the end
 - Setting Menu Completion
