@@ -21,6 +21,15 @@ typedef struct {
     char status[160];
 } WordReaderState;
 
+typedef struct {
+    const TextProcessor *processor;
+    const char *selected_path;
+    WordReaderState *reader_state;
+    size_t chunk_start;
+    size_t chunk_end;
+    size_t *current_index;
+} WordReaderPlaybackContext;
+
 static void get_terminal_size(int *rows, int *cols) {
     struct winsize ws;
 
@@ -151,24 +160,6 @@ static void set_reader_status(WordReaderState *state, const char *message) {
     snprintf(state->status, sizeof(state->status), "%s", message);
 }
 
-static int reader_autoplay_pause_ms(const TextWord *word) {
-    if (!word) {
-        return 0;
-    }
-
-    if (strchr(word->postpunctuation, '.') || strchr(word->postpunctuation, '!') || strchr(word->postpunctuation, '?')) {
-        return 300;
-    }
-    if (strchr(word->postpunctuation, ',') || strchr(word->postpunctuation, ';') || strchr(word->postpunctuation, ':')) {
-        return 150;
-    }
-    if (strchr(word->whitespace, '\n')) {
-        return 180;
-    }
-
-    return 35;
-}
-
 static void render_word_reader(const TextProcessor *processor, const char *selected_path, size_t current_index, const WordReaderState *state) {
     int rows;
     int cols;
@@ -213,6 +204,95 @@ static void render_word_reader(const TextProcessor *processor, const char *selec
         printf("%s\n", menu_translate("ui_reader_playing_status", "Playing. Press Ctrl+P to pause after the current word."));
     }
     fflush(stdout);
+}
+
+static int token_is_sentence_break(const TextWord *word) {
+    if (!word) {
+        return 0;
+    }
+
+    return strchr(word->postpunctuation, '.') != NULL ||
+           strchr(word->postpunctuation, '!') != NULL ||
+           strchr(word->postpunctuation, '?') != NULL;
+}
+
+static size_t determine_reader_chunk_end(const TextProcessor *processor, size_t start_index) {
+    const size_t min_chunk_words = 6;
+    const size_t max_chunk_words = 24;
+    size_t end_index;
+
+    if (!processor || start_index >= processor->token_count) {
+        return start_index;
+    }
+
+    end_index = start_index;
+    while (end_index + 1 < processor->token_count &&
+           (end_index - start_index + 1) < max_chunk_words) {
+        if ((end_index - start_index + 1) >= min_chunk_words &&
+            token_is_sentence_break(&processor->tokens[end_index])) {
+            break;
+        }
+        end_index++;
+    }
+
+    return end_index;
+}
+
+static char *build_reader_chunk_text(const TextProcessor *processor, size_t start_index, size_t end_index) {
+    size_t total = 0;
+    size_t i;
+    char *text;
+    char *cursor;
+
+    if (!processor || start_index >= processor->token_count || end_index < start_index) {
+        return NULL;
+    }
+
+    total += strlen(processor->tokens[start_index].prepunctuation);
+    total += strlen(processor->tokens[start_index].word);
+    total += strlen(processor->tokens[start_index].postpunctuation);
+
+    for (i = start_index + 1; i <= end_index && i < processor->token_count; i++) {
+        total += strlen(processor->tokens[i].surface);
+    }
+
+    text = (char *)malloc(total + 1);
+    if (!text) {
+        return NULL;
+    }
+
+    cursor = text;
+    strcpy(cursor, processor->tokens[start_index].prepunctuation);
+    cursor += strlen(processor->tokens[start_index].prepunctuation);
+    strcpy(cursor, processor->tokens[start_index].word);
+    cursor += strlen(processor->tokens[start_index].word);
+    strcpy(cursor, processor->tokens[start_index].postpunctuation);
+    cursor += strlen(processor->tokens[start_index].postpunctuation);
+
+    for (i = start_index + 1; i <= end_index && i < processor->token_count; i++) {
+        strcpy(cursor, processor->tokens[i].surface);
+        cursor += strlen(processor->tokens[i].surface);
+    }
+
+    *cursor = '\0';
+    return text;
+}
+
+static void reader_playback_progress(int token_index, void *userdata) {
+    WordReaderPlaybackContext *context = (WordReaderPlaybackContext *)userdata;
+    size_t absolute_index;
+
+    if (!context || !context->current_index) {
+        return;
+    }
+
+    absolute_index = context->chunk_start + (size_t)(token_index < 0 ? 0 : token_index);
+    if (absolute_index > context->chunk_end) {
+        absolute_index = context->chunk_end;
+    }
+
+    *context->current_index = absolute_index;
+    render_word_reader(context->processor, context->selected_path, absolute_index, context->reader_state);
 }
 
 static void build_wave_export_path(const char *source_path, char *buffer, size_t buffer_size) {
@@ -577,14 +657,47 @@ void content_ui_run_word_viewer(void) {
                 reader_state.autoplay = 0;
                 set_reader_status(&reader_state, menu_translate("ui_reader_speech_off", "Speech mode is off. Turn speech on to use Ctrl+P playback."));
                 key = read_key();
-            } else if (!speech_engine_speak_text_buffered(current_word->word, speech_error, sizeof(speech_error))) {
-                reader_state.autoplay = 0;
-                set_reader_status(&reader_state, speech_error[0] ? speech_error : menu_translate("ui_reader_playback_failed", "Unable to play buffered speech for this word."));
-                key = read_key();
             } else {
-                last_spoken_index = index;
-                set_reader_status(&reader_state, NULL);
-                key = read_key_timeout(reader_autoplay_pause_ms(current_word));
+                size_t chunk_end = determine_reader_chunk_end(processor, index);
+                char *chunk_text = build_reader_chunk_text(processor, index, chunk_end);
+                WordReaderPlaybackContext playback_context;
+
+                if (!chunk_text) {
+                    reader_state.autoplay = 0;
+                    set_reader_status(&reader_state, menu_translate("ui_reader_playback_failed", "Unable to play buffered speech for this word."));
+                    key = read_key();
+                } else {
+                    playback_context.processor = processor;
+                    playback_context.selected_path = selected_path;
+                    playback_context.reader_state = &reader_state;
+                    playback_context.chunk_start = index;
+                    playback_context.chunk_end = chunk_end;
+                    playback_context.current_index = &index;
+
+                    set_reader_status(&reader_state, NULL);
+                    speech_engine_set_progress_callback(reader_playback_progress, &playback_context);
+                    if (!speech_engine_speak_text_buffered(chunk_text, speech_error, sizeof(speech_error))) {
+                        speech_engine_set_progress_callback(NULL, NULL);
+                        free(chunk_text);
+                        reader_state.autoplay = 0;
+                        set_reader_status(&reader_state, speech_error[0] ? speech_error : menu_translate("ui_reader_playback_failed", "Unable to play buffered speech for this word."));
+                        key = read_key();
+                    } else {
+                        speech_engine_set_progress_callback(NULL, NULL);
+                        free(chunk_text);
+                        index = chunk_end;
+                        last_spoken_index = index;
+
+                        if (chunk_end + 1 < processor->token_count) {
+                            index = chunk_end + 1;
+                            continue;
+                        }
+
+                        reader_state.autoplay = 0;
+                        set_reader_status(&reader_state, menu_translate("ui_reader_play_complete", "Playback complete."));
+                        key = read_key();
+                    }
+                }
             }
         } else {
             if (speech_engine_is_enabled() && last_spoken_index != index) {
@@ -612,13 +725,6 @@ void content_ui_run_word_viewer(void) {
             next_index = (size_t)menu_next_index((int)index, 1, (int)processor->token_count);
         } else if (key == KEY_UP) {
             next_index = (size_t)menu_next_index((int)index, -1, (int)processor->token_count);
-        } else if (reader_state.autoplay && key == 0) {
-            if (index + 1 < processor->token_count) {
-                next_index = index + 1;
-            } else {
-                reader_state.autoplay = 0;
-                set_reader_status(&reader_state, menu_translate("ui_reader_play_complete", "Playback complete."));
-            }
         }
 
         if (next_index != index) {

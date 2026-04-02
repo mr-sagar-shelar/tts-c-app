@@ -31,6 +31,11 @@ typedef struct {
     SDL_AudioDeviceID sdl_device;
     int sdl_audio_ready;
 #endif
+    cst_item *progress_token;
+    float progress_token_end;
+    int progress_token_index;
+    SpeechEngineProgressCallback progress_callback;
+    void *progress_userdata;
     float gain;
 } SpeechEngineState;
 
@@ -168,16 +173,55 @@ static float current_gain_from_settings(void) {
     return gain;
 }
 
+void speech_engine_set_progress_callback(SpeechEngineProgressCallback callback, void *userdata) {
+    speech_state.progress_callback = callback;
+    speech_state.progress_userdata = userdata;
+}
+
 static int speech_stream_chunk(const cst_wave *w, int start, int size, int last, cst_audio_streaming_info *asi) {
     SpeechEngineState *state = (SpeechEngineState *)asi->userdata;
 #ifdef HAVE_SDL_AUDIO
     int buffered_bytes;
 #endif
+    float wavepos;
     short *buffer;
     int i;
 
     if (!state) {
         return CST_AUDIO_STREAM_STOP;
+    }
+
+    if (start == 0) {
+        state->progress_token = NULL;
+        state->progress_token_end = 0.0f;
+        state->progress_token_index = 0;
+        if (asi->utt) {
+            state->progress_token = relation_head(utt_relation(asi->utt, "Token"));
+            if (state->progress_token) {
+                state->progress_token_end = ffeature_float(
+                    state->progress_token,
+                    "R:Token.daughtern.R:SylStructure.daughtern.daughtern.R:Segment.end"
+                );
+                if (state->progress_callback) {
+                    state->progress_callback(0, state->progress_userdata);
+                }
+            }
+        }
+    }
+
+    if (state->progress_token) {
+        wavepos = ((float)start) / w->sample_rate;
+        while (wavepos > state->progress_token_end && item_next(state->progress_token)) {
+            state->progress_token = item_next(state->progress_token);
+            state->progress_token_index++;
+            state->progress_token_end = ffeature_float(
+                state->progress_token,
+                "R:Token.daughtern.R:SylStructure.daughtern.daughtern.R:Segment.end"
+            );
+            if (state->progress_callback) {
+                state->progress_callback(state->progress_token_index, state->progress_userdata);
+            }
+        }
     }
 
 #ifdef HAVE_SDL_AUDIO
