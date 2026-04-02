@@ -36,6 +36,9 @@ typedef struct {
     int progress_token_index;
     SpeechEngineProgressCallback progress_callback;
     void *progress_userdata;
+    SpeechEngineInterruptCallback interrupt_callback;
+    void *interrupt_userdata;
+    int interrupt_key;
     float gain;
 } SpeechEngineState;
 
@@ -178,10 +181,23 @@ void speech_engine_set_progress_callback(SpeechEngineProgressCallback callback, 
     speech_state.progress_userdata = userdata;
 }
 
+void speech_engine_set_interrupt_callback(SpeechEngineInterruptCallback callback, void *userdata) {
+    speech_state.interrupt_callback = callback;
+    speech_state.interrupt_userdata = userdata;
+}
+
+int speech_engine_take_interrupt_key(void) {
+    int key = speech_state.interrupt_key;
+    speech_state.interrupt_key = 0;
+    return key;
+}
+
 static int speech_stream_chunk(const cst_wave *w, int start, int size, int last, cst_audio_streaming_info *asi) {
     SpeechEngineState *state = (SpeechEngineState *)asi->userdata;
 #ifdef HAVE_SDL_AUDIO
+    int high_water_mark = 8192;
     int buffered_bytes;
+    int interrupt_key;
 #endif
     float wavepos;
     short *buffer;
@@ -235,6 +251,24 @@ static int speech_stream_chunk(const cst_wave *w, int start, int size, int last,
     }
 
     if (state->sdl_audio_ready && state->sdl_device != 0) {
+        do {
+            if (state->interrupt_callback) {
+                interrupt_key = state->interrupt_callback(state->interrupt_userdata);
+                if (interrupt_key != 0) {
+                    state->interrupt_key = interrupt_key;
+                    speech_engine_close_device();
+                    return CST_AUDIO_STREAM_STOP;
+                }
+            }
+
+            buffered_bytes = speech_sdl_write_pos - speech_sdl_read_pos;
+            if (buffered_bytes <= high_water_mark) {
+                break;
+            }
+
+            SDL_Delay(5);
+        } while (1);
+
         if (state->gain != 1.0f) {
             for (i = 0; i < size; i++) {
                 float scaled = (float)w->samples[start + i] * state->gain;
@@ -259,6 +293,14 @@ static int speech_stream_chunk(const cst_wave *w, int start, int size, int last,
         if (last) {
             speech_sdl_pause_audio(0);
             while (speech_sdl_write_pos - speech_sdl_read_pos > 0) {
+                if (state->interrupt_callback) {
+                    interrupt_key = state->interrupt_callback(state->interrupt_userdata);
+                    if (interrupt_key != 0) {
+                        state->interrupt_key = interrupt_key;
+                        speech_engine_close_device();
+                        return CST_AUDIO_STREAM_STOP;
+                    }
+                }
                 SDL_Delay(1);
             }
             speech_sdl_pause_audio(1);

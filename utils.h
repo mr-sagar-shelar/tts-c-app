@@ -18,6 +18,7 @@
 #define KEY_CTRL_I 9
 #define KEY_CTRL_E 5
 #define KEY_CTRL_P 16
+#define KEY_CTRL_L 12
 
 /**
  * Initializes a UTF-8 locale for the process when possible.
