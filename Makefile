@@ -14,6 +14,9 @@ CFLAGS += -DHAVE_FLITE -I$(FLITEDIR)/include
 TARGET_PLATFORM ?= $(shell awk 'BEGIN{cpu=""; os=""} $$1=="TARGET_CPU" {cpu=$$3} $$1=="TARGET_OS" {os=$$3} END{if (cpu != "" && os != "") print cpu "-" os}' $(FLITEDIR)/config/config)
 FLITELIBDIR := $(FLITEDIR)/build/$(TARGET_PLATFORM)/lib
 FLITE_LIBS += -L$(FLITELIBDIR) -lflite_usenglish -lflite_cmulex -lflite_cmu_indic_lang -lflite_cmu_indic_lex -lflite_cmu_us_kal -lflite_cmu_us_slt -lflite_cmu_us_rms -lflite_cmu_us_awb -lflite -lm
+ifneq ($(findstring linux,$(TARGET_PLATFORM)),)
+FLITE_LIBS += -Wl,-rpath,$(FLITELIBDIR)
+endif
 endif
 endif
 
@@ -27,7 +30,7 @@ $(TARGET): $(OBJS) $(FLITE_BUILD_DEPS)
 	$(CC) $(CFLAGS) -o $(TARGET) $(OBJS) $(FLITE_LIBS)
 
 $(LOCAL_FLITEDIR)/build/.built:
-	$(MAKE) -C $(LOCAL_FLITEDIR)
+	LD_LIBRARY_PATH=$(FLITELIBDIR):$(LD_LIBRARY_PATH) $(MAKE) -C $(LOCAL_FLITEDIR)
 	@mkdir -p $(LOCAL_FLITEDIR)/build
 	@touch $(LOCAL_FLITEDIR)/build/.built
 
