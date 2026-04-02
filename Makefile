@@ -1,7 +1,7 @@
 CC=gcc
-CFLAGS=-Wall -Wextra -O2
+CFLAGS=-Wall -Wextra -O2 -pthread
 TARGET=sai
-OBJS=main.o app_actions.o menu.o cJSON.o config.o contacts.o utils.o file_manager.o notepad.o dictionary.o entertainment.o tools.o typing_tutor.o alarm.o calendar.o radio.o text_processor.o document_reader.o speech_settings.o speech_engine.o voice_library.o download_manager.o download_ui.o task_ui.o
+OBJS=main.o app_actions.o menu.o cJSON.o config.o contacts.o utils.o file_manager.o notepad.o dictionary.o entertainment.o tools.o typing_tutor.o alarm.o calendar.o radio.o text_processor.o document_reader.o speech_settings.o speech_engine.o voice_library.o download_manager.o download_ui.o task_ui.o menu_audio.o
 
 SDL_CONFIG := $(shell command -v sdl2-config 2>/dev/null)
 SDL_CFLAGS :=
@@ -29,7 +29,7 @@ endif
 endif
 endif
 
-FLITE_LIBS += $(SDL_LIBS)
+FLITE_LIBS += $(SDL_LIBS) -pthread
 
 ifeq ($(FLITEDIR),$(LOCAL_FLITEDIR))
 FLITE_BUILD_DEPS = $(FLITEDIR)/build/.built
@@ -81,6 +81,9 @@ download_ui.o: download_ui.c download_ui.h download_manager.h utils.h
 
 task_ui.o: task_ui.c task_ui.h utils.h
 	$(CC) $(CFLAGS) -c task_ui.c
+
+menu_audio.o: menu_audio.c menu_audio.h speech_engine.h config.h
+	$(CC) $(CFLAGS) -c menu_audio.c
 
 menu.o: menu.c menu.h cJSON.h
 	$(CC) $(CFLAGS) -c menu.c

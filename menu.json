@@ -687,6 +687,26 @@
           ]
         },
         {
+          "title_key": "audio_playback",
+          "key": "audio_playback",
+          "shortcut": "y",
+          "description_key": "audio_playback_desc",
+          "items": [
+            {
+              "title_key": "audio_playback_on",
+              "key": "audio_playback_on",
+              "shortcut": "n",
+              "description_key": "audio_playback_on_desc"
+            },
+            {
+              "title_key": "audio_playback_off",
+              "key": "audio_playback_off",
+              "shortcut": "f",
+              "description_key": "audio_playback_off_desc"
+            }
+          ]
+        },
+        {
           "title_key": "timezone",
           "key": "timezone",
           "shortcut": "z",

@@ -10,12 +10,15 @@
 #include "config.h"
 #include "contacts.h"
 #include "file_manager.h"
+#include "menu_audio.h"
 #include "menu.h"
 #include "speech_engine.h"
 #include "utils.h"
 
 int main() {
     int has_utf8_locale;
+    MenuNode *last_spoken_node = NULL;
+    int last_spoken_index = -1;
 
     has_utf8_locale = init_utf8_locale();
     enable_utf8_terminal_mode();
@@ -51,21 +54,37 @@ int main() {
 
     set_conio_terminal_mode();
     app_sync_language_voice_on_startup(root);
+    menu_audio_init();
 
     MenuNode *current_node = root;
     int selected_index = 0;
 
     while (1) {
-        print_menu(current_node, selected_index);
-
-        int key = read_key();
-        
         MenuNode *visible_items[256];
         char *lang = get_setting("language");
         if (!lang) lang = strdup("en");
         int visible_count = app_collect_visible_menu_items(current_node, lang, visible_items, 256);
+        if (visible_count > 0 && selected_index >= visible_count) {
+            selected_index = visible_count - 1;
+        }
+        if (visible_count > 0) {
+            if (last_spoken_node != current_node || last_spoken_index != selected_index) {
+                menu_audio_request(visible_items[selected_index]->title);
+                last_spoken_node = current_node;
+                last_spoken_index = selected_index;
+            }
+        } else {
+            menu_audio_stop();
+            last_spoken_node = current_node;
+            last_spoken_index = -1;
+        }
+
+        print_menu(current_node, selected_index);
+
+        int key = read_key();
 
         if (key == KEY_ESC) {
+            menu_audio_stop();
             if (current_node->parent) {
                 MenuNode *parent = current_node->parent;
                 int parent_visible_idx = 0;
@@ -79,6 +98,7 @@ int main() {
                     }
                 }
                 current_node = parent;
+                last_spoken_node = NULL;
             } else {
                 printf("\nExiting...\n");
                 free(lang);
@@ -90,17 +110,22 @@ int main() {
         } else if (key == KEY_DOWN) {
             selected_index = menu_next_index(selected_index, 1, visible_count);
         } else if (key == KEY_CTRL_I) {
+            menu_audio_stop();
             if (visible_count > 0) {
                 print_description(visible_items[selected_index]);
+                last_spoken_node = NULL;
             }
         } else if (key == KEY_ENTER) {
+            menu_audio_stop();
             if (visible_count > 0) {
                 MenuNode *selected_node = visible_items[selected_index];
                 if (selected_node->num_items > 0) {
                     current_node = selected_node;
                     selected_index = 0;
+                    last_spoken_node = NULL;
                 } else {
                     app_dispatch_leaf_action(selected_node, root);
+                    last_spoken_node = NULL;
                 }
             }
         } else if (key > 0 && key < 1000) {
@@ -121,6 +146,7 @@ int main() {
     }
 
     free_menu(root);
+    menu_audio_shutdown();
     cleanup_config();
     cleanup_contacts();
     cleanup_calendar();
