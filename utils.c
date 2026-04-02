@@ -3,6 +3,13 @@
 
 #include <langinfo.h>
 #include <locale.h>
+#include <sys/ioctl.h>
+
+#if defined(__APPLE__)
+#include <sys/sysctl.h>
+#elif defined(__linux__)
+#include <errno.h>
+#endif
 
 static struct termios original_termios;
 static int is_conio_mode = 0;
@@ -215,4 +222,91 @@ int menu_next_index(int current, int direction, int count) {
         return 0;
     }
     return current;
+}
+
+void get_terminal_size(int *rows, int *cols) {
+    struct winsize ws;
+
+    if (rows) {
+        *rows = 24;
+    }
+    if (cols) {
+        *cols = 80;
+    }
+
+    if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == 0) {
+        if (rows && ws.ws_row > 0) {
+            *rows = ws.ws_row;
+        }
+        if (cols && ws.ws_col > 0) {
+            *cols = ws.ws_col;
+        }
+    }
+}
+
+int get_memory_usage_mb(unsigned long *used_mb, unsigned long *total_mb) {
+#if defined(__linux__)
+    FILE *file = fopen("/proc/meminfo", "r");
+    char line[256];
+    unsigned long total_kb = 0;
+    unsigned long available_kb = 0;
+
+    if (!file) {
+        return 0;
+    }
+
+    while (fgets(line, sizeof(line), file)) {
+        if (sscanf(line, "MemTotal: %lu kB", &total_kb) == 1) {
+            continue;
+        }
+        if (sscanf(line, "MemAvailable: %lu kB", &available_kb) == 1) {
+            continue;
+        }
+    }
+    fclose(file);
+
+    if (total_kb == 0 || available_kb > total_kb) {
+        return 0;
+    }
+
+    if (total_mb) {
+        *total_mb = total_kb / 1024UL;
+    }
+    if (used_mb) {
+        *used_mb = (total_kb - available_kb) / 1024UL;
+    }
+    return 1;
+#elif defined(__APPLE__)
+    unsigned long long total_bytes = 0;
+    size_t size = sizeof(total_bytes);
+
+    if (sysctlbyname("hw.memsize", &total_bytes, &size, NULL, 0) != 0 || total_bytes == 0) {
+        return 0;
+    }
+
+    if (total_mb) {
+        *total_mb = (unsigned long)(total_bytes / (1024ULL * 1024ULL));
+    }
+    if (used_mb) {
+        *used_mb = 0;
+    }
+    return 1;
+#else
+    (void)used_mb;
+    (void)total_mb;
+    return 0;
+#endif
+}
+
+void pad_screen_to_footer(int used_lines, int footer_lines) {
+    int rows = 24;
+    int cols = 80;
+    int blank_lines;
+
+    (void)cols;
+    get_terminal_size(&rows, &cols);
+    blank_lines = rows - used_lines - footer_lines;
+    while (blank_lines-- > 0) {
+        putchar('\n');
+    }
 }

@@ -138,13 +138,31 @@ void free_menu(MenuNode *node) {
 
 void print_menu(MenuNode *node, int selected_index) {
     char *selected_value = menu_selected_value_label(node);
+    unsigned long used_mb = 0;
+    unsigned long total_mb = 0;
+    int lines_used = 0;
+    int rows;
+    int cols;
 
     // Clear screen (ANSI escape code)
     printf("\033[H\033[J");
+    get_terminal_size(&rows, &cols);
+    if (get_memory_usage_mb(&used_mb, &total_mb)) {
+        printf("%s: %lu MB / %lu MB\n", menu_translate("ui_memory_label", "Memory"), used_mb, total_mb);
+    } else {
+        printf("%s: %s\n", menu_translate("ui_memory_label", "Memory"),
+               menu_translate("ui_memory_unavailable", "Unavailable"));
+    }
+    lines_used++;
     printf("--- %s ---\n", node->title);
+    lines_used++;
     if (selected_value) {
         printf("%s: %s\n\n", menu_translate("ui_selected_value", "Selected Value"), selected_value);
         free(selected_value);
+        lines_used += 2;
+    } else {
+        printf("\n");
+        lines_used++;
     }
     
     int visible_count = 0;
@@ -156,6 +174,7 @@ void print_menu(MenuNode *node, int selected_index) {
 
     if (visible_count == 0) {
         printf("  (%s)\n", menu_translate("ui_no_items_available_in_language", "No items available in this language"));
+        lines_used++;
     } else {
         int current_visible_idx = 0;
         for (int i = 0; i < node->num_items; i++) {
@@ -170,9 +189,11 @@ void print_menu(MenuNode *node, int selected_index) {
             } else {
                 printf("  %s%s\n", shortcut_str, node->items[i]->title);
             }
+            lines_used++;
             current_visible_idx++;
         }
     }
+    pad_screen_to_footer(lines_used, 2);
     printf("\n%s\n", menu_translate("ui_footer_menu_info", "[Arrows: Navigate | Enter: Select | Esc: Back/Exit | Ctrl+I: Info]"));
 }
 

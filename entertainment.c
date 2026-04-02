@@ -8,7 +8,6 @@
 #include "text_processor.h"
 #include <ctype.h>
 #include <limits.h>
-#include <sys/ioctl.h>
 #include <sys/stat.h>
 
 typedef struct {
@@ -37,22 +36,6 @@ enum {
     WORD_READER_AUTOPLAY_CHUNK = 1,
     WORD_READER_AUTOPLAY_LINE = 2
 };
-
-static void get_terminal_size(int *rows, int *cols) {
-    struct winsize ws;
-
-    *rows = 24;
-    *cols = 80;
-
-    if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == 0) {
-        if (ws.ws_row > 0) {
-            *rows = ws.ws_row;
-        }
-        if (ws.ws_col > 0) {
-            *cols = ws.ws_col;
-        }
-    }
-}
 
 static void advance_reader_cursor(const char *text, int width, int *line, int *col) {
     const unsigned char *p = (const unsigned char *)text;
