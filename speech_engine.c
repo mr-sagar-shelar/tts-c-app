@@ -241,6 +241,72 @@ int speech_engine_speak_text(const char *text, char *error, size_t error_size) {
     return 1;
 }
 
+int speech_engine_speak_text_buffered(const char *text, char *error, size_t error_size) {
+#ifdef __linux__
+    cst_wave *wave;
+    cst_audiodev *audio_device;
+    short *buffer;
+    int i;
+
+    if (!text || !text[0]) {
+        set_error(error, error_size, "No text available for speech");
+        return 0;
+    }
+
+    if (!speech_engine_init(error, error_size)) {
+        return 0;
+    }
+
+    if (!speech_engine_is_enabled()) {
+        set_error(error, error_size, "Speech mode is off");
+        return 0;
+    }
+
+    speech_engine_refresh_settings();
+    feat_set_float(speech_state.voice->features, "duration_stretch", 1.0f);
+    wave = flite_text_to_wave(text, speech_state.voice);
+    if (!wave) {
+        set_error(error, error_size, "Flite playback synthesis failed");
+        return 0;
+    }
+
+    audio_device = audio_open(wave->sample_rate, wave->num_channels, CST_AUDIO_LINEAR16);
+    if (!audio_device) {
+        delete_wave(wave);
+        set_error(error, error_size, "Unable to open audio output device");
+        return 0;
+    }
+
+    buffer = (short *)malloc((size_t)wave->num_samples * sizeof(short));
+    if (!buffer) {
+        audio_close(audio_device);
+        delete_wave(wave);
+        set_error(error, error_size, "Unable to allocate playback buffer");
+        return 0;
+    }
+
+    for (i = 0; i < wave->num_samples; i++) {
+        float scaled = (float)wave->samples[i] * speech_state.gain;
+        if (scaled > 32767.0f) {
+            scaled = 32767.0f;
+        } else if (scaled < -32768.0f) {
+            scaled = -32768.0f;
+        }
+        buffer[i] = (short)scaled;
+    }
+
+    audio_write(audio_device, buffer, wave->num_samples * (int)sizeof(short));
+    audio_close(audio_device);
+    free(buffer);
+    delete_wave(wave);
+    return 1;
+#else
+    (void)text;
+    set_error(error, error_size, "Buffered Flite playback is only enabled on Linux targets");
+    return 0;
+#endif
+}
+
 int speech_engine_export_text_to_wave(const char *text, const char *output_path, char *error, size_t error_size) {
     cst_wave *wave;
 
@@ -309,6 +375,12 @@ void speech_engine_reload_settings(void) {
 }
 
 int speech_engine_speak_text(const char *text, char *error, size_t error_size) {
+    (void)text;
+    set_error(error, error_size, "Flite support was not built into this binary");
+    return 0;
+}
+
+int speech_engine_speak_text_buffered(const char *text, char *error, size_t error_size) {
     (void)text;
     set_error(error, error_size, "Flite support was not built into this binary");
     return 0;

@@ -16,6 +16,11 @@ typedef struct {
     size_t end_token;
 } ReaderPage;
 
+typedef struct {
+    int autoplay;
+    char status[160];
+} WordReaderState;
+
 static void get_terminal_size(int *rows, int *cols) {
     struct winsize ws;
 
@@ -133,7 +138,38 @@ static void print_highlighted_word(const TextWord *word) {
     printf("%s", word->postpunctuation);
 }
 
-static void render_word_reader(const TextProcessor *processor, const char *selected_path, size_t current_index) {
+static void set_reader_status(WordReaderState *state, const char *message) {
+    if (!state) {
+        return;
+    }
+
+    if (!message) {
+        state->status[0] = '\0';
+        return;
+    }
+
+    snprintf(state->status, sizeof(state->status), "%s", message);
+}
+
+static int reader_autoplay_pause_ms(const TextWord *word) {
+    if (!word) {
+        return 0;
+    }
+
+    if (strchr(word->postpunctuation, '.') || strchr(word->postpunctuation, '!') || strchr(word->postpunctuation, '?')) {
+        return 300;
+    }
+    if (strchr(word->postpunctuation, ',') || strchr(word->postpunctuation, ';') || strchr(word->postpunctuation, ':')) {
+        return 150;
+    }
+    if (strchr(word->whitespace, '\n')) {
+        return 180;
+    }
+
+    return 35;
+}
+
+static void render_word_reader(const TextProcessor *processor, const char *selected_path, size_t current_index, const WordReaderState *state) {
     int rows;
     int cols;
     int content_lines;
@@ -167,9 +203,15 @@ static void render_word_reader(const TextProcessor *processor, const char *selec
         }
     }
 
-    printf("\n\n%s\n", menu_translate("ui_footer_word_reader", "[Up: Previous | Down: Next | Enter: Next | Ctrl+E: Export to wave | Esc: Back]"));
+    printf("\n\n%s\n", menu_translate("ui_footer_word_reader", "[Up: Previous | Down: Next | Enter: Next | Ctrl+E: Export to wave | Ctrl+P: Play | Esc: Back]"));
     printf("%s\n", menu_translate("ui_reader_highlight_help", "The highlighted word represents the token currently being spoken."));
     printf("%s\n", menu_translate("ui_reader_export_help", "Use Ctrl+E to export the current document to a WAV file."));
+    printf("%s\n", menu_translate("ui_reader_play_help", "Use Ctrl+P to play the document word by word with live highlighting."));
+    if (state && state->status[0]) {
+        printf("%s\n", state->status);
+    } else if (state && state->autoplay) {
+        printf("%s\n", menu_translate("ui_reader_playing_status", "Playing. Press Ctrl+P to pause after the current word."));
+    }
     fflush(stdout);
 }
 
@@ -464,6 +506,7 @@ void content_ui_run_word_viewer(void) {
     struct stat st;
     char error[128] = {0};
     char *document_text = NULL;
+    WordReaderState reader_state;
 
     if (!selected_path) {
         return;
@@ -516,36 +559,73 @@ void content_ui_run_word_viewer(void) {
 
     size_t index = 0;
     size_t last_spoken_index = (size_t)-1;
+    memset(&reader_state, 0, sizeof(reader_state));
     while (1) {
         const TextWord *current_word = text_processor_get_word(processor, index);
         char speech_error[128] = {0};
         size_t next_index = index;
+        int key;
 
         if (!current_word) {
             break;
         }
 
-        render_word_reader(processor, selected_path, index);
+        render_word_reader(processor, selected_path, index, &reader_state);
 
-        if (speech_engine_is_enabled() && last_spoken_index != index) {
-            speech_engine_speak_text(current_word->word, speech_error, sizeof(speech_error));
-            last_spoken_index = index;
+        if (reader_state.autoplay) {
+            if (!speech_engine_is_enabled()) {
+                reader_state.autoplay = 0;
+                set_reader_status(&reader_state, menu_translate("ui_reader_speech_off", "Speech mode is off. Turn speech on to use Ctrl+P playback."));
+                key = read_key();
+            } else if (!speech_engine_speak_text_buffered(current_word->word, speech_error, sizeof(speech_error))) {
+                reader_state.autoplay = 0;
+                set_reader_status(&reader_state, speech_error[0] ? speech_error : menu_translate("ui_reader_playback_failed", "Unable to play buffered speech for this word."));
+                key = read_key();
+            } else {
+                last_spoken_index = index;
+                set_reader_status(&reader_state, NULL);
+                key = read_key_timeout(reader_autoplay_pause_ms(current_word));
+            }
+        } else {
+            if (speech_engine_is_enabled() && last_spoken_index != index) {
+                speech_engine_speak_text(current_word->word, speech_error, sizeof(speech_error));
+                last_spoken_index = index;
+            }
+            key = read_key();
         }
 
-        int key = read_key();
         if (key == KEY_ESC) {
             break;
         } else if (key == KEY_CTRL_E) {
             export_processor_to_wave(processor, selected_path);
             last_spoken_index = (size_t)-1;
+            set_reader_status(&reader_state, NULL);
+        } else if (key == KEY_CTRL_P) {
+            reader_state.autoplay = !reader_state.autoplay;
+            if (reader_state.autoplay) {
+                set_reader_status(&reader_state, menu_translate("ui_reader_play_starting", "Starting word-by-word playback..."));
+                last_spoken_index = (size_t)-1;
+            } else {
+                set_reader_status(&reader_state, menu_translate("ui_reader_play_paused", "Playback paused."));
+            }
         } else if (key == KEY_DOWN || key == KEY_ENTER) {
             next_index = (size_t)menu_next_index((int)index, 1, (int)processor->token_count);
         } else if (key == KEY_UP) {
             next_index = (size_t)menu_next_index((int)index, -1, (int)processor->token_count);
+        } else if (reader_state.autoplay && key == 0) {
+            if (index + 1 < processor->token_count) {
+                next_index = index + 1;
+            } else {
+                reader_state.autoplay = 0;
+                set_reader_status(&reader_state, menu_translate("ui_reader_play_complete", "Playback complete."));
+            }
         }
 
         if (next_index != index) {
             index = next_index;
+            if (!reader_state.autoplay) {
+                set_reader_status(&reader_state, NULL);
+            }
         }
     }
 
