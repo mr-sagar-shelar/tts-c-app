@@ -385,10 +385,13 @@ static int speech_engine_init(char *error, size_t error_size) {
 
     voice_name = get_setting("tts_voice");
     if (!voice_name) {
-        voice_name = strdup("kal");
+        voice_name = strdup("slt");
     }
 
     selected_voice = flite_voice_select(voice_name);
+    if (!selected_voice) {
+        selected_voice = flite_voice_select("slt");
+    }
     if (!selected_voice) {
         selected_voice = flite_voice_select("kal");
     }
@@ -422,7 +425,7 @@ static void speech_engine_refresh_settings(void) {
 
     voice_name = get_setting("tts_voice");
     if (!voice_name) {
-        voice_name = strdup("kal");
+        voice_name = strdup("slt");
     }
 
     selected_voice = flite_voice_select(voice_name);

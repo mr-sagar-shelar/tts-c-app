@@ -31,7 +31,7 @@ static void create_default_config() {
     cJSON_AddStringToObject(config_json, "city", "Pune");
     cJSON_AddStringToObject(config_json, "timezone", "Asia/Kolkata");
     cJSON_AddStringToObject(config_json, "time_format", "12h");
-    cJSON_AddStringToObject(config_json, "tts_voice", "kal");
+    cJSON_AddStringToObject(config_json, "tts_voice", "slt");
     cJSON_AddStringToObject(config_json, "tts_volume", "medium");
     cJSON_AddStringToObject(config_json, "speech_mode", "on");
     cJSON_AddStringToObject(config_json, "audio_playback", "off");
@@ -123,7 +123,7 @@ void init_config() {
     ensure_default_string("city", "Pune");
     ensure_default_string("timezone", "Asia/Kolkata");
     ensure_default_string("time_format", "12h");
-    ensure_default_string("tts_voice", "kal");
+    ensure_default_string("tts_voice", "slt");
     ensure_default_string("tts_volume", "medium");
     ensure_default_string("speech_mode", "on");
     ensure_default_string("audio_playback", "off");

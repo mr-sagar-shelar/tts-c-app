@@ -15,6 +15,7 @@ typedef struct {
     int running;
     int interrupt_requested;
     char *pending_text;
+    int pending_force;
 } MenuAudioState;
 
 static MenuAudioState menu_audio_state = {0};
@@ -43,12 +44,16 @@ static void *menu_audio_thread_main(void *userdata) {
         char error[128] = {0};
 
         pthread_mutex_lock(&state->mutex);
-        while (state->running && (!state->pending_text || !menu_audio_is_enabled())) {
-            if (!menu_audio_is_enabled() && state->pending_text) {
+        while (state->running && !state->pending_text) {
+            pthread_cond_wait(&state->cond, &state->mutex);
+        }
+
+        if (state->running && state->pending_text && !state->pending_force && !menu_audio_is_enabled()) {
                 free(state->pending_text);
                 state->pending_text = NULL;
-            }
-            pthread_cond_wait(&state->cond, &state->mutex);
+                state->pending_force = 0;
+                pthread_mutex_unlock(&state->mutex);
+                continue;
         }
 
         if (!state->running) {
@@ -58,6 +63,7 @@ static void *menu_audio_thread_main(void *userdata) {
 
         text = state->pending_text;
         state->pending_text = NULL;
+        state->pending_force = 0;
         state->interrupt_requested = 0;
         pthread_mutex_unlock(&state->mutex);
 
@@ -126,6 +132,29 @@ void menu_audio_request(const char *text) {
     pthread_mutex_lock(&state->mutex);
     free(state->pending_text);
     state->pending_text = copy;
+    state->pending_force = 0;
+    state->interrupt_requested = 1;
+    pthread_cond_signal(&state->cond);
+    pthread_mutex_unlock(&state->mutex);
+}
+
+void menu_audio_speak(const char *text) {
+    MenuAudioState *state = &menu_audio_state;
+    char *copy;
+
+    if (!state->initialized || !text || !text[0]) {
+        return;
+    }
+
+    copy = strdup(text);
+    if (!copy) {
+        return;
+    }
+
+    pthread_mutex_lock(&state->mutex);
+    free(state->pending_text);
+    state->pending_text = copy;
+    state->pending_force = 1;
     state->interrupt_requested = 1;
     pthread_cond_signal(&state->cond);
     pthread_mutex_unlock(&state->mutex);
@@ -141,6 +170,7 @@ void menu_audio_stop(void) {
     pthread_mutex_lock(&state->mutex);
     free(state->pending_text);
     state->pending_text = NULL;
+    state->pending_force = 0;
     state->interrupt_requested = 1;
     pthread_cond_signal(&state->cond);
     pthread_mutex_unlock(&state->mutex);

@@ -777,6 +777,27 @@ void content_ui_run_word_viewer(void) {
                 last_spoken_index = index;
             }
             key = read_key();
+            if (key == KEY_DOWN || key == KEY_ENTER || key == KEY_UP) {
+                int next_key;
+
+                do {
+                    if (key == KEY_DOWN || key == KEY_ENTER) {
+                        next_index = (size_t)menu_next_index((int)next_index, 1, (int)processor->token_count);
+                    } else if (key == KEY_UP) {
+                        next_index = (size_t)menu_next_index((int)next_index, -1, (int)processor->token_count);
+                    }
+
+                    next_key = read_key_timeout(120);
+                    if (next_key == KEY_DOWN || next_key == KEY_ENTER || next_key == KEY_UP) {
+                        key = next_key;
+                    } else {
+                        if (next_key != 0) {
+                            key = next_key;
+                        }
+                        break;
+                    }
+                } while (1);
+            }
         }
 
         if (key == KEY_ESC) {

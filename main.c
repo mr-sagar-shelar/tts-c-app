@@ -15,6 +15,50 @@
 #include "speech_engine.h"
 #include "utils.h"
 
+static void append_menu_speech_part(char *buffer, size_t buffer_size, const char *text) {
+    size_t len;
+
+    if (!buffer || !text || !text[0]) {
+        return;
+    }
+
+    len = strlen(buffer);
+    if (len > 0 && len + 2 < buffer_size) {
+        snprintf(buffer + len, buffer_size - len, ". ");
+        len = strlen(buffer);
+    }
+
+    if (len < buffer_size) {
+        snprintf(buffer + len, buffer_size - len, "%s", text);
+    }
+}
+
+static void build_menu_speech_text(MenuNode *current_node, MenuNode *selected_node, char *buffer, size_t buffer_size) {
+    char shortcut_text[32];
+
+    if (!buffer || buffer_size == 0) {
+        return;
+    }
+
+    buffer[0] = '\0';
+
+    if (current_node && current_node->parent && current_node->title) {
+        append_menu_speech_part(buffer, buffer_size, current_node->title);
+        if (current_node->shortcut) {
+            snprintf(shortcut_text, sizeof(shortcut_text), "Shortcut %c", (char)toupper((unsigned char)current_node->shortcut));
+            append_menu_speech_part(buffer, buffer_size, shortcut_text);
+        }
+    }
+
+    if (selected_node && selected_node->title) {
+        append_menu_speech_part(buffer, buffer_size, selected_node->title);
+        if (selected_node->shortcut) {
+            snprintf(shortcut_text, sizeof(shortcut_text), "Shortcut %c", (char)toupper((unsigned char)selected_node->shortcut));
+            append_menu_speech_part(buffer, buffer_size, shortcut_text);
+        }
+    }
+}
+
 int main() {
     int has_utf8_locale;
     MenuNode *last_spoken_node = NULL;
@@ -61,6 +105,7 @@ int main() {
 
     while (1) {
         MenuNode *visible_items[256];
+        char menu_speech[512];
         char *lang = get_setting("language");
         if (!lang) lang = strdup("en");
         int visible_count = app_collect_visible_menu_items(current_node, lang, visible_items, 256);
@@ -69,7 +114,8 @@ int main() {
         }
         if (visible_count > 0) {
             if (last_spoken_node != current_node || last_spoken_index != selected_index) {
-                menu_audio_request(visible_items[selected_index]->title);
+                build_menu_speech_text(current_node, visible_items[selected_index], menu_speech, sizeof(menu_speech));
+                menu_audio_request(menu_speech);
                 last_spoken_node = current_node;
                 last_spoken_index = selected_index;
             }

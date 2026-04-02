@@ -1,5 +1,48 @@
 #include "notepad.h"
+#include "menu_audio.h"
 #include "menu.h"
+
+static void speak_typed_key(int key, const char *buffer, int pos) {
+    char spoken[256];
+    int start;
+    int length;
+
+    if (key == KEY_BACKSPACE) {
+        menu_audio_speak("Backspace");
+        return;
+    }
+
+    if (key == ' ') {
+        start = pos - 1;
+        while (start >= 0 && buffer[start] == ' ') {
+            start--;
+        }
+        while (start >= 0 && buffer[start] != ' ' && buffer[start] != '\n' && buffer[start] != '\t') {
+            start--;
+        }
+        start++;
+        length = pos - 1 - start;
+        if (length > 0 && length < (int)sizeof(spoken)) {
+            memcpy(spoken, buffer + start, (size_t)length);
+            spoken[length] = '\0';
+            menu_audio_speak(spoken);
+        } else {
+            menu_audio_speak("Space");
+        }
+        return;
+    }
+
+    if (key == '\t') {
+        menu_audio_speak("Tab");
+        return;
+    }
+
+    if (isprint((unsigned char)key)) {
+        spoken[0] = (char)key;
+        spoken[1] = '\0';
+        menu_audio_speak(spoken);
+    }
+}
 
 static void handle_notepad_save(const char *buffer, char *filename) {
     if (strlen(filename) == 0) {
@@ -57,12 +100,15 @@ void handle_notepad(const char *initial_content, const char *initial_filename) {
                     buffer[pos] = 0;
                     printf("\b \b");
                     fflush(stdout);
+                    speak_typed_key(KEY_BACKSPACE, buffer, pos);
                 }
             } else if (key > 0 && key < 1000) {
                 if (pos < (int)sizeof(buffer) - 1) {
                     buffer[pos++] = (char)key;
+                    buffer[pos] = 0;
                     printf("%c", (char)key);
                     fflush(stdout);
+                    speak_typed_key(key, buffer, pos);
                 }
             }
         }
