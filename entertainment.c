@@ -381,7 +381,6 @@ static void spoken_text_progress(int token_index, void *userdata) {
     }
 
     *context->current_index = absolute_index;
-    render_spoken_text_reader(context->processor, context->title, absolute_index, context->reader_state);
 }
 
 static int spoken_text_interrupt(void *userdata) {
