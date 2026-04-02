@@ -3,6 +3,15 @@ CFLAGS=-Wall -Wextra -O2
 TARGET=sai
 OBJS=main.o app_actions.o menu.o cJSON.o config.o contacts.o utils.o file_manager.o notepad.o dictionary.o entertainment.o tools.o typing_tutor.o alarm.o calendar.o radio.o text_processor.o document_reader.o speech_settings.o speech_engine.o voice_library.o download_manager.o download_ui.o task_ui.o
 
+SDL_CONFIG := $(shell command -v sdl2-config 2>/dev/null)
+SDL_CFLAGS :=
+SDL_LIBS :=
+ifneq ($(SDL_CONFIG),)
+SDL_CFLAGS := $(shell $(SDL_CONFIG) --cflags)
+SDL_LIBS := $(shell $(SDL_CONFIG) --libs)
+CFLAGS += -DHAVE_SDL_AUDIO $(SDL_CFLAGS)
+endif
+
 LOCAL_FLITEDIR := $(abspath third_party/flite)
 FLITEDIR ?= $(LOCAL_FLITEDIR)
 
@@ -19,6 +28,8 @@ FLITE_LIBS += -Wl,-rpath,$(FLITELIBDIR)
 endif
 endif
 endif
+
+FLITE_LIBS += $(SDL_LIBS)
 
 ifeq ($(FLITEDIR),$(LOCAL_FLITEDIR))
 FLITE_BUILD_DEPS = $(FLITEDIR)/build/.built

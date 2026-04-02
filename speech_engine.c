@@ -1,16 +1,17 @@
 #include "speech_engine.h"
 
-#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/wait.h>
-#include <unistd.h>
 
 #include "config.h"
 
 #ifdef HAVE_FLITE
 #include "flite.h"
+
+#ifdef HAVE_SDL_AUDIO
+#include <SDL.h>
+#endif
 
 void usenglish_init(cst_voice *v);
 cst_lexicon *cmulex_init(void);
@@ -26,10 +27,84 @@ typedef struct {
     cst_voice *voice;
     cst_audio_streaming_info *asi;
     cst_audiodev *audio_device;
+#ifdef HAVE_SDL_AUDIO
+    SDL_AudioDeviceID sdl_device;
+    int sdl_audio_ready;
+#endif
     float gain;
 } SpeechEngineState;
 
 static SpeechEngineState speech_state = {0};
+
+#ifdef HAVE_SDL_AUDIO
+static unsigned char *speech_sdl_sound = NULL;
+static int speech_sdl_read_pos = 0;
+static int speech_sdl_write_pos = 0;
+static int speech_sdl_pause_state = 0;
+
+static void speech_sdl_play_audio(void *userdata, Uint8 *stream, int len) {
+    int amount;
+
+    (void)userdata;
+
+    amount = speech_sdl_write_pos - speech_sdl_read_pos;
+    if (amount < 0) {
+        amount = 0;
+    }
+
+    if (amount < len) {
+        if (amount > 0 && speech_sdl_sound) {
+            memcpy(stream, &speech_sdl_sound[speech_sdl_read_pos], (size_t)amount);
+        }
+        memset(&stream[amount], 0, (size_t)(len - amount));
+    } else {
+        amount = len;
+        memcpy(stream, &speech_sdl_sound[speech_sdl_read_pos], (size_t)amount);
+    }
+
+    speech_sdl_read_pos += amount;
+}
+
+static void speech_sdl_pause_audio(int pause_on) {
+    if (!speech_state.sdl_audio_ready || speech_state.sdl_device == 0) {
+        return;
+    }
+
+    if (speech_sdl_pause_state != pause_on) {
+        SDL_PauseAudioDevice(speech_state.sdl_device, pause_on);
+        speech_sdl_pause_state = pause_on;
+    }
+}
+
+static int speech_engine_open_sdl_device(const cst_wave *w) {
+    SDL_AudioSpec desired;
+
+    if (speech_state.sdl_audio_ready && speech_state.sdl_device != 0) {
+        return 1;
+    }
+
+    if (SDL_WasInit(SDL_INIT_AUDIO) == 0 && SDL_InitSubSystem(SDL_INIT_AUDIO) != 0) {
+        return 0;
+    }
+
+    SDL_zero(desired);
+    desired.freq = w->sample_rate;
+    desired.format = AUDIO_S16SYS;
+    desired.channels = (Uint8)w->num_channels;
+    desired.samples = 1024;
+    desired.callback = speech_sdl_play_audio;
+
+    speech_state.sdl_device = SDL_OpenAudioDevice(NULL, 0, &desired, NULL, 0);
+    if (speech_state.sdl_device == 0) {
+        return 0;
+    }
+
+    speech_state.sdl_audio_ready = 1;
+    speech_sdl_pause_state = 1;
+    SDL_PauseAudioDevice(speech_state.sdl_device, 1);
+    return 1;
+}
+#endif
 
 static void set_error(char *error, size_t error_size, const char *message) {
     if (error && error_size > 0) {
@@ -42,6 +117,20 @@ static void speech_engine_close_device(void) {
         audio_close(speech_state.audio_device);
         speech_state.audio_device = NULL;
     }
+#ifdef HAVE_SDL_AUDIO
+    if (speech_state.sdl_audio_ready && speech_state.sdl_device != 0) {
+        SDL_CloseAudioDevice(speech_state.sdl_device);
+        speech_state.sdl_device = 0;
+        speech_state.sdl_audio_ready = 0;
+    }
+    if (SDL_WasInit(SDL_INIT_AUDIO) != 0) {
+        SDL_QuitSubSystem(SDL_INIT_AUDIO);
+    }
+    speech_sdl_sound = NULL;
+    speech_sdl_read_pos = 0;
+    speech_sdl_write_pos = 0;
+    speech_sdl_pause_state = 0;
+#endif
 }
 
 static void speech_engine_apply_voice(cst_voice *voice) {
@@ -81,12 +170,59 @@ static float current_gain_from_settings(void) {
 
 static int speech_stream_chunk(const cst_wave *w, int start, int size, int last, cst_audio_streaming_info *asi) {
     SpeechEngineState *state = (SpeechEngineState *)asi->userdata;
+#ifdef HAVE_SDL_AUDIO
+    int buffered_bytes;
+#endif
     short *buffer;
     int i;
 
     if (!state) {
         return CST_AUDIO_STREAM_STOP;
     }
+
+#ifdef HAVE_SDL_AUDIO
+    if (start == 0) {
+        if (speech_engine_open_sdl_device(w)) {
+            speech_sdl_sound = (unsigned char *)w->samples;
+            speech_sdl_read_pos = 0;
+            speech_sdl_write_pos = 0;
+            speech_sdl_pause_state = 1;
+        }
+    }
+
+    if (state->sdl_audio_ready && state->sdl_device != 0) {
+        if (state->gain != 1.0f) {
+            for (i = 0; i < size; i++) {
+                float scaled = (float)w->samples[start + i] * state->gain;
+                if (scaled > 32767.0f) {
+                    scaled = 32767.0f;
+                } else if (scaled < -32768.0f) {
+                    scaled = -32768.0f;
+                }
+                ((short *)w->samples)[start + i] = (short)scaled;
+            }
+        }
+
+        speech_sdl_write_pos += size * (int)sizeof(short);
+        buffered_bytes = speech_sdl_write_pos - speech_sdl_read_pos;
+
+        if (buffered_bytes < 1000 && !last) {
+            speech_sdl_pause_audio(1);
+        } else {
+            speech_sdl_pause_audio(0);
+        }
+
+        if (last) {
+            speech_sdl_pause_audio(0);
+            while (speech_sdl_write_pos - speech_sdl_read_pos > 0) {
+                SDL_Delay(1);
+            }
+            speech_sdl_pause_audio(1);
+        }
+
+        return CST_AUDIO_STREAM_CONT;
+    }
+#endif
 
     if (state->audio_device == NULL) {
         state->audio_device = audio_open(w->sample_rate, w->num_channels, CST_AUDIO_LINEAR16);
@@ -245,88 +381,7 @@ int speech_engine_speak_text(const char *text, char *error, size_t error_size) {
 }
 
 int speech_engine_speak_text_buffered(const char *text, char *error, size_t error_size) {
-#ifdef __linux__
-    cst_wave *wave;
-    char temp_path[] = "/tmp/sai_word_XXXXXX.wav";
-    int temp_fd;
-    pid_t child_pid;
-    int status;
-
-    if (!text || !text[0]) {
-        set_error(error, error_size, "No text available for speech");
-        return 0;
-    }
-
-    if (!speech_engine_init(error, error_size)) {
-        return 0;
-    }
-
-    if (!speech_engine_is_enabled()) {
-        set_error(error, error_size, "Speech mode is off");
-        return 0;
-    }
-
-    speech_engine_refresh_settings();
-    feat_set_float(speech_state.voice->features, "duration_stretch", 1.0f);
-    wave = flite_text_to_wave(text, speech_state.voice);
-    if (!wave) {
-        set_error(error, error_size, "Flite playback synthesis failed");
-        return 0;
-    }
-    
-
-    temp_fd = mkstemps(temp_path, 4);
-    if (temp_fd < 0) {
-        delete_wave(wave);
-        set_error(error, error_size, "Unable to create a temporary WAV file");
-        return 0;
-    }
-    close(temp_fd);
-
-    if (cst_wave_save_riff(wave, temp_path) != CST_OK_FORMAT) {
-        unlink(temp_path);
-        delete_wave(wave);
-        set_error(error, error_size, "Unable to write the temporary WAV file");
-        return 0;
-    }
-
-    child_pid = fork();
-    if (child_pid < 0) {
-        unlink(temp_path);
-        delete_wave(wave);
-        set_error(error, error_size, "Unable to start aplay for buffered playback");
-        return 0;
-    }
-
-    if (child_pid == 0) {
-        execlp("aplay", "aplay", "-q", temp_path, (char *)NULL);
-        _exit(127);
-    }
-
-    status = 0;
-    while (waitpid(child_pid, &status, 0) < 0) {
-        if (errno != EINTR) {
-            unlink(temp_path);
-            delete_wave(wave);
-            set_error(error, error_size, "Unable to wait for buffered playback to finish");
-            return 0;
-        }
-    }
-
-    unlink(temp_path);
-    delete_wave(wave);
-
-    if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-        set_error(error, error_size, "aplay failed to play the synthesized audio");
-        return 0;
-    }
-
-    return 1;
-#else
-    (void)text;
-    set_error(error, error_size, "Buffered Flite playback is only enabled on Linux targets");
-    return 0;
-#endif
+    return speech_engine_speak_text(text, error, error_size);
 }
 
 int speech_engine_export_text_to_wave(const char *text, const char *output_path, char *error, size_t error_size) {
