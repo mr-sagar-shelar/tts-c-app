@@ -245,6 +245,11 @@ void get_terminal_size(int *rows, int *cols) {
 }
 
 int get_memory_usage_mb(unsigned long *used_mb, unsigned long *total_mb) {
+#ifndef ENABLE_MEMORY_WIDGET
+    (void)used_mb;
+    (void)total_mb;
+    return 0;
+#else
 #if defined(__linux__)
     FILE *file = fopen("/proc/meminfo", "r");
     char line[256];
@@ -296,6 +301,7 @@ int get_memory_usage_mb(unsigned long *used_mb, unsigned long *total_mb) {
     (void)total_mb;
     return 0;
 #endif
+#endif
 }
 
 void pad_screen_to_footer(int used_lines, int footer_lines) {
@@ -312,6 +318,9 @@ void pad_screen_to_footer(int used_lines, int footer_lines) {
 }
 
 int print_memory_widget_line(void) {
+#ifndef ENABLE_MEMORY_WIDGET
+    return 0;
+#else
     unsigned long used_mb = 0;
     unsigned long total_mb = 0;
 
@@ -324,4 +333,5 @@ int print_memory_widget_line(void) {
     }
 
     return 1;
+#endif
 }

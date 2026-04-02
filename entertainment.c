@@ -39,6 +39,7 @@ typedef struct {
     size_t chunk_start;
     size_t chunk_end;
     size_t *current_index;
+    size_t *resume_index;
     int *pause_requested;
     int *pause_ready;
 } SpokenTextPlaybackContext;
@@ -384,6 +385,9 @@ static void spoken_text_progress(int token_index, void *userdata) {
 
     *context->current_index = absolute_index;
     if (context->pause_requested && context->pause_ready && *context->pause_requested) {
+        if (context->resume_index) {
+            *context->resume_index = absolute_index;
+        }
         *context->pause_ready = 1;
     }
     render_spoken_text_reader(context->processor, context->title, absolute_index, context->reader_state);
@@ -507,6 +511,7 @@ void content_ui_show_spoken_text(const char *title, const char *source_name, con
     TextProcessor *processor;
     WordReaderState reader_state;
     size_t index = 0;
+    size_t resume_index = 0;
     int paused_by_space = 0;
     int pause_requested = 0;
     int pause_ready = 0;
@@ -569,6 +574,7 @@ void content_ui_show_spoken_text(const char *title, const char *source_name, con
                 playback_context.chunk_start = index;
                 playback_context.chunk_end = chunk_end;
                 playback_context.current_index = &index;
+                playback_context.resume_index = &resume_index;
                 playback_context.pause_requested = &pause_requested;
                 playback_context.pause_ready = &pause_ready;
 
@@ -582,6 +588,7 @@ void content_ui_show_spoken_text(const char *title, const char *source_name, con
                     reader_state.autoplay = 0;
                     if (interrupted_key != 0) {
                         if (interrupted_key == ' ') {
+                            index = resume_index;
                             paused_by_space = 1;
                             pause_requested = 0;
                             pause_ready = 0;
