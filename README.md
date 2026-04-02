@@ -5,6 +5,7 @@ tts application based on C language to load when Tinycore linux loads on raspber
 ## How to build
 
 `make`
+`make ENABLE_MEMORY_WIDGET=1`
 
 The repository now includes a trimmed local Flite source tree under
 `third_party/flite`, so a single clone is enough to build speech support.

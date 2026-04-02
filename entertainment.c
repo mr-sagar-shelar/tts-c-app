@@ -39,6 +39,8 @@ typedef struct {
     size_t chunk_start;
     size_t chunk_end;
     size_t *current_index;
+    int *pause_requested;
+    int *pause_ready;
 } SpokenTextPlaybackContext;
 
 enum {
@@ -381,12 +383,29 @@ static void spoken_text_progress(int token_index, void *userdata) {
     }
 
     *context->current_index = absolute_index;
+    if (context->pause_requested && context->pause_ready && *context->pause_requested) {
+        *context->pause_ready = 1;
+    }
     render_spoken_text_reader(context->processor, context->title, absolute_index, context->reader_state);
 }
 
 static int spoken_text_interrupt(void *userdata) {
-    (void)userdata;
-    return read_key_timeout(0);
+    SpokenTextPlaybackContext *context = (SpokenTextPlaybackContext *)userdata;
+    int key = read_key_timeout(0);
+
+    if (key == ' ' && context && context->pause_requested && context->pause_ready) {
+        *context->pause_requested = 1;
+        if (*context->pause_ready) {
+            return ' ';
+        }
+        return 0;
+    }
+
+    if (context && context->pause_ready && *context->pause_ready) {
+        return ' ';
+    }
+
+    return key;
 }
 
 static void build_wave_export_path(const char *source_path, char *buffer, size_t buffer_size) {
@@ -488,6 +507,10 @@ void content_ui_show_spoken_text(const char *title, const char *source_name, con
     TextProcessor *processor;
     WordReaderState reader_state;
     size_t index = 0;
+    int paused_by_space = 0;
+    int pause_requested = 0;
+    int pause_ready = 0;
+    int consume_space_key = 0;
 
     if (!text || !text[0]) {
         printf("\033[H\033[J");
@@ -546,9 +569,11 @@ void content_ui_show_spoken_text(const char *title, const char *source_name, con
                 playback_context.chunk_start = index;
                 playback_context.chunk_end = chunk_end;
                 playback_context.current_index = &index;
+                playback_context.pause_requested = &pause_requested;
+                playback_context.pause_ready = &pause_ready;
 
                 speech_engine_set_progress_callback(spoken_text_progress, &playback_context);
-                speech_engine_set_interrupt_callback(spoken_text_interrupt, NULL);
+                speech_engine_set_interrupt_callback(spoken_text_interrupt, &playback_context);
                 if (!speech_engine_speak_text_buffered(chunk_text, speech_error, sizeof(speech_error))) {
                     speech_engine_set_progress_callback(NULL, NULL);
                     speech_engine_set_interrupt_callback(NULL, NULL);
@@ -556,6 +581,13 @@ void content_ui_show_spoken_text(const char *title, const char *source_name, con
                     free(chunk_text);
                     reader_state.autoplay = 0;
                     if (interrupted_key != 0) {
+                        if (interrupted_key == ' ') {
+                            paused_by_space = 1;
+                            pause_requested = 0;
+                            pause_ready = 0;
+                            consume_space_key = 1;
+                            set_reader_status(&reader_state, menu_translate("ui_reader_play_paused", "Playback paused."));
+                        }
                         key = interrupted_key;
                     } else {
                         set_reader_status(&reader_state, speech_error[0] ? speech_error : menu_translate("ui_reader_playback_failed", "Unable to play buffered speech for this word."));
@@ -567,10 +599,16 @@ void content_ui_show_spoken_text(const char *title, const char *source_name, con
                     free(chunk_text);
                     if (chunk_end + 1 < processor->token_count) {
                         index = chunk_end + 1;
+                        paused_by_space = 0;
+                        pause_requested = 0;
+                        pause_ready = 0;
                         set_reader_status(&reader_state, NULL);
                         continue;
                     }
                     reader_state.autoplay = 0;
+                    paused_by_space = 0;
+                    pause_requested = 0;
+                    pause_ready = 0;
                     set_reader_status(&reader_state, menu_translate("ui_reader_play_complete", "Playback complete."));
                     key = read_key();
                 }
@@ -582,22 +620,43 @@ void content_ui_show_spoken_text(const char *title, const char *source_name, con
         if (key == KEY_ESC) {
             break;
         } else if (key == ' ') {
-            reader_state.autoplay = !reader_state.autoplay;
-            if (reader_state.autoplay) {
+            if (consume_space_key) {
+                consume_space_key = 0;
+            } else if (paused_by_space) {
+                reader_state.autoplay = 1;
                 reader_state.autoplay_mode = WORD_READER_AUTOPLAY_LINE;
+                paused_by_space = 0;
+                pause_requested = 0;
+                pause_ready = 0;
                 set_reader_status(&reader_state, menu_translate("ui_reader_line_play_starting", "Starting line-by-line playback..."));
-            } else {
+            } else if (reader_state.autoplay) {
+                reader_state.autoplay = 0;
+                paused_by_space = 1;
+                pause_requested = 0;
+                pause_ready = 0;
                 set_reader_status(&reader_state, menu_translate("ui_reader_play_paused", "Playback paused."));
             }
         } else if (key == KEY_DOWN) {
+            paused_by_space = 0;
+            pause_requested = 0;
+            pause_ready = 0;
+            consume_space_key = 0;
             next_index = (size_t)menu_next_index((int)index, 1, (int)processor->token_count);
             set_reader_status(&reader_state, NULL);
         } else if (key == KEY_UP) {
+            paused_by_space = 0;
+            pause_requested = 0;
+            pause_ready = 0;
+            consume_space_key = 0;
             next_index = (size_t)menu_next_index((int)index, -1, (int)processor->token_count);
             set_reader_status(&reader_state, NULL);
         } else if (key == KEY_ENTER) {
             reader_state.autoplay = 1;
             reader_state.autoplay_mode = WORD_READER_AUTOPLAY_LINE;
+            paused_by_space = 0;
+            pause_requested = 0;
+            pause_ready = 0;
+            consume_space_key = 0;
             set_reader_status(&reader_state, menu_translate("ui_reader_line_play_starting", "Starting line-by-line playback..."));
         }
 

@@ -139,9 +139,6 @@ int main() {
                 current_node = parent;
                 last_spoken_node = NULL;
             } else {
-                printf("\nExiting...\n");
-                free(lang);
-                speech_engine_shutdown();
                 break;
             }
         } else if (key == KEY_UP) {
@@ -186,6 +183,7 @@ int main() {
 
     free_menu(root);
     menu_audio_shutdown();
+    speech_engine_shutdown();
     cleanup_config();
     cleanup_contacts();
     cleanup_calendar();
