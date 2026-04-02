@@ -310,3 +310,18 @@ void pad_screen_to_footer(int used_lines, int footer_lines) {
         putchar('\n');
     }
 }
+
+int print_memory_widget_line(void) {
+    unsigned long used_mb = 0;
+    unsigned long total_mb = 0;
+
+    if (get_memory_usage_mb(&used_mb, &total_mb)) {
+        printf("%s: %lu MB / %lu MB\n", menu_translate("ui_memory_label", "Memory"), used_mb, total_mb);
+    } else {
+        printf("%s: %s\n",
+               menu_translate("ui_memory_label", "Memory"),
+               menu_translate("ui_memory_unavailable", "Unavailable"));
+    }
+
+    return 1;
+}

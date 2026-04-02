@@ -9,6 +9,7 @@
 #include <unistd.h>
 
 #include "download_manager.h"
+#include "menu_audio.h"
 #include "menu.h"
 #include "utils.h"
 
@@ -58,6 +59,7 @@ static int run_transfer_progress_ui(const char *title,
     char progress_text[512] = {0};
     size_t progress_len = 0;
     int status;
+    int last_announced_progress = -10;
 
     if (progress_fd >= 0) {
         fcntl(progress_fd, F_SETFL, fcntl(progress_fd, F_GETFL, 0) | O_NONBLOCK);
@@ -102,12 +104,20 @@ static int run_transfer_progress_ui(const char *title,
         spin[0] = spinner[spinner_index++ % 4];
         spin[1] = '\0';
 
-        printf("\033[H\033[J--- %s ---\n", title ? title : menu_translate("ui_transfer", "Transfer"));
+        printf("\033[H\033[J");
+        print_memory_widget_line();
+        printf("--- %s ---\n", title ? title : menu_translate("ui_transfer", "Transfer"));
         printf("%s %s\n", spin, initial_status ? initial_status : menu_translate("ui_transferring", "Transferring"));
         printf("%s: %s\n", menu_translate("ui_target", "Target"), target_path ? target_path : "(none)");
         printf("%s: %d%%\n\n", menu_translate("ui_progress", "Progress"), progress);
         printf("%s\n", menu_translate("ui_transfer_lock_message", "The current menu remains active until the transfer finishes."));
         fflush(stdout);
+        if (progress >= last_announced_progress + 10 || progress == 100) {
+            char speech[64];
+            snprintf(speech, sizeof(speech), "%d percent", progress);
+            menu_audio_speak(speech);
+            last_announced_progress = progress;
+        }
         read_key_timeout(150);
     }
 
@@ -137,6 +147,7 @@ int download_file_with_progress_ui(const char *title,
     DownloadTask task;
     static const char spinner[] = "|/-\\";
     int spinner_index = 0;
+    int last_announced_progress = -10;
 
     download_task_init(&task);
     if (!download_task_start(&task, url, output_path, label, error, error_size)) {
@@ -150,12 +161,20 @@ int download_file_with_progress_ui(const char *title,
         spin[0] = spinner[spinner_index++ % 4];
         spin[1] = '\0';
 
-        printf("\033[H\033[J--- %s ---\n", title ? title : "Download");
+        printf("\033[H\033[J");
+        print_memory_widget_line();
+        printf("--- %s ---\n", title ? title : "Download");
         printf("%s %s\n", spin, task.status);
         printf("%s: %s\n", menu_translate("ui_target", "Target"), output_path);
         printf("%s: %d%%\n\n", menu_translate("ui_progress", "Progress"), task.progress_percent);
         printf("%s\n", menu_translate("ui_transfer_lock_message", "The current menu remains active until the transfer finishes."));
         fflush(stdout);
+        if (task.progress_percent >= last_announced_progress + 10 || task.progress_percent == 100) {
+            char speech[64];
+            snprintf(speech, sizeof(speech), "%d percent", task.progress_percent);
+            menu_audio_speak(speech);
+            last_announced_progress = task.progress_percent;
+        }
 
         if (task.active) {
             read_key_timeout(150);

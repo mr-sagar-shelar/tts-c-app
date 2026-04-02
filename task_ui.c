@@ -9,6 +9,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include "menu_audio.h"
 #include "menu.h"
 #include "utils.h"
 
@@ -42,6 +43,7 @@ char *run_text_task_with_progress_ui(const char *title,
     long len;
     char *raw;
     char *newline;
+    int last_announced_progress = -10;
 
     if (!loader || !path) {
         if (error && error_size > 0) {
@@ -90,16 +92,26 @@ char *run_text_task_with_progress_ui(const char *title,
         spin[0] = spinner[spinner_index++ % 4];
         spin[1] = '\0';
 
-        printf("\033[H\033[J--- %s ---\n", title ? title : "Working");
+        printf("\033[H\033[J");
+        print_memory_widget_line();
+        printf("--- %s ---\n", title ? title : "Working");
         printf("%s %s\n", spin, label ? label : "Processing");
         printf("%s: %s\n", menu_translate("ui_target", "Target"), path);
         printf("%s: %d%%\n\n", menu_translate("ui_progress", "Progress"), progress);
         printf("%s\n", menu_translate("ui_transfer_lock_message", "The current menu remains active until the transfer finishes."));
         fflush(stdout);
+        if (progress >= last_announced_progress + 10 || progress == 100) {
+            char speech[64];
+            snprintf(speech, sizeof(speech), "%d percent", progress);
+            menu_audio_speak(speech);
+            last_announced_progress = progress;
+        }
         read_key_timeout(150);
     }
 
-    printf("\033[H\033[J--- %s ---\n", title ? title : "Working");
+    printf("\033[H\033[J");
+    print_memory_widget_line();
+    printf("--- %s ---\n", title ? title : "Working");
     printf("Processing complete.\n");
     printf("%s: %s\n", menu_translate("ui_target", "Target"), path);
     printf("%s: 100%%\n", menu_translate("ui_progress", "Progress"));

@@ -111,4 +111,10 @@ int get_memory_usage_mb(unsigned long *used_mb, unsigned long *total_mb);
  */
 void pad_screen_to_footer(int used_lines, int footer_lines);
 
+/**
+ * Prints the memory widget line when available and returns printed line count.
+ * @return Number of printed lines.
+ */
+int print_memory_widget_line(void);
+
 #endif /* UTILS_H */

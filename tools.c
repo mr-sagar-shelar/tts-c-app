@@ -4,6 +4,7 @@
 #include <strings.h>
 
 #include "download_ui.h"
+#include "entertainment.h"
 #include "menu_audio.h"
 #include "menu.h"
 
@@ -18,115 +19,6 @@ static void append_accessible_line(char lines[][256], int *count, int max_lines,
     vsnprintf(lines[*count], 256, format, args);
     va_end(args);
     (*count)++;
-}
-
-static void render_accessible_text_view(const char *title,
-                                        char lines[][256],
-                                        int line_count,
-                                        int selected,
-                                        int scroll,
-                                        const char *footer) {
-    int rows;
-    int cols;
-    int content_lines;
-    int end;
-    int i;
-    int lines_used = 0;
-
-    get_terminal_size(&rows, &cols);
-    content_lines = rows - 4;
-    if (content_lines < 3) {
-        content_lines = 3;
-    }
-
-    printf("\033[H\033[J--- %s ---\n\n", title);
-    lines_used += 2;
-
-    if (line_count <= 0) {
-        printf("%s\n", menu_translate("ui_no_content_available", "No content available."));
-        lines_used++;
-    } else {
-        end = scroll + content_lines;
-        if (end > line_count) {
-            end = line_count;
-        }
-
-        for (i = scroll; i < end; i++) {
-            if (i == selected) {
-                printf("> %s\n", lines[i]);
-            } else {
-                printf("  %s\n", lines[i]);
-            }
-            lines_used++;
-        }
-    }
-
-    pad_screen_to_footer(lines_used, 2);
-    printf("\n%s\n", footer ? footer :
-           menu_translate("ui_footer_accessible_text", "[Up/Down: Read Line | Enter: Repeat | Esc: Back]"));
-    fflush(stdout);
-}
-
-static void run_accessible_text_view(const char *title, char lines[][256], int line_count) {
-    int selected = 0;
-    int scroll = 0;
-    int last_spoken = -1;
-    int rows;
-    int cols;
-    int page_size;
-
-    while (1) {
-        get_terminal_size(&rows, &cols);
-        page_size = rows - 4;
-        if (page_size < 3) {
-            page_size = 3;
-        }
-
-        if (selected < 0) {
-            selected = 0;
-        }
-        if (line_count > 0 && selected >= line_count) {
-            selected = line_count - 1;
-        }
-        if (selected < scroll) {
-            scroll = selected;
-        }
-        if (selected >= scroll + page_size) {
-            scroll = selected - page_size + 1;
-        }
-
-        render_accessible_text_view(title, lines, line_count, selected, scroll, NULL);
-
-        if (line_count > 0 && selected != last_spoken) {
-            menu_audio_speak(lines[selected]);
-            last_spoken = selected;
-        }
-
-        switch (read_key()) {
-            case KEY_UP:
-                menu_audio_stop();
-                if (line_count > 0) {
-                    selected = menu_next_index(selected, -1, line_count);
-                }
-                break;
-            case KEY_DOWN:
-                menu_audio_stop();
-                if (line_count > 0) {
-                    selected = menu_next_index(selected, 1, line_count);
-                }
-                break;
-            case KEY_ENTER:
-                menu_audio_stop();
-                last_spoken = -1;
-                break;
-            case KEY_ESC:
-                menu_audio_stop();
-                return;
-            default:
-                menu_audio_stop();
-                break;
-        }
-    }
 }
 
 static void speak_menu_option(const char *title, int selected, int last_spoken) {
@@ -274,6 +166,7 @@ void system_ui_show_weather(void) {
     char *response;
     char lines[16][256];
     int line_count = 0;
+    char text[4096];
     if (!city) city = strdup("Pune");
 
     char *encoded_city = url_encode(city);
@@ -313,15 +206,22 @@ void system_ui_show_weather(void) {
             }
             cJSON_Delete(json);
             snprintf(title, sizeof(title), "Weather: %s", city);
-            run_accessible_text_view(title, lines, line_count);
+            text[0] = '\0';
+            for (int i = 0; i < line_count; i++) {
+                strncat(text, lines[i], sizeof(text) - strlen(text) - 1);
+                strncat(text, "\n", sizeof(text) - strlen(text) - 1);
+            }
+            content_ui_show_spoken_text(title, title, text);
         } else {
             append_accessible_line(lines, &line_count, 16, "%s", "Error parsing weather data.");
-            run_accessible_text_view("Weather", lines, line_count);
+            snprintf(text, sizeof(text), "%s", lines[0]);
+            content_ui_show_spoken_text("Weather", "Weather", text);
         }
     } else {
         append_accessible_line(lines, &line_count, 16, "%s",
                                error[0] ? error : "Failed to connect to Weather API.");
-        run_accessible_text_view("Weather", lines, line_count);
+        snprintf(text, sizeof(text), "%s", lines[0]);
+        content_ui_show_spoken_text("Weather", "Weather", text);
     }
     free(city);
 }
@@ -332,6 +232,7 @@ void system_ui_show_current_time_date(void) {
     char *response;
     char lines[8][256];
     int line_count = 0;
+    char text[2048];
     if (!city) city = strdup("Pune");
 
     const char *timezone = "Asia/Kolkata";
@@ -376,18 +277,25 @@ void system_ui_show_current_time_date(void) {
         append_accessible_line(lines, &line_count, 8, "%s",
                                error[0] ? error : "Failed to connect to Time API.");
     }
-    run_accessible_text_view("Current Time and Date", lines, line_count);
+    text[0] = '\0';
+    for (int i = 0; i < line_count; i++) {
+        strncat(text, lines[i], sizeof(text) - strlen(text) - 1);
+        strncat(text, "\n", sizeof(text) - strlen(text) - 1);
+    }
+    content_ui_show_spoken_text("Current Time and Date", "Current Time and Date", text);
     free(city);
 }
 
 void system_ui_show_news(void) {
     char lines[4][256];
     int line_count = 0;
+    char text[512];
 
     append_accessible_line(lines, &line_count, 4, "%s",
                            menu_translate("ui_fetching_latest_news", "Fetching latest news"));
     append_accessible_line(lines, &line_count, 4, "%s", "News feature coming soon.");
-    run_accessible_text_view("News", lines, line_count);
+    snprintf(text, sizeof(text), "%s\n%s", lines[0], lines[1]);
+    content_ui_show_spoken_text("News", "News", text);
 }
 
 void system_ui_set_city(void) {

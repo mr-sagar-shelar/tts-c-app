@@ -138,22 +138,11 @@ void free_menu(MenuNode *node) {
 
 void print_menu(MenuNode *node, int selected_index) {
     char *selected_value = menu_selected_value_label(node);
-    unsigned long used_mb = 0;
-    unsigned long total_mb = 0;
     int lines_used = 0;
-    int rows;
-    int cols;
 
     // Clear screen (ANSI escape code)
     printf("\033[H\033[J");
-    get_terminal_size(&rows, &cols);
-    if (get_memory_usage_mb(&used_mb, &total_mb)) {
-        printf("%s: %lu MB / %lu MB\n", menu_translate("ui_memory_label", "Memory"), used_mb, total_mb);
-    } else {
-        printf("%s: %s\n", menu_translate("ui_memory_label", "Memory"),
-               menu_translate("ui_memory_unavailable", "Unavailable"));
-    }
-    lines_used++;
+    lines_used += print_memory_widget_line();
     printf("--- %s ---\n", node->title);
     lines_used++;
     if (selected_value) {

@@ -1,5 +1,6 @@
 #include "file_manager.h"
 #include <ctype.h>
+#include "entertainment.h"
 #include "menu.h"
 
 static char* file_navigator_internal(const char *start_path, int select_dir_only, int supported_only) {
@@ -108,18 +109,20 @@ char* file_navigator_supported(const char *start_path) {
 void file_manager_open_viewer(const char *filename) {
     char error[128] = {0};
     char *text = document_load_text_with_progress(filename, error, sizeof(error));
-    printf("\033[H\033[J");
-    printf("--- File Viewer: %s ---\n", filename);
-    printf("----------------------------------\n");
     if (!text) {
+        printf("\033[H\033[J");
+        print_memory_widget_line();
+        printf("--- File Viewer: %s ---\n", filename);
+        printf("----------------------------------\n");
         printf("Error: %s\n", error[0] ? error : "Could not open file.");
-    } else {
-        printf("%s", text);
-        free(text);
+        printf("\n\n%s", menu_translate("ui_press_any_key_to_go_back", "Press any key to go back..."));
+        fflush(stdout);
+        read_key();
+        return;
     }
-    printf("\n\n%s", menu_translate("ui_press_any_key_to_go_back", "Press any key to go back..."));
-    fflush(stdout);
-    read_key();
+
+    content_ui_show_spoken_text("File Viewer", filename, text);
+    free(text);
 }
 
 void recursive_file_search(const char *base_path, const char *pattern, SearchResult *results, int *count, int max_results) {
