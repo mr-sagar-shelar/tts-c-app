@@ -389,6 +389,11 @@ static int spoken_text_interrupt(void *userdata) {
     return read_key_timeout(0);
 }
 
+static void drain_pending_input(void) {
+    while (read_key_timeout(0) != 0) {
+    }
+}
+
 static void build_wave_export_path(const char *source_path, char *buffer, size_t buffer_size) {
     const char *last_slash;
     const char *last_dot;
@@ -562,6 +567,7 @@ void content_ui_show_spoken_text(const char *title, const char *source_name, con
                             paused_by_space = 1;
                             consume_space_key = 1;
                             set_reader_status(&reader_state, menu_translate("ui_reader_play_paused", "Playback paused."));
+                            drain_pending_input();
                         }
                         key = interrupted_key;
                     } else {
@@ -593,15 +599,18 @@ void content_ui_show_spoken_text(const char *title, const char *source_name, con
         } else if (key == ' ') {
             if (consume_space_key) {
                 consume_space_key = 0;
+                drain_pending_input();
             } else if (paused_by_space) {
                 reader_state.autoplay = 1;
                 reader_state.autoplay_mode = WORD_READER_AUTOPLAY_LINE;
                 paused_by_space = 0;
                 set_reader_status(&reader_state, menu_translate("ui_reader_line_play_starting", "Starting line-by-line playback..."));
+                drain_pending_input();
             } else if (reader_state.autoplay) {
                 reader_state.autoplay = 0;
                 paused_by_space = 1;
                 set_reader_status(&reader_state, menu_translate("ui_reader_play_paused", "Playback paused."));
+                drain_pending_input();
             }
         } else if (key == KEY_DOWN) {
             paused_by_space = 0;
