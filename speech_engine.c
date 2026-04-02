@@ -198,6 +198,7 @@ static int speech_stream_chunk(const cst_wave *w, int start, int size, int last,
     int high_water_mark = 8192;
     int buffered_bytes;
     int interrupt_key;
+    float playback_samples;
 #endif
     float wavepos;
     short *buffer;
@@ -221,21 +222,6 @@ static int speech_stream_chunk(const cst_wave *w, int start, int size, int last,
                 if (state->progress_callback) {
                     state->progress_callback(0, state->progress_userdata);
                 }
-            }
-        }
-    }
-
-    if (state->progress_token) {
-        wavepos = ((float)start) / w->sample_rate;
-        while (wavepos > state->progress_token_end && item_next(state->progress_token)) {
-            state->progress_token = item_next(state->progress_token);
-            state->progress_token_index++;
-            state->progress_token_end = ffeature_float(
-                state->progress_token,
-                "R:Token.daughtern.R:SylStructure.daughtern.daughtern.R:Segment.end"
-            );
-            if (state->progress_callback) {
-                state->progress_callback(state->progress_token_index, state->progress_userdata);
             }
         }
     }
@@ -306,9 +292,40 @@ static int speech_stream_chunk(const cst_wave *w, int start, int size, int last,
             speech_sdl_pause_audio(1);
         }
 
+        if (state->progress_token) {
+            playback_samples = (float)speech_sdl_read_pos / (float)(sizeof(short) * w->num_channels);
+            wavepos = playback_samples / (float)w->sample_rate;
+            while (wavepos > state->progress_token_end && item_next(state->progress_token)) {
+                state->progress_token = item_next(state->progress_token);
+                state->progress_token_index++;
+                state->progress_token_end = ffeature_float(
+                    state->progress_token,
+                    "R:Token.daughtern.R:SylStructure.daughtern.daughtern.R:Segment.end"
+                );
+                if (state->progress_callback) {
+                    state->progress_callback(state->progress_token_index, state->progress_userdata);
+                }
+            }
+        }
+
         return CST_AUDIO_STREAM_CONT;
     }
 #endif
+
+    if (state->progress_token) {
+        wavepos = ((float)start) / w->sample_rate;
+        while (wavepos > state->progress_token_end && item_next(state->progress_token)) {
+            state->progress_token = item_next(state->progress_token);
+            state->progress_token_index++;
+            state->progress_token_end = ffeature_float(
+                state->progress_token,
+                "R:Token.daughtern.R:SylStructure.daughtern.daughtern.R:Segment.end"
+            );
+            if (state->progress_callback) {
+                state->progress_callback(state->progress_token_index, state->progress_userdata);
+            }
+        }
+    }
 
     if (state->audio_device == NULL) {
         state->audio_device = audio_open(w->sample_rate, w->num_channels, CST_AUDIO_LINEAR16);
@@ -457,9 +474,15 @@ int speech_engine_speak_text(const char *text, char *error, size_t error_size) {
     }
 
     speech_engine_refresh_settings();
+    speech_state.interrupt_key = 0;
 
     if (flite_text_to_speech(text, speech_state.voice, "stream") < 0.0f) {
         set_error(error, error_size, "Flite synthesis failed");
+        return 0;
+    }
+
+    if (speech_state.interrupt_key != 0) {
+        set_error(error, error_size, "Playback interrupted");
         return 0;
     }
 
