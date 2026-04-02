@@ -3,31 +3,43 @@ CFLAGS=-Wall -Wextra -O2
 TARGET=sai
 OBJS=main.o app_actions.o menu.o cJSON.o config.o contacts.o utils.o file_manager.o notepad.o dictionary.o entertainment.o tools.o typing_tutor.o alarm.o calendar.o radio.o text_processor.o document_reader.o speech_settings.o speech_engine.o voice_library.o download_manager.o download_ui.o task_ui.o
 
-FLITEDIR ?=
-ifeq ($(FLITEDIR),)
-ifneq ($(wildcard ../flite/include/flite.h),)
-FLITEDIR := $(abspath ../flite)
-else ifneq ($(wildcard /usr/include/flite.h),)
-FLITEDIR := /usr
-endif
-endif
+LOCAL_FLITEDIR := $(abspath third_party/flite)
+FLITEDIR ?= $(LOCAL_FLITEDIR)
 
 FLITE_LIBS =
+FLITE_BUILD_DEPS =
 ifneq ($(FLITEDIR),)
 ifneq ($(wildcard $(FLITEDIR)/include/flite.h),)
 CFLAGS += -DHAVE_FLITE -I$(FLITEDIR)/include
-TARGET_PLATFORM ?= $(notdir $(firstword $(wildcard $(FLITEDIR)/build/*)))
+TARGET_PLATFORM ?= $(shell awk 'BEGIN{cpu=""; os=""} $$1=="TARGET_CPU" {cpu=$$3} $$1=="TARGET_OS" {os=$$3} END{if (cpu != "" && os != "") print cpu "-" os}' $(FLITEDIR)/config/config)
 FLITELIBDIR := $(FLITEDIR)/build/$(TARGET_PLATFORM)/lib
-ifneq ($(wildcard $(FLITELIBDIR)/libflite.a),)
 FLITE_LIBS += -L$(FLITELIBDIR) -lflite_usenglish -lflite_cmulex -lflite_cmu_indic_lang -lflite_cmu_indic_lex -lflite_cmu_us_kal -lflite_cmu_us_slt -lflite_cmu_us_rms -lflite_cmu_us_awb -lflite -lm
+ifneq ($(findstring linux,$(TARGET_PLATFORM)),)
+FLITE_LIBS += -Wl,-rpath,$(FLITELIBDIR)
 endif
 endif
+endif
+
+ifeq ($(FLITEDIR),$(LOCAL_FLITEDIR))
+FLITE_BUILD_DEPS = $(FLITEDIR)/build/.built
 endif
 
 all: $(TARGET)
 
-$(TARGET): $(OBJS)
+$(TARGET): $(OBJS) $(FLITE_BUILD_DEPS)
 	$(CC) $(CFLAGS) -o $(TARGET) $(OBJS) $(FLITE_LIBS)
+
+$(LOCAL_FLITEDIR)/build/.built:
+	@if [ "$(shell uname -s)" = "Linux" ]; then \
+		sed -i 's/-no-cpp-precomp//g' $(LOCAL_FLITEDIR)/config/config; \
+		sed -i 's/TARGET_OS    = darwin.*/TARGET_OS    = linux/g' $(LOCAL_FLITEDIR)/config/config; \
+		sed -i 's/OSTYPE		:= darwin.*/OSTYPE		:= linux/g' $(LOCAL_FLITEDIR)/config/system.mak; \
+		sed -i 's/PLATFORM	:= .*/PLATFORM	:= $(shell $(CC) -dumpmachine)/g' $(LOCAL_FLITEDIR)/config/system.mak; \
+		sed -i 's/FULLOSTYPE	:= .*/FULLOSTYPE	:= linux-gnu/g' $(LOCAL_FLITEDIR)/config/system.mak; \
+	fi
+	LD_LIBRARY_PATH=$(FLITELIBDIR):$(LD_LIBRARY_PATH) $(MAKE) -C $(LOCAL_FLITEDIR)
+	@mkdir -p $(LOCAL_FLITEDIR)/build
+	@touch $(LOCAL_FLITEDIR)/build/.built
 
 main.o: main.c menu.h config.h contacts.h utils.h file_manager.h notepad.h dictionary.h entertainment.h tools.h typing_tutor.h alarm.h calendar.h radio.h
 	$(CC) $(CFLAGS) -c main.c
@@ -103,3 +115,5 @@ radio.o: radio.c radio.h utils.h
 
 clean:
 	rm -f $(TARGET) $(OBJS)
+	@if [ -d "$(LOCAL_FLITEDIR)" ]; then $(MAKE) -C $(LOCAL_FLITEDIR) clean; fi
+	@rm -f $(LOCAL_FLITEDIR)/build/.built

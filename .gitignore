@@ -2,3 +2,17 @@ sai
 *.o
 .DS_Store
 *.wav
+*.a
+*.os
+*.so
+*.dylib
+*.exe
+*.log
+*.tmp
+*.out
+*.swp
+*.swo
+build/
+bin/
+third_party/flite/build/
+third_party/flite/bin/

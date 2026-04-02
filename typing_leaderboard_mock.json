@@ -1,0 +1,23 @@
+{
+  "daily": [
+    {"rank": 1, "name": "Asha", "wpm": 41.5, "accuracy": 98, "badge": "Trailblazer"},
+    {"rank": 2, "name": "Kiran", "wpm": 36.2, "accuracy": 96, "badge": "Consistency Star"},
+    {"rank": 3, "name": "Maya", "wpm": 30.4, "accuracy": 94, "badge": "Rising Typist"},
+    {"rank": 4, "name": "Rafi", "wpm": 26.8, "accuracy": 92, "badge": "Steady Hands"},
+    {"rank": 5, "name": "Neha", "wpm": 22.7, "accuracy": 90, "badge": "First Finish"}
+  ],
+  "weekly": [
+    {"rank": 1, "name": "Asha", "wpm": 44.0, "accuracy": 98, "badge": "Trailblazer"},
+    {"rank": 2, "name": "Dev", "wpm": 38.6, "accuracy": 97, "badge": "Typing Champion"},
+    {"rank": 3, "name": "Kiran", "wpm": 34.3, "accuracy": 95, "badge": "Consistency Star"},
+    {"rank": 4, "name": "Maya", "wpm": 29.9, "accuracy": 94, "badge": "Rising Typist"},
+    {"rank": 5, "name": "Rafi", "wpm": 25.1, "accuracy": 91, "badge": "Steady Hands"}
+  ],
+  "monthly": [
+    {"rank": 1, "name": "Dev", "wpm": 46.8, "accuracy": 99, "badge": "Typing Champion"},
+    {"rank": 2, "name": "Asha", "wpm": 43.1, "accuracy": 98, "badge": "Trailblazer"},
+    {"rank": 3, "name": "Farah", "wpm": 37.4, "accuracy": 96, "badge": "Consistency Star"},
+    {"rank": 4, "name": "Maya", "wpm": 31.7, "accuracy": 95, "badge": "Rising Typist"},
+    {"rank": 5, "name": "Neha", "wpm": 27.2, "accuracy": 92, "badge": "Steady Hands"}
+  ]
+}
