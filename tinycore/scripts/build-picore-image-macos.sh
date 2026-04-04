@@ -5,6 +5,7 @@ set -eu
 ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 ARTIFACT_DIR="${ARTIFACT_DIR:-$ROOT_DIR/build/tinycore/artifacts}"
 WORK_DIR="${WORK_DIR:-$ROOT_DIR/build/tinycore/image}"
+CACHE_DIR="${CACHE_DIR:-$ROOT_DIR/build/tinycore/cache}"
 TC_VERSION="${TC_VERSION:-15.x}"
 TC_ARCH="${TC_ARCH:-armhf}"
 TCE_NAME="${TCE_NAME:-tce}"
@@ -19,6 +20,7 @@ EXT_BASE_URL_RESOLVED=""
 RELEASE_IMAGE_DISCOVERED=""
 AUDIO_MODULES_EXT_DISCOVERED=""
 RELEASE_VERSION_RESOLVED=""
+EXT_CACHE_DIR=""
 
 require_file() {
     [ -f "$1" ] || {
@@ -32,6 +34,23 @@ download_if_missing() {
     dest="$2"
     if [ ! -f "$dest" ]; then
         curl -fL "$url" -o "$dest"
+    fi
+}
+
+copy_cached_or_download() {
+    url="$1"
+    cache_path="$2"
+    dest="$3"
+
+    mkdir -p "$(dirname "$cache_path")"
+    mkdir -p "$(dirname "$dest")"
+
+    if [ ! -f "$cache_path" ]; then
+        curl -fL "$url" -o "$cache_path"
+    fi
+
+    if [ ! -f "$dest" ]; then
+        cp "$cache_path" "$dest"
     fi
 }
 
@@ -174,12 +193,12 @@ download_extension_tree() {
         printf 'Unable to resolve Tiny Core extension: %s from %s\n' "$ext" "$EXT_BASE_URL" >&2
         return 1
     }
-    download_if_missing "${EXT_BASE_URL}${repo_ext}" "$optional_dir/$repo_ext"
+    copy_cached_or_download "${EXT_BASE_URL}${repo_ext}" "$EXT_CACHE_DIR/$repo_ext" "$optional_dir/$repo_ext"
     if [ "$repo_ext" != "$ext" ] && [ ! -e "$optional_dir/$ext" ]; then
         cp "$optional_dir/$repo_ext" "$optional_dir/$ext"
     fi
     if curl -fsI "${EXT_BASE_URL}${repo_ext}.dep" >/dev/null 2>&1; then
-        download_if_missing "${EXT_BASE_URL}${repo_ext}.dep" "$optional_dir/$repo_ext.dep"
+        copy_cached_or_download "${EXT_BASE_URL}${repo_ext}.dep" "$EXT_CACHE_DIR/$repo_ext.dep" "$optional_dir/$repo_ext.dep"
         if [ "$repo_ext" != "$ext" ] && [ ! -e "$optional_dir/$ext.dep" ]; then
             cp "$optional_dir/$repo_ext.dep" "$optional_dir/$ext.dep"
         fi
@@ -189,7 +208,7 @@ download_extension_tree() {
         done < "$optional_dir/$repo_ext.dep"
     fi
     if curl -fsI "${EXT_BASE_URL}${repo_ext}.md5.txt" >/dev/null 2>&1; then
-        download_if_missing "${EXT_BASE_URL}${repo_ext}.md5.txt" "$optional_dir/$repo_ext.md5.txt"
+        copy_cached_or_download "${EXT_BASE_URL}${repo_ext}.md5.txt" "$EXT_CACHE_DIR/$repo_ext.md5.txt" "$optional_dir/$repo_ext.md5.txt"
         if [ "$repo_ext" != "$ext" ] && [ ! -e "$optional_dir/$ext.md5.txt" ]; then
             cp "$optional_dir/$repo_ext.md5.txt" "$optional_dir/$ext.md5.txt"
         fi
@@ -263,11 +282,13 @@ fi
 if [ -n "$RELEASE_VERSION_RESOLVED" ] && [ "$EXT_BASE_URL" = "$EXT_BASE_URL_DEFAULT" ]; then
     EXT_BASE_URL="http://repo.tinycorelinux.net/${RELEASE_VERSION_RESOLVED}/${TC_ARCH}/tcz/"
 fi
+EXT_CACHE_DIR="$CACHE_DIR/${RELEASE_VERSION_RESOLVED:-$TC_VERSION}-${TC_ARCH}/tcz"
 
 printf 'Using piCore release %s from %s\n' "$RELEASE_IMAGE" "$RELEASE_BASE_URL"
 if [ -n "$RELEASE_VERSION_RESOLVED" ] && [ "$RELEASE_VERSION_RESOLVED" != "$TC_VERSION" ]; then
     printf 'Requested %s but using fallback release %s for %s\n' "$TC_VERSION" "$RELEASE_VERSION_RESOLVED" "$TC_ARCH"
 fi
+printf 'Using local extension cache at %s\n' "$EXT_CACHE_DIR"
 
 ARCHIVE_PATH="$WORK_DIR/$RELEASE_IMAGE"
 EXTRACT_DIR="$WORK_DIR/extracted-${TC_VERSION}-${TC_ARCH}"

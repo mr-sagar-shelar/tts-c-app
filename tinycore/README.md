@@ -135,6 +135,52 @@ diskutil list
 
 5. Safely eject the SD card and insert it into the Raspberry Pi Zero 2 W.
 
+## What The Image Builder Downloads
+
+When you run:
+
+```sh
+./tinycore/scripts/build-picore-image-macos.sh
+```
+
+the script downloads two groups of files:
+
+1. The base piCore release image archive.
+2. Tiny Core extension files needed by the custom image:
+   - `.tcz`
+   - `.dep`
+   - `.md5.txt`
+
+Local storage locations:
+
+- Base piCore release archives and extracted images:
+  - `build/tinycore/image/`
+- Persistent extension cache reused across builds:
+  - `build/tinycore/cache/<release>-<arch>/tcz/`
+
+Examples:
+
+- `build/tinycore/image/piCore-15.0.0.zip`
+- `build/tinycore/image/extracted-15.x-armhf/piCore-15.0.0.img`
+- `build/tinycore/cache/15.x-armhf/tcz/SDL2.tcz`
+- `build/tinycore/cache/15.x-armhf/tcz/alsa.tcz.dep`
+
+## Download Reuse And Optimization
+
+The image builder now avoids re-downloading files when they already exist locally:
+
+- The base piCore archive is reused from `build/tinycore/image/`.
+- Tiny Core extensions are reused from `build/tinycore/cache/...`.
+- On later runs, cached files are copied into the mounted image instead of being fetched again.
+
+Because of this, the first build downloads the most data and later builds should be much faster.
+
+If you want to force a fresh extension download, remove the cache directory for that release:
+
+```sh
+rm -rf build/tinycore/cache/15.x-armhf
+```
+
 ## Hardware Before First Boot
 
 Connect:
