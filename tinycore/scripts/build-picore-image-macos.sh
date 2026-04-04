@@ -5,13 +5,17 @@ set -eu
 ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 ARTIFACT_DIR="${ARTIFACT_DIR:-$ROOT_DIR/build/tinycore/artifacts}"
 WORK_DIR="${WORK_DIR:-$ROOT_DIR/build/tinycore/image}"
-TC_VERSION="${TC_VERSION:-16.x}"
+TC_VERSION="${TC_VERSION:-15.x}"
 TC_ARCH="${TC_ARCH:-armhf}"
 TCE_NAME="${TCE_NAME:-tce}"
 RELEASE_BASE_URL="${RELEASE_BASE_URL:-http://tinycorelinux.net/${TC_VERSION}/${TC_ARCH}/releases/RPi/}"
 EXT_BASE_URL="${EXT_BASE_URL:-http://repo.tinycorelinux.net/${TC_VERSION}/${TC_ARCH}/tcz/}"
 AUDIO_MODULES_EXT="${AUDIO_MODULES_EXT:-}"
 OUTPUT_IMAGE="${OUTPUT_IMAGE:-$WORK_DIR/piCore-sai-custom.img}"
+RELEASE_BASE_URL_RESOLVED=""
+EXT_BASE_URL_RESOLVED=""
+RELEASE_IMAGE_DISCOVERED=""
+AUDIO_MODULES_EXT_DISCOVERED=""
 
 require_file() {
     [ -f "$1" ] || {
@@ -26,6 +30,32 @@ download_if_missing() {
     if [ ! -f "$dest" ]; then
         curl -fL "$url" -o "$dest"
     fi
+}
+
+resolve_extension_name() {
+    ext="$1"
+
+    if curl -fsI "${EXT_BASE_URL}${ext}" >/dev/null 2>&1; then
+        printf '%s\n' "$ext"
+        return 0
+    fi
+
+    case "$ext" in
+        SDL2.tcz)
+            if curl -fsI "${EXT_BASE_URL}sdl2.tcz" >/dev/null 2>&1; then
+                printf '%s\n' "sdl2.tcz"
+                return 0
+            fi
+            ;;
+        sdl2.tcz)
+            if curl -fsI "${EXT_BASE_URL}SDL2.tcz" >/dev/null 2>&1; then
+                printf '%s\n' "SDL2.tcz"
+                return 0
+            fi
+            ;;
+    esac
+
+    return 1
 }
 
 append_unique_lines() {
@@ -58,9 +88,74 @@ append_cmdline_tokens() {
     printf '%s\n' "$current" > "$dest"
 }
 
+extract_hdiutil_value() {
+    plist_file="$1"
+    key="$2"
+    index=0
+
+    while :; do
+        value="$(/usr/libexec/PlistBuddy -c "Print :system-entities:${index}:${key}" "$plist_file" 2>/dev/null || true)"
+        if [ -n "$value" ]; then
+            printf '%s\n' "$value"
+            return 0
+        fi
+        next_exists="$(/usr/libexec/PlistBuddy -c "Print :system-entities:${index}" "$plist_file" 2>/dev/null || true)"
+        [ -n "$next_exists" ] || break
+        index=$((index + 1))
+    done
+
+    return 1
+}
+
+extract_boot_mount() {
+    plist_file="$1"
+    index=0
+
+    while :; do
+        entity_exists="$(/usr/libexec/PlistBuddy -c "Print :system-entities:${index}" "$plist_file" 2>/dev/null || true)"
+        [ -n "$entity_exists" ] || break
+
+        content_hint="$(/usr/libexec/PlistBuddy -c "Print :system-entities:${index}:content-hint" "$plist_file" 2>/dev/null || true)"
+        mount_point="$(/usr/libexec/PlistBuddy -c "Print :system-entities:${index}:mount-point" "$plist_file" 2>/dev/null || true)"
+
+        case "$content_hint" in
+            DOS_FAT_32|Windows_FAT_32|MS-DOS*)
+                if [ -n "$mount_point" ]; then
+                    printf '%s\n' "$mount_point"
+                    return 0
+                fi
+                ;;
+        esac
+
+        index=$((index + 1))
+    done
+
+    return 1
+}
+
 download_extension_tree() {
     ext="$1"
     optional_dir="$2"
+    repo_ext="$ext"
+
+    case "$ext" in
+        alsa-modules-KERNEL.tcz)
+            if [ -z "$AUDIO_MODULES_EXT" ]; then
+                discover_audio_modules_ext || true
+                AUDIO_MODULES_EXT="${AUDIO_MODULES_EXT_DISCOVERED:-}"
+                if [ -n "$EXT_BASE_URL_RESOLVED" ]; then
+                    EXT_BASE_URL="$EXT_BASE_URL_RESOLVED"
+                fi
+            fi
+            if [ -n "$AUDIO_MODULES_EXT" ]; then
+                ext="$AUDIO_MODULES_EXT"
+                repo_ext="$AUDIO_MODULES_EXT"
+            else
+                printf 'Unable to resolve Tiny Core extension: %s from %s\n' "alsa-modules-KERNEL.tcz" "$EXT_BASE_URL" >&2
+                return 1
+            fi
+            ;;
+    esac
 
     case "$ext" in
         sai-app.tcz)
@@ -72,30 +167,69 @@ download_extension_tree() {
             ;;
     esac
 
-    download_if_missing "${EXT_BASE_URL}${ext}" "$optional_dir/$ext"
-    if curl -fsI "${EXT_BASE_URL}${ext}.dep" >/dev/null 2>&1; then
-        download_if_missing "${EXT_BASE_URL}${ext}.dep" "$optional_dir/$ext.dep"
+    repo_ext="$(resolve_extension_name "$ext")" || {
+        printf 'Unable to resolve Tiny Core extension: %s from %s\n' "$ext" "$EXT_BASE_URL" >&2
+        return 1
+    }
+    download_if_missing "${EXT_BASE_URL}${repo_ext}" "$optional_dir/$repo_ext"
+    if [ "$repo_ext" != "$ext" ] && [ ! -e "$optional_dir/$ext" ]; then
+        cp "$optional_dir/$repo_ext" "$optional_dir/$ext"
+    fi
+    if curl -fsI "${EXT_BASE_URL}${repo_ext}.dep" >/dev/null 2>&1; then
+        download_if_missing "${EXT_BASE_URL}${repo_ext}.dep" "$optional_dir/$repo_ext.dep"
+        if [ "$repo_ext" != "$ext" ] && [ ! -e "$optional_dir/$ext.dep" ]; then
+            cp "$optional_dir/$repo_ext.dep" "$optional_dir/$ext.dep"
+        fi
         while IFS= read -r dep; do
             [ -n "$dep" ] || continue
             download_extension_tree "$dep" "$optional_dir"
-        done < "$optional_dir/$ext.dep"
+        done < "$optional_dir/$repo_ext.dep"
     fi
-    if curl -fsI "${EXT_BASE_URL}${ext}.md5.txt" >/dev/null 2>&1; then
-        download_if_missing "${EXT_BASE_URL}${ext}.md5.txt" "$optional_dir/$ext.md5.txt"
+    if curl -fsI "${EXT_BASE_URL}${repo_ext}.md5.txt" >/dev/null 2>&1; then
+        download_if_missing "${EXT_BASE_URL}${repo_ext}.md5.txt" "$optional_dir/$repo_ext.md5.txt"
+        if [ "$repo_ext" != "$ext" ] && [ ! -e "$optional_dir/$ext.md5.txt" ]; then
+            cp "$optional_dir/$repo_ext.md5.txt" "$optional_dir/$ext.md5.txt"
+        fi
     fi
 }
 
 discover_release_image() {
-    curl -fsSL "$RELEASE_BASE_URL" \
-        | grep -Eo 'piCore[^" ]+\.(img\.gz|zip)' \
-        | head -n 1
+    for base_url in \
+        "$RELEASE_BASE_URL" \
+        "http://tinycorelinux.net/15.x/${TC_ARCH}/releases/RPi/" \
+        "http://tinycorelinux.net/14.x/${TC_ARCH}/releases/RPi/"
+    do
+        image="$(curl -fsSL "$base_url" 2>/dev/null \
+            | grep -Eo 'piCore[^" ]+\.(img\.gz|zip)' \
+            | head -n 1 || true)"
+        if [ -n "$image" ]; then
+            RELEASE_BASE_URL_RESOLVED="$base_url"
+            RELEASE_IMAGE_DISCOVERED="$image"
+            return 0
+        fi
+    done
+
+    return 1
 }
 
 discover_audio_modules_ext() {
-    curl -fsSL "$EXT_BASE_URL" \
-        | grep -Eo 'alsa-modules-[^" ]+piCore-v7[^" ]*\.tcz' \
-        | sort -u \
-        | tail -n 1
+    for base_url in \
+        "$EXT_BASE_URL" \
+        "http://repo.tinycorelinux.net/15.x/${TC_ARCH}/tcz/" \
+        "http://repo.tinycorelinux.net/14.x/${TC_ARCH}/tcz/"
+    do
+        ext="$(curl -fsSL "$base_url" 2>/dev/null \
+            | grep -Eo 'alsa-modules-[^" ]+piCore-v7[^" ]*\.tcz' \
+            | sort -u \
+            | tail -n 1 || true)"
+        if [ -n "$ext" ]; then
+            EXT_BASE_URL_RESOLVED="$base_url"
+            AUDIO_MODULES_EXT_DISCOVERED="$ext"
+            return 0
+        fi
+    done
+
+    return 1
 }
 
 require_file "$ARTIFACT_DIR/sai-app.tcz"
@@ -106,11 +240,18 @@ require_file "$ARTIFACT_DIR/cmdline.append"
 
 mkdir -p "$WORK_DIR"
 
-RELEASE_IMAGE="${RELEASE_IMAGE:-$(discover_release_image)}"
+if [ -z "${RELEASE_IMAGE:-}" ]; then
+    discover_release_image || true
+    RELEASE_IMAGE="${RELEASE_IMAGE_DISCOVERED:-}"
+fi
 [ -n "$RELEASE_IMAGE" ] || {
     printf 'Unable to discover a piCore image from %s\n' "$RELEASE_BASE_URL" >&2
     exit 1
 }
+
+if [ -n "$RELEASE_BASE_URL_RESOLVED" ]; then
+    RELEASE_BASE_URL="$RELEASE_BASE_URL_RESOLVED"
+fi
 
 ARCHIVE_PATH="$WORK_DIR/$RELEASE_IMAGE"
 RAW_IMAGE="$WORK_DIR/$(basename "$RELEASE_IMAGE" .gz)"
@@ -136,9 +277,11 @@ esac
 
 cp "$RAW_IMAGE" "$OUTPUT_IMAGE"
 
-ATTACH_OUTPUT="$(hdiutil attach "$OUTPUT_IMAGE")"
-DISK_DEV="$(printf '%s\n' "$ATTACH_OUTPUT" | awk '/^\/dev\/disk/ {print $1; exit}')"
-BOOT_MOUNT="$(printf '%s\n' "$ATTACH_OUTPUT" | awk '/FAT_32|Windows_FAT_32|DOS_FAT_32/ {print $NF; exit}')"
+ATTACH_PLIST="$(mktemp -t sai-hdiutil-attach.XXXXXX.plist)"
+hdiutil attach -plist "$OUTPUT_IMAGE" > "$ATTACH_PLIST"
+DISK_DEV="$(extract_hdiutil_value "$ATTACH_PLIST" "dev-entry" | head -n 1)"
+BOOT_MOUNT="$(extract_boot_mount "$ATTACH_PLIST" || true)"
+rm -f "$ATTACH_PLIST"
 
 [ -n "$DISK_DEV" ] || {
     printf 'Failed to attach image: %s\n' "$OUTPUT_IMAGE" >&2
@@ -160,11 +303,16 @@ cp "$ARTIFACT_DIR/mydata.tgz" "$BOOT_MOUNT/mydata.tgz"
 cp "$ARTIFACT_DIR/onboot.lst" "$ONBOOT_FILE"
 
 if [ -z "$AUDIO_MODULES_EXT" ]; then
-    AUDIO_MODULES_EXT="$(discover_audio_modules_ext || true)"
+    discover_audio_modules_ext || true
+    AUDIO_MODULES_EXT="${AUDIO_MODULES_EXT_DISCOVERED:-}"
+fi
+if [ -n "$EXT_BASE_URL_RESOLVED" ]; then
+    EXT_BASE_URL="$EXT_BASE_URL_RESOLVED"
 fi
 if [ -n "$AUDIO_MODULES_EXT" ] && ! grep -Fqx "$AUDIO_MODULES_EXT" "$ONBOOT_FILE"; then
     printf '%s\n' "$AUDIO_MODULES_EXT" >> "$ONBOOT_FILE"
 fi
+sed -i '' '/^alsa-modules-KERNEL\.tcz$/d' "$ONBOOT_FILE" 2>/dev/null || true
 
 while IFS= read -r ext; do
     [ -n "$ext" ] || continue
