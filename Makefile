@@ -6,6 +6,8 @@ ENABLE_MEMORY_WIDGET ?= 0
 ENABLE_MENU_SPEECH ?= $(if $(filter Linux,$(UNAME_S)),1,0)
 PREFIX ?= /usr/local
 APP_BASE_DIR ?= $(PREFIX)/share/sai-base
+AR ?= ar
+RANLIB ?= ranlib
 
 OBJS=main.o app_actions.o menu.o cJSON.o config.o contacts.o utils.o file_manager.o notepad.o dictionary.o entertainment.o tools.o typing_tutor.o alarm.o calendar.o radio.o text_processor.o document_reader.o speech_settings.o speech_engine.o voice_library.o download_manager.o download_ui.o task_ui.o
 APP_DATA_FILES=menu.json en.json hi.json dict_en.json dict_hn.json typing_tutor.json typing_leaderboard_mock.json timezones.json userConfig.json
@@ -37,6 +39,11 @@ endif
 
 LOCAL_FLITEDIR := $(abspath third_party/flite)
 FLITEDIR ?= $(LOCAL_FLITEDIR)
+CC_MACHINE ?= $(shell $(CC) -dumpmachine 2>/dev/null)
+FLITE_TARGET_CPU ?= $(firstword $(subst -, ,$(TARGET_PLATFORM)))
+FLITE_TARGET_OS ?= $(if $(findstring linux,$(TARGET_PLATFORM)),linux,$(if $(findstring darwin,$(TARGET_PLATFORM)),darwin,$(word 2,$(subst -, ,$(TARGET_PLATFORM)))))
+FLITE_SYSTEM_PLATFORM ?= $(if $(strip $(CC_MACHINE)),$(CC_MACHINE),$(TARGET_PLATFORM))
+FLITE_SYSTEM_FULLOSTYPE ?= $(if $(findstring linux,$(FLITE_SYSTEM_PLATFORM)),linux-gnu,$(wordlist 3,99,$(subst -, ,$(FLITE_SYSTEM_PLATFORM))))
 
 FLITE_LIBS =
 FLITE_BUILD_DEPS =
@@ -75,18 +82,27 @@ install-rootfs: $(TARGET) $(FLITE_BUILD_DEPS)
 		cp -a "$$dir/." "$(DESTDIR)$(APP_BASE_DIR)/$$dir/"; \
 	done
 	@if [ -d "$(FLITELIBDIR)" ]; then \
-		cp -a "$(FLITELIBDIR)"/libflite*.so* "$(DESTDIR)$(PREFIX)/lib/"; \
+		set -- "$(FLITELIBDIR)"/libflite*.so*; \
+		if [ -e "$$1" ]; then \
+			cp -a "$$@" "$(DESTDIR)$(PREFIX)/lib/"; \
+		fi; \
 	fi
 
 $(LOCAL_FLITEDIR)/build/.built:
-	@if [ "$(shell uname -s)" = "Linux" ]; then \
-		sed -i 's/-no-cpp-precomp//g' $(LOCAL_FLITEDIR)/config/config; \
-		sed -i 's/TARGET_OS    = darwin.*/TARGET_OS    = linux/g' $(LOCAL_FLITEDIR)/config/config; \
-		sed -i 's/OSTYPE		:= darwin.*/OSTYPE		:= linux/g' $(LOCAL_FLITEDIR)/config/system.mak; \
-		sed -i 's/PLATFORM	:= .*/PLATFORM	:= $(shell $(CC) -dumpmachine)/g' $(LOCAL_FLITEDIR)/config/system.mak; \
-		sed -i 's/FULLOSTYPE	:= .*/FULLOSTYPE	:= linux-gnu/g' $(LOCAL_FLITEDIR)/config/system.mak; \
-	fi
-	LD_LIBRARY_PATH=$(FLITELIBDIR):$(LD_LIBRARY_PATH) $(MAKE) -C $(LOCAL_FLITEDIR)
+	@sed -i.bak 's/-no-cpp-precomp//g' $(LOCAL_FLITEDIR)/config/config
+	@sed -i.bak 's/^TARGET_CPU.*/TARGET_CPU   = $(FLITE_TARGET_CPU)/' $(LOCAL_FLITEDIR)/config/config
+	@sed -i.bak 's/^TARGET_OS.*/TARGET_OS    = $(FLITE_TARGET_OS)/' $(LOCAL_FLITEDIR)/config/config
+	@sed -i.bak 's/^HOST_CPU.*/HOST_CPU   = $(FLITE_TARGET_CPU)/' $(LOCAL_FLITEDIR)/config/config
+	@sed -i.bak 's/^HOST_OS.*/HOST_OS    = $(FLITE_TARGET_OS)/' $(LOCAL_FLITEDIR)/config/config
+	@sed -i.bak 's|^CC .*|CC       = $(CC)|' $(LOCAL_FLITEDIR)/config/config
+	@sed -i.bak 's|^AR .*|AR       = $(AR)|' $(LOCAL_FLITEDIR)/config/config
+	@sed -i.bak 's|^RANLIB .*|RANLIB   = $(RANLIB)|' $(LOCAL_FLITEDIR)/config/config
+	@sed -i.bak 's/^OSTYPE.*/OSTYPE		:= $(FLITE_TARGET_OS)/' $(LOCAL_FLITEDIR)/config/system.mak
+	@sed -i.bak 's/^MACHINETYPE.*/MACHINETYPE	:= $(FLITE_TARGET_CPU)/' $(LOCAL_FLITEDIR)/config/system.mak
+	@sed -i.bak 's/^PLATFORM.*/PLATFORM	:= $(FLITE_SYSTEM_PLATFORM)/' $(LOCAL_FLITEDIR)/config/system.mak
+	@sed -i.bak 's/^FULLOSTYPE.*/FULLOSTYPE	:= $(FLITE_SYSTEM_FULLOSTYPE)/' $(LOCAL_FLITEDIR)/config/system.mak
+	@rm -f $(LOCAL_FLITEDIR)/config/config.bak $(LOCAL_FLITEDIR)/config/system.mak.bak
+	LD_LIBRARY_PATH=$(FLITELIBDIR):$(LD_LIBRARY_PATH) $(MAKE) -C $(LOCAL_FLITEDIR) CC='$(CC)' AR='$(AR)' RANLIB='$(RANLIB)'
 	@mkdir -p $(LOCAL_FLITEDIR)/build
 	@touch $(LOCAL_FLITEDIR)/build/.built
 

@@ -25,6 +25,8 @@ COPY . /src
 
 ARG TARGET_PLATFORM=arm-linux-gnueabihf
 ENV CC=arm-linux-gnueabihf-gcc
+ENV AR=arm-linux-gnueabihf-ar
+ENV RANLIB=arm-linux-gnueabihf-ranlib
 ENV STRIP=arm-linux-gnueabihf-strip
 ENV SDL_CFLAGS=-I/usr/include/SDL2\ -D_REENTRANT
 ENV SDL_LIBS=-L/usr/lib/arm-linux-gnueabihf\ -lSDL2
@@ -33,6 +35,8 @@ RUN make clean \
     && make \
         ENABLE_MENU_SPEECH=1 \
         CC="$CC" \
+        AR="$AR" \
+        RANLIB="$RANLIB" \
         TARGET_PLATFORM="$TARGET_PLATFORM" \
         SDL_CFLAGS="$SDL_CFLAGS" \
         SDL_LIBS="$SDL_LIBS"
@@ -43,6 +47,8 @@ RUN rm -rf /tmp/sai-package /tmp/mydata /out \
         DESTDIR=/tmp/sai-package \
         ENABLE_MENU_SPEECH=1 \
         CC="$CC" \
+        AR="$AR" \
+        RANLIB="$RANLIB" \
         TARGET_PLATFORM="$TARGET_PLATFORM" \
         SDL_CFLAGS="$SDL_CFLAGS" \
         SDL_LIBS="$SDL_LIBS" \
