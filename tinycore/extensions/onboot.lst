@@ -1,9 +1,11 @@
 alsa.tcz
 alsa-utils.tcz
 alsa-plugins.tcz
+e2fsprogs.tcz
 curl.tcz
 unzip.tcz
 mpg123.tcz
 ca-certificates.tcz
+util-linux.tcz
 SDL2.tcz
 sai-app.tcz

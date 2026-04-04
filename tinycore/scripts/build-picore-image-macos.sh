@@ -8,14 +8,17 @@ WORK_DIR="${WORK_DIR:-$ROOT_DIR/build/tinycore/image}"
 TC_VERSION="${TC_VERSION:-15.x}"
 TC_ARCH="${TC_ARCH:-armhf}"
 TCE_NAME="${TCE_NAME:-tce}"
-RELEASE_BASE_URL="${RELEASE_BASE_URL:-http://tinycorelinux.net/${TC_VERSION}/${TC_ARCH}/releases/RPi/}"
-EXT_BASE_URL="${EXT_BASE_URL:-http://repo.tinycorelinux.net/${TC_VERSION}/${TC_ARCH}/tcz/}"
+RELEASE_BASE_URL_DEFAULT="http://tinycorelinux.net/${TC_VERSION}/${TC_ARCH}/releases/RPi/"
+EXT_BASE_URL_DEFAULT="http://repo.tinycorelinux.net/${TC_VERSION}/${TC_ARCH}/tcz/"
+RELEASE_BASE_URL="${RELEASE_BASE_URL:-$RELEASE_BASE_URL_DEFAULT}"
+EXT_BASE_URL="${EXT_BASE_URL:-$EXT_BASE_URL_DEFAULT}"
 AUDIO_MODULES_EXT="${AUDIO_MODULES_EXT:-}"
-OUTPUT_IMAGE="${OUTPUT_IMAGE:-$WORK_DIR/piCore-sai-custom.img}"
+OUTPUT_IMAGE="${OUTPUT_IMAGE:-$WORK_DIR/piCore-sai-custom-${TC_VERSION}-${TC_ARCH}.img}"
 RELEASE_BASE_URL_RESOLVED=""
 EXT_BASE_URL_RESOLVED=""
 RELEASE_IMAGE_DISCOVERED=""
 AUDIO_MODULES_EXT_DISCOVERED=""
+RELEASE_VERSION_RESOLVED=""
 
 require_file() {
     [ -f "$1" ] || {
@@ -196,6 +199,8 @@ download_extension_tree() {
 discover_release_image() {
     for base_url in \
         "$RELEASE_BASE_URL" \
+        "http://tinycorelinux.net/17.x/${TC_ARCH}/releases/RPi/" \
+        "http://tinycorelinux.net/16.x/${TC_ARCH}/releases/RPi/" \
         "http://tinycorelinux.net/15.x/${TC_ARCH}/releases/RPi/" \
         "http://tinycorelinux.net/14.x/${TC_ARCH}/releases/RPi/"
     do
@@ -204,6 +209,7 @@ discover_release_image() {
             | head -n 1 || true)"
         if [ -n "$image" ]; then
             RELEASE_BASE_URL_RESOLVED="$base_url"
+            RELEASE_VERSION_RESOLVED="$(printf '%s\n' "$base_url" | sed -E 's#.*tinycorelinux.net/([^/]+)/.*#\1#')"
             RELEASE_IMAGE_DISCOVERED="$image"
             return 0
         fi
@@ -215,6 +221,8 @@ discover_release_image() {
 discover_audio_modules_ext() {
     for base_url in \
         "$EXT_BASE_URL" \
+        "http://repo.tinycorelinux.net/17.x/${TC_ARCH}/tcz/" \
+        "http://repo.tinycorelinux.net/16.x/${TC_ARCH}/tcz/" \
         "http://repo.tinycorelinux.net/15.x/${TC_ARCH}/tcz/" \
         "http://repo.tinycorelinux.net/14.x/${TC_ARCH}/tcz/"
     do
@@ -252,21 +260,34 @@ fi
 if [ -n "$RELEASE_BASE_URL_RESOLVED" ]; then
     RELEASE_BASE_URL="$RELEASE_BASE_URL_RESOLVED"
 fi
+if [ -n "$RELEASE_VERSION_RESOLVED" ] && [ "$EXT_BASE_URL" = "$EXT_BASE_URL_DEFAULT" ]; then
+    EXT_BASE_URL="http://repo.tinycorelinux.net/${RELEASE_VERSION_RESOLVED}/${TC_ARCH}/tcz/"
+fi
+
+printf 'Using piCore release %s from %s\n' "$RELEASE_IMAGE" "$RELEASE_BASE_URL"
+if [ -n "$RELEASE_VERSION_RESOLVED" ] && [ "$RELEASE_VERSION_RESOLVED" != "$TC_VERSION" ]; then
+    printf 'Requested %s but using fallback release %s for %s\n' "$TC_VERSION" "$RELEASE_VERSION_RESOLVED" "$TC_ARCH"
+fi
 
 ARCHIVE_PATH="$WORK_DIR/$RELEASE_IMAGE"
-RAW_IMAGE="$WORK_DIR/$(basename "$RELEASE_IMAGE" .gz)"
+EXTRACT_DIR="$WORK_DIR/extracted-${TC_VERSION}-${TC_ARCH}"
+RAW_IMAGE=""
 
 download_if_missing "${RELEASE_BASE_URL}${RELEASE_IMAGE}" "$ARCHIVE_PATH"
+rm -rf "$EXTRACT_DIR"
+mkdir -p "$EXTRACT_DIR"
 
 case "$ARCHIVE_PATH" in
     *.img.gz)
+        RAW_IMAGE="$EXTRACT_DIR/$(basename "$RELEASE_IMAGE" .gz)"
         gunzip -c "$ARCHIVE_PATH" > "$RAW_IMAGE"
         ;;
     *.zip)
-        unzip -o "$ARCHIVE_PATH" -d "$WORK_DIR" >/dev/null
-        RAW_IMAGE="$(find "$WORK_DIR" -maxdepth 1 -name '*.img' | head -n 1)"
+        unzip -o "$ARCHIVE_PATH" -d "$EXTRACT_DIR" >/dev/null
+        RAW_IMAGE="$(find "$EXTRACT_DIR" -maxdepth 2 -name '*.img' | sort | head -n 1)"
         ;;
     *.img)
+        RAW_IMAGE="$EXTRACT_DIR/$(basename "$RELEASE_IMAGE")"
         cp "$ARCHIVE_PATH" "$RAW_IMAGE"
         ;;
     *)
@@ -275,7 +296,14 @@ case "$ARCHIVE_PATH" in
         ;;
 esac
 
-cp "$RAW_IMAGE" "$OUTPUT_IMAGE"
+[ -n "$RAW_IMAGE" ] && [ -f "$RAW_IMAGE" ] || {
+    printf 'Unable to locate extracted piCore image for %s\n' "$ARCHIVE_PATH" >&2
+    exit 1
+}
+
+if [ "$RAW_IMAGE" != "$OUTPUT_IMAGE" ]; then
+    cp "$RAW_IMAGE" "$OUTPUT_IMAGE"
+fi
 
 ATTACH_PLIST="$(mktemp -t sai-hdiutil-attach.XXXXXX.plist)"
 hdiutil attach -plist "$OUTPUT_IMAGE" > "$ATTACH_PLIST"
@@ -309,6 +337,7 @@ fi
 if [ -n "$EXT_BASE_URL_RESOLVED" ]; then
     EXT_BASE_URL="$EXT_BASE_URL_RESOLVED"
 fi
+printf 'Using Tiny Core extensions from %s\n' "$EXT_BASE_URL"
 if [ -n "$AUDIO_MODULES_EXT" ] && ! grep -Fqx "$AUDIO_MODULES_EXT" "$ONBOOT_FILE"; then
     printf '%s\n' "$AUDIO_MODULES_EXT" >> "$ONBOOT_FILE"
 fi
