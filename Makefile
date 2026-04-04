@@ -11,7 +11,6 @@ RANLIB ?= ranlib
 
 OBJS=main.o app_actions.o menu.o cJSON.o config.o contacts.o utils.o file_manager.o notepad.o dictionary.o entertainment.o tools.o typing_tutor.o alarm.o calendar.o radio.o text_processor.o document_reader.o speech_settings.o speech_engine.o voice_library.o download_manager.o download_ui.o task_ui.o
 APP_DATA_FILES=menu.json en.json hi.json dict_en.json dict_hn.json typing_tutor.json typing_leaderboard_mock.json timezones.json userConfig.json
-APP_DATA_DIRS=voices Downloads UserSpace
 
 ifeq ($(ENABLE_MENU_SPEECH),1)
 OBJS += menu_audio.o
@@ -72,14 +71,10 @@ $(TARGET): $(OBJS) $(FLITE_BUILD_DEPS)
 
 install-rootfs: $(TARGET) $(FLITE_BUILD_DEPS)
 	@test -n "$(DESTDIR)" || (echo "DESTDIR is required for install-rootfs" >&2; exit 1)
-	@install -d "$(DESTDIR)$(APP_BASE_DIR)" "$(DESTDIR)$(PREFIX)/lib"
+	@install -d "$(DESTDIR)$(APP_BASE_DIR)" "$(DESTDIR)$(APP_BASE_DIR)/Downloads" "$(DESTDIR)$(APP_BASE_DIR)/UserSpace" "$(DESTDIR)$(APP_BASE_DIR)/voices" "$(DESTDIR)$(PREFIX)/lib"
 	@install -m 0755 "$(TARGET)" "$(DESTDIR)$(APP_BASE_DIR)/$(TARGET)"
 	@for file in $(APP_DATA_FILES); do \
 		install -m 0644 "$$file" "$(DESTDIR)$(APP_BASE_DIR)/$$file"; \
-	done
-	@for dir in $(APP_DATA_DIRS); do \
-		mkdir -p "$(DESTDIR)$(APP_BASE_DIR)/$$dir"; \
-		cp -a "$$dir/." "$(DESTDIR)$(APP_BASE_DIR)/$$dir/"; \
 	done
 	@if [ -d "$(FLITELIBDIR)" ]; then \
 		set -- "$(FLITELIBDIR)"/libflite*.so*; \

@@ -19,6 +19,9 @@ The flow is:
 - The app is installed read-only into `/usr/local/share/sai-base`.
 - Writable state lives in the Tiny Core `tce` area, so user settings, downloaded voices, notes, and sample files persist across reboots.
 - Boot starts the app automatically on `tty1`, which keeps keyboard navigation working exactly like the current terminal UI.
+- The generated image does not use `copy2fs`, so extensions stay mounted from the SD card instead of being copied wholesale into RAM. That keeps boot lighter and matches your "regular OS on SD card" goal as closely as Tiny Core allows.
+- The packaged seed content is intentionally minimal so the app becomes interactive quickly after boot.
+- No voices or sample user content are preloaded in the extension. Users download voices after the app starts.
 
 ## Files
 
@@ -49,6 +52,16 @@ The app itself shells out to a few external tools, so the image preloads:
 - `ca-certificates.tcz`
 
 The image build script also tries to auto-add a matching `alsa-modules-...tcz` for the chosen piCore release. If the repo layout changes, set `AUDIO_MODULES_EXT` manually when running the script.
+
+## Boot and startup behavior
+
+- piCore itself still uses a RAM-based core design, but this build keeps the large pieces on the SD card:
+  - extensions are mounted from `tce/optional`
+  - user state is persisted in `tce/sai-data`
+  - no `copy2fs.flg` is added
+- `bootlocal.sh` starts audio setup and then launches Sai on `tty1`.
+- `sai-autostart` uses a 1 second default delay to let the boot console settle before input begins.
+- On the first spoken prompt after launch, the app says `Sai is ready` before announcing the current menu item.
 
 ## Audio assumptions
 
