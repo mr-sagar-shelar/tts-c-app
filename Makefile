@@ -4,8 +4,12 @@ TARGET=sai
 UNAME_S := $(shell uname -s)
 ENABLE_MEMORY_WIDGET ?= 0
 ENABLE_MENU_SPEECH ?= $(if $(filter Linux,$(UNAME_S)),1,0)
+PREFIX ?= /usr/local
+APP_BASE_DIR ?= $(PREFIX)/share/sai-base
 
 OBJS=main.o app_actions.o menu.o cJSON.o config.o contacts.o utils.o file_manager.o notepad.o dictionary.o entertainment.o tools.o typing_tutor.o alarm.o calendar.o radio.o text_processor.o document_reader.o speech_settings.o speech_engine.o voice_library.o download_manager.o download_ui.o task_ui.o
+APP_DATA_FILES=menu.json en.json hi.json dict_en.json dict_hn.json typing_tutor.json typing_leaderboard_mock.json timezones.json userConfig.json
+APP_DATA_DIRS=voices Downloads UserSpace
 
 ifeq ($(ENABLE_MENU_SPEECH),1)
 OBJS += menu_audio.o
@@ -18,12 +22,16 @@ ifeq ($(ENABLE_MEMORY_WIDGET),1)
 CFLAGS += -DENABLE_MEMORY_WIDGET
 endif
 
-SDL_CONFIG := $(shell command -v sdl2-config 2>/dev/null)
-SDL_CFLAGS :=
-SDL_LIBS :=
+SDL_CONFIG ?= $(shell command -v sdl2-config 2>/dev/null)
+SDL_CFLAGS ?=
+SDL_LIBS ?=
+ifeq ($(strip $(SDL_CFLAGS) $(SDL_LIBS)),)
 ifneq ($(SDL_CONFIG),)
 SDL_CFLAGS := $(shell $(SDL_CONFIG) --cflags)
 SDL_LIBS := $(shell $(SDL_CONFIG) --libs)
+endif
+endif
+ifneq ($(strip $(SDL_CFLAGS) $(SDL_LIBS)),)
 CFLAGS += -DHAVE_SDL_AUDIO $(SDL_CFLAGS)
 endif
 
@@ -54,6 +62,21 @@ all: $(TARGET)
 
 $(TARGET): $(OBJS) $(FLITE_BUILD_DEPS)
 	$(CC) $(CFLAGS) -o $(TARGET) $(OBJS) $(FLITE_LIBS)
+
+install-rootfs: $(TARGET) $(FLITE_BUILD_DEPS)
+	@test -n "$(DESTDIR)" || (echo "DESTDIR is required for install-rootfs" >&2; exit 1)
+	@install -d "$(DESTDIR)$(APP_BASE_DIR)" "$(DESTDIR)$(PREFIX)/lib"
+	@install -m 0755 "$(TARGET)" "$(DESTDIR)$(APP_BASE_DIR)/$(TARGET)"
+	@for file in $(APP_DATA_FILES); do \
+		install -m 0644 "$$file" "$(DESTDIR)$(APP_BASE_DIR)/$$file"; \
+	done
+	@for dir in $(APP_DATA_DIRS); do \
+		mkdir -p "$(DESTDIR)$(APP_BASE_DIR)/$$dir"; \
+		cp -a "$$dir/." "$(DESTDIR)$(APP_BASE_DIR)/$$dir/"; \
+	done
+	@if [ -d "$(FLITELIBDIR)" ]; then \
+		cp -a "$(FLITELIBDIR)"/libflite*.so* "$(DESTDIR)$(PREFIX)/lib/"; \
+	fi
 
 $(LOCAL_FLITEDIR)/build/.built:
 	@if [ "$(shell uname -s)" = "Linux" ]; then \
@@ -149,3 +172,5 @@ clean:
 	rm -f $(TARGET) $(OBJS)
 	@if [ -d "$(LOCAL_FLITEDIR)" ]; then $(MAKE) -C $(LOCAL_FLITEDIR) clean; fi
 	@rm -f $(LOCAL_FLITEDIR)/build/.built
+
+.PHONY: all clean install-rootfs
