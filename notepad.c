@@ -1,5 +1,92 @@
 #include "notepad.h"
+#include "menu_audio.h"
 #include "menu.h"
+
+static const char *spoken_symbol_name(int key) {
+    switch (key) {
+        case '!': return "Exclamation mark";
+        case '"': return "Double quote";
+        case '#': return "Hash";
+        case '$': return "Dollar";
+        case '%': return "Percent";
+        case '&': return "Ampersand";
+        case '\'': return "Apostrophe";
+        case '(': return "Open parenthesis";
+        case ')': return "Close parenthesis";
+        case '*': return "Asterisk";
+        case '+': return "Plus";
+        case ',': return "Comma";
+        case '-': return "Hyphen";
+        case '.': return "Period";
+        case '/': return "Slash";
+        case ':': return "Colon";
+        case ';': return "Semicolon";
+        case '<': return "Less than";
+        case '=': return "Equals";
+        case '>': return "Greater than";
+        case '?': return "Question mark";
+        case '@': return "At sign";
+        case '[': return "Open bracket";
+        case '\\': return "Backslash";
+        case ']': return "Close bracket";
+        case '^': return "Caret";
+        case '_': return "Underscore";
+        case '`': return "Backtick";
+        case '{': return "Open brace";
+        case '|': return "Vertical bar";
+        case '}': return "Close brace";
+        case '~': return "Tilde";
+        default: return NULL;
+    }
+}
+
+static void speak_typed_key(int key, const char *buffer, int pos) {
+    char spoken[256];
+    const char *symbol_name;
+    int start;
+    int length;
+
+    if (key == KEY_BACKSPACE) {
+        menu_audio_speak("Backspace");
+        return;
+    }
+
+    if (key == ' ') {
+        start = pos - 1;
+        while (start >= 0 && buffer[start] == ' ') {
+            start--;
+        }
+        while (start >= 0 && buffer[start] != ' ' && buffer[start] != '\n' && buffer[start] != '\t') {
+            start--;
+        }
+        start++;
+        length = pos - 1 - start;
+        if (length > 0 && length < (int)sizeof(spoken)) {
+            memcpy(spoken, buffer + start, (size_t)length);
+            spoken[length] = '\0';
+            menu_audio_speak(spoken);
+        } else {
+            menu_audio_speak("Space");
+        }
+        return;
+    }
+
+    if (key == '\t') {
+        menu_audio_speak("Tab");
+        return;
+    }
+
+    if (isprint((unsigned char)key)) {
+        symbol_name = spoken_symbol_name(key);
+        if (symbol_name) {
+            menu_audio_speak(symbol_name);
+            return;
+        }
+        spoken[0] = (char)key;
+        spoken[1] = '\0';
+        menu_audio_speak(spoken);
+    }
+}
 
 static void handle_notepad_save(const char *buffer, char *filename) {
     if (strlen(filename) == 0) {
@@ -57,12 +144,15 @@ void handle_notepad(const char *initial_content, const char *initial_filename) {
                     buffer[pos] = 0;
                     printf("\b \b");
                     fflush(stdout);
+                    speak_typed_key(KEY_BACKSPACE, buffer, pos);
                 }
             } else if (key > 0 && key < 1000) {
                 if (pos < (int)sizeof(buffer) - 1) {
                     buffer[pos++] = (char)key;
+                    buffer[pos] = 0;
                     printf("%c", (char)key);
                     fflush(stdout);
+                    speak_typed_key(key, buffer, pos);
                 }
             }
         }
@@ -70,6 +160,7 @@ void handle_notepad(const char *initial_content, const char *initial_filename) {
         int menu_sel = 0;
         const char *options[] = {"Save", "Save As", "Exit to Editor", "Close Without Saving"};
         int num_options = 4;
+        int last_spoken = -1;
 
         while (in_menu) {
             printf("\033[H\033[J");
@@ -80,12 +171,20 @@ void handle_notepad(const char *initial_content, const char *initial_filename) {
             }
             fflush(stdout);
 
+            if (menu_sel != last_spoken) {
+                menu_audio_speak(options[menu_sel]);
+                last_spoken = menu_sel;
+            }
+
             int key = read_key();
             if (key == KEY_UP) {
+                menu_audio_stop();
                 if (menu_sel > 0) menu_sel--;
             } else if (key == KEY_DOWN) {
+                menu_audio_stop();
                 if (menu_sel < num_options - 1) menu_sel++;
             } else if (key == KEY_ENTER) {
+                menu_audio_stop();
                 if (menu_sel == 0) { // Save
                     handle_notepad_save(buffer, current_filename);
                     printf("\nPress any key to continue..."); fflush(stdout); read_key();
@@ -102,6 +201,7 @@ void handle_notepad(const char *initial_content, const char *initial_filename) {
                     return;
                 }
             } else if (key == KEY_ESC) {
+                menu_audio_stop();
                 in_menu = 0;
             }
         }

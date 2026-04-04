@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <ctype.h>
+#include <stddef.h>
 
 /* Key Definitions */
 #define KEY_UP 1001
@@ -17,6 +18,8 @@
 #define KEY_TAB 9
 #define KEY_CTRL_I 9
 #define KEY_CTRL_E 5
+#define KEY_CTRL_P 16
+#define KEY_CTRL_L 12
 
 /**
  * Initializes a UTF-8 locale for the process when possible.
@@ -85,5 +88,33 @@ int handle_value_picker(const char *title, int min, int max, int current);
  * @return The next wrapped index.
  */
 int menu_next_index(int current, int direction, int count);
+
+/**
+ * Returns the terminal size, falling back to 24x80 when unavailable.
+ * @param rows Output row count.
+ * @param cols Output column count.
+ */
+void get_terminal_size(int *rows, int *cols);
+
+/**
+ * Reads current memory usage in megabytes when supported.
+ * @param used_mb Output used memory in MB.
+ * @param total_mb Output total memory in MB.
+ * @return 1 on success, 0 when unavailable.
+ */
+int get_memory_usage_mb(unsigned long *used_mb, unsigned long *total_mb);
+
+/**
+ * Prints blank lines so a footer can remain pinned near the bottom.
+ * @param used_lines The number of lines already printed.
+ * @param footer_lines The number of lines reserved for the footer.
+ */
+void pad_screen_to_footer(int used_lines, int footer_lines);
+
+/**
+ * Prints the memory widget line when available and returns printed line count.
+ * @return Number of printed lines.
+ */
+int print_memory_widget_line(void);
 
 #endif /* UTILS_H */

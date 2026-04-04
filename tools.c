@@ -1,9 +1,31 @@
 #include "tools.h"
 #include <ctype.h>
+#include <stdarg.h>
 #include <strings.h>
 
 #include "download_ui.h"
+#include "entertainment.h"
+#include "menu_audio.h"
 #include "menu.h"
+
+static void append_accessible_line(char lines[][256], int *count, int max_lines, const char *format, ...) {
+    va_list args;
+
+    if (!count || *count >= max_lines) {
+        return;
+    }
+
+    va_start(args, format);
+    vsnprintf(lines[*count], 256, format, args);
+    va_end(args);
+    (*count)++;
+}
+
+static void speak_menu_option(const char *title, int selected, int last_spoken) {
+    if (title && selected != last_spoken) {
+        menu_audio_speak(title);
+    }
+}
 
 static int calculator_is_input_char(int key) {
     return (key >= '0' && key <= '9') || key == '.' || key == '-';
@@ -142,6 +164,9 @@ void system_ui_show_weather(void) {
     char *city = get_setting("city");
     char error[256] = {0};
     char *response;
+    char lines[16][256];
+    int line_count = 0;
+    char text[4096];
     if (!city) city = strdup("Pune");
 
     char *encoded_city = url_encode(city);
@@ -157,38 +182,47 @@ void system_ui_show_weather(void) {
             cJSON *temp = cJSON_GetObjectItemCaseSensitive(json, "temperature");
             cJSON *wind = cJSON_GetObjectItemCaseSensitive(json, "wind");
             cJSON *desc = cJSON_GetObjectItemCaseSensitive(json, "description");
+            char title[256];
 
-            printf("\033[H\033[J--- Weather: %s ---\n\n", city);
-            if (temp && cJSON_IsString(temp)) printf("Temperature: %s\n", temp->valuestring);
-            if (wind && cJSON_IsString(wind)) printf("Wind: %s\n", wind->valuestring);
-            if (desc && cJSON_IsString(desc)) printf("Description: %s\n", desc->valuestring);
+            append_accessible_line(lines, &line_count, 16, "City: %s", city);
+            if (temp && cJSON_IsString(temp)) append_accessible_line(lines, &line_count, 16, "Temperature: %s", temp->valuestring);
+            if (wind && cJSON_IsString(wind)) append_accessible_line(lines, &line_count, 16, "Wind: %s", wind->valuestring);
+            if (desc && cJSON_IsString(desc)) append_accessible_line(lines, &line_count, 16, "Description: %s", desc->valuestring);
 
             cJSON *forecast = cJSON_GetObjectItemCaseSensitive(json, "forecast");
             if (cJSON_IsArray(forecast)) {
-                printf("\nForecast:\n");
                 int count = cJSON_GetArraySize(forecast);
                 for (int i = 0; i < count; i++) {
                     cJSON *item = cJSON_GetArrayItem(forecast, i);
                     cJSON *f_day = cJSON_GetObjectItemCaseSensitive(item, "day");
                     cJSON *f_temp = cJSON_GetObjectItemCaseSensitive(item, "temperature");
                     cJSON *f_wind = cJSON_GetObjectItemCaseSensitive(item, "wind");
-                    printf("Day %s: %s, Wind %s\n", 
-                        f_day ? f_day->valuestring : "?", 
-                        f_temp ? f_temp->valuestring : "?", 
-                        f_wind ? f_wind->valuestring : "?");
+                    append_accessible_line(lines, &line_count, 16,
+                                           "Forecast day %s: %s, wind %s",
+                                           f_day ? f_day->valuestring : "?",
+                                           f_temp ? f_temp->valuestring : "?",
+                                           f_wind ? f_wind->valuestring : "?");
                 }
             }
             cJSON_Delete(json);
+            snprintf(title, sizeof(title), "Weather: %s", city);
+            text[0] = '\0';
+            for (int i = 0; i < line_count; i++) {
+                strncat(text, lines[i], sizeof(text) - strlen(text) - 1);
+                strncat(text, "\n", sizeof(text) - strlen(text) - 1);
+            }
+            content_ui_show_spoken_text(title, title, text);
         } else {
-            printf("\nError parsing weather data.");
+            append_accessible_line(lines, &line_count, 16, "%s", "Error parsing weather data.");
+            snprintf(text, sizeof(text), "%s", lines[0]);
+            content_ui_show_spoken_text("Weather", "Weather", text);
         }
     } else {
-        printf("\n%s", error[0] ? error : "Failed to connect to Weather API.");
+        append_accessible_line(lines, &line_count, 16, "%s",
+                               error[0] ? error : "Failed to connect to Weather API.");
+        snprintf(text, sizeof(text), "%s", lines[0]);
+        content_ui_show_spoken_text("Weather", "Weather", text);
     }
-
-    printf("\n%s", menu_translate("ui_press_any_key_to_go_back", "Press any key to go back..."));
-    fflush(stdout);
-    read_key();
     free(city);
 }
 
@@ -196,6 +230,9 @@ void system_ui_show_current_time_date(void) {
     char *city = get_setting("city");
     char error[256] = {0};
     char *response;
+    char lines[8][256];
+    int line_count = 0;
+    char text[2048];
     if (!city) city = strdup("Pune");
 
     const char *timezone = "Asia/Kolkata";
@@ -223,36 +260,42 @@ void system_ui_show_current_time_date(void) {
                 if (strlen(datetime->valuestring) >= 19) {
                     strncpy(date_str, datetime->valuestring, 10);
                     strncpy(time_str, datetime->valuestring + 11, 8);
-                    printf("\nDate: %s\n", date_str);
-                    printf("Time: %s\n", time_str);
-                    printf("Timezone: %s\n", timezone);
+                    append_accessible_line(lines, &line_count, 8, "Date: %s", date_str);
+                    append_accessible_line(lines, &line_count, 8, "Time: %s", time_str);
+                    append_accessible_line(lines, &line_count, 8, "Timezone: %s", timezone);
                 } else {
-                    printf("\nRaw DateTime: %s\n", datetime->valuestring);
+                    append_accessible_line(lines, &line_count, 8, "Date and time: %s", datetime->valuestring);
                 }
             } else {
-                printf("\nError: Could not retrieve time for %s.", city);
+                append_accessible_line(lines, &line_count, 8, "Error: Could not retrieve time for %s.", city);
             }
             cJSON_Delete(json);
         } else {
-            printf("\nError parsing time data.");
+            append_accessible_line(lines, &line_count, 8, "%s", "Error parsing time data.");
         }
     } else {
-        printf("\n%s", error[0] ? error : "Failed to connect to Time API.");
+        append_accessible_line(lines, &line_count, 8, "%s",
+                               error[0] ? error : "Failed to connect to Time API.");
     }
-
-    printf("\n%s", menu_translate("ui_press_any_key_to_go_back", "Press any key to go back..."));
-    fflush(stdout);
-    read_key();
+    text[0] = '\0';
+    for (int i = 0; i < line_count; i++) {
+        strncat(text, lines[i], sizeof(text) - strlen(text) - 1);
+        strncat(text, "\n", sizeof(text) - strlen(text) - 1);
+    }
+    content_ui_show_spoken_text("Current Time and Date", "Current Time and Date", text);
     free(city);
 }
 
 void system_ui_show_news(void) {
-    printf("\033[H\033[J--- News ---\n");
-    printf("%s\n", menu_translate("ui_fetching_latest_news", "Fetching latest news"));
-    printf("\n(Placeholder: News feature coming soon!)\n");
-    printf("\n%s", menu_translate("ui_press_any_key_to_go_back", "Press any key to go back..."));
-    fflush(stdout);
-    read_key();
+    char lines[4][256];
+    int line_count = 0;
+    char text[512];
+
+    append_accessible_line(lines, &line_count, 4, "%s",
+                           menu_translate("ui_fetching_latest_news", "Fetching latest news"));
+    append_accessible_line(lines, &line_count, 4, "%s", "News feature coming soon.");
+    snprintf(text, sizeof(text), "%s\n%s", lines[0], lines[1]);
+    content_ui_show_spoken_text("News", "News", text);
 }
 
 void system_ui_set_city(void) {
@@ -315,6 +358,7 @@ static void handle_change_timezone() {
     int sel = 0;
     int scroll = 0;
     int PAGE_SIZE = 15;
+    int last_spoken = -1;
 
     while (1) {
         char *current_timezone = get_setting("timezone");
@@ -356,6 +400,11 @@ static void handle_change_timezone() {
                 if (i == sel) printf("> %s\n", tz);
                 else printf("  %s\n", tz);
             }
+
+            if (sel != last_spoken) {
+                menu_audio_speak(cJSON_GetArrayItem(tz_array, matches[sel])->valuestring);
+                last_spoken = sel;
+            }
         }
 
         printf("\n%s\n", menu_translate("ui_footer_search", "[Arrows: Navigate | Enter: Select | Esc: Cancel | Type to Search]"));
@@ -363,32 +412,41 @@ static void handle_change_timezone() {
 
         int key = read_key();
         if (key == KEY_UP) {
+            menu_audio_stop();
             sel = menu_next_index(sel, -1, match_count);
         } else if (key == KEY_DOWN) {
+            menu_audio_stop();
             sel = menu_next_index(sel, 1, match_count);
         } else if (key == KEY_ENTER && match_count > 0) {
+            menu_audio_stop();
             const char *selected_tz = cJSON_GetArrayItem(tz_array, matches[sel])->valuestring;
             save_setting("timezone", selected_tz);
             break;
         } else if (key == KEY_ESC) {
+            menu_audio_stop();
             break;
         } else if (key == KEY_BACKSPACE) {
+            menu_audio_stop();
             int slen = (int)strlen(search_term);
             if (slen > 0) {
                 search_term[slen - 1] = '\0';
                 sel = 0;
                 scroll = 0;
+                last_spoken = -1;
             }
         } else if (key > 0 && key < 1000 && isprint(key)) {
+            menu_audio_stop();
             int slen = (int)strlen(search_term);
             if (slen < 254) {
                 search_term[slen] = (char)key;
                 search_term[slen + 1] = '\0';
                 sel = 0;
                 scroll = 0;
+                last_spoken = -1;
             }
         }
     }
+    menu_audio_stop();
     cJSON_Delete(json);
 }
 
@@ -409,6 +467,7 @@ void system_ui_change_time_format(void) {
         menu_translate("format_24h", "24 Hours")
     };
     const char *keys[] = {"12h", "24h"};
+    int last_spoken = -1;
 
     while (1) {
         printf("\033[H\033[J--- Time Format ---\n");
@@ -420,13 +479,24 @@ void system_ui_change_time_format(void) {
         printf("\n%s\n", menu_translate("ui_footer_back", "[Arrows: Navigate | Enter: Select | Esc: Back]"));
         fflush(stdout);
 
+        speak_menu_option(options[sel], sel, last_spoken);
+        last_spoken = sel;
+
         int key = read_key();
-        if (key == KEY_UP) sel = menu_next_index(sel, -1, 2);
-        else if (key == KEY_DOWN) sel = menu_next_index(sel, 1, 2);
+        if (key == KEY_UP) {
+            menu_audio_stop();
+            sel = menu_next_index(sel, -1, 2);
+        }
+        else if (key == KEY_DOWN) {
+            menu_audio_stop();
+            sel = menu_next_index(sel, 1, 2);
+        }
         else if (key == KEY_ENTER) {
+            menu_audio_stop();
             save_setting("time_format", keys[sel]);
             break;
         } else if (key == KEY_ESC) {
+            menu_audio_stop();
             break;
         }
     }
@@ -448,6 +518,7 @@ void system_ui_set_time_manual(void) {
         menu_translate("ui_save_and_back", "Save and Back")
     };
     int num_options = 4;
+    int last_spoken = -1;
 
     while (1) {
         printf("\033[H\033[J--- Set Time ---\n");
@@ -461,12 +532,18 @@ void system_ui_set_time_manual(void) {
         printf("\n%s\n", menu_translate("ui_footer_cancel", "[Arrows: Navigate | Enter: Select | Esc: Cancel]"));
         fflush(stdout);
 
+        speak_menu_option(options[sel], sel, last_spoken);
+        last_spoken = sel;
+
         int key = read_key();
         if (key == KEY_UP) {
+            menu_audio_stop();
             sel = menu_next_index(sel, -1, num_options);
         } else if (key == KEY_DOWN) {
+            menu_audio_stop();
             sel = menu_next_index(sel, 1, num_options);
         } else if (key == KEY_ENTER) {
+            menu_audio_stop();
             if (sel == 0) {
                 int val = handle_value_picker(menu_translate("ui_select_hour", "Select Hour"), 0, 23, h);
                 if (val != -1) h = val;
@@ -487,6 +564,7 @@ void system_ui_set_time_manual(void) {
                 break;
             }
         } else if (key == KEY_ESC) {
+            menu_audio_stop();
             break;
         }
     }

@@ -1,7 +1,31 @@
 CC=gcc
-CFLAGS=-Wall -Wextra -O2
+CFLAGS=-Wall -Wextra -O2 -pthread
 TARGET=sai
+UNAME_S := $(shell uname -s)
+ENABLE_MEMORY_WIDGET ?= 0
+ENABLE_MENU_SPEECH ?= $(if $(filter Linux,$(UNAME_S)),1,0)
+
 OBJS=main.o app_actions.o menu.o cJSON.o config.o contacts.o utils.o file_manager.o notepad.o dictionary.o entertainment.o tools.o typing_tutor.o alarm.o calendar.o radio.o text_processor.o document_reader.o speech_settings.o speech_engine.o voice_library.o download_manager.o download_ui.o task_ui.o
+
+ifeq ($(ENABLE_MENU_SPEECH),1)
+OBJS += menu_audio.o
+CFLAGS += -DENABLE_MENU_SPEECH
+else
+OBJS += menu_audio_stub.o
+endif
+
+ifeq ($(ENABLE_MEMORY_WIDGET),1)
+CFLAGS += -DENABLE_MEMORY_WIDGET
+endif
+
+SDL_CONFIG := $(shell command -v sdl2-config 2>/dev/null)
+SDL_CFLAGS :=
+SDL_LIBS :=
+ifneq ($(SDL_CONFIG),)
+SDL_CFLAGS := $(shell $(SDL_CONFIG) --cflags)
+SDL_LIBS := $(shell $(SDL_CONFIG) --libs)
+CFLAGS += -DHAVE_SDL_AUDIO $(SDL_CFLAGS)
+endif
 
 LOCAL_FLITEDIR := $(abspath third_party/flite)
 FLITEDIR ?= $(LOCAL_FLITEDIR)
@@ -19,6 +43,8 @@ FLITE_LIBS += -Wl,-rpath,$(FLITELIBDIR)
 endif
 endif
 endif
+
+FLITE_LIBS += $(SDL_LIBS) -pthread
 
 ifeq ($(FLITEDIR),$(LOCAL_FLITEDIR))
 FLITE_BUILD_DEPS = $(FLITEDIR)/build/.built
@@ -70,6 +96,12 @@ download_ui.o: download_ui.c download_ui.h download_manager.h utils.h
 
 task_ui.o: task_ui.c task_ui.h utils.h
 	$(CC) $(CFLAGS) -c task_ui.c
+
+menu_audio.o: menu_audio.c menu_audio.h speech_engine.h config.h
+	$(CC) $(CFLAGS) -c menu_audio.c
+
+menu_audio_stub.o: menu_audio_stub.c menu_audio.h
+	$(CC) $(CFLAGS) -c menu_audio_stub.c
 
 menu.o: menu.c menu.h cJSON.h
 	$(CC) $(CFLAGS) -c menu.c

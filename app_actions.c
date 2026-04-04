@@ -93,7 +93,7 @@ static int app_apply_language_voice(const char *language_code) {
 
         save_setting("tts_voice", hindi_voice_path);
     } else if (!current_voice || strcmp(current_voice, hindi_voice_path) == 0) {
-        save_setting("tts_voice", "kal");
+        save_setting("tts_voice", "slt");
     }
 
     free(current_voice);
