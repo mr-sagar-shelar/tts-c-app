@@ -627,6 +627,26 @@
           "description_key": "download_voice_desc"
         },
         {
+          "title_key": "audio_output",
+          "key": "audio_output",
+          "shortcut": "o",
+          "description_key": "audio_output_desc",
+          "items": [
+            {
+              "title_key": "audio_output_hdmi",
+              "key": "audio_output_hdmi",
+              "shortcut": "h",
+              "description_key": "audio_output_hdmi_desc"
+            },
+            {
+              "title_key": "audio_output_hat",
+              "key": "audio_output_hat",
+              "shortcut": "a",
+              "description_key": "audio_output_hat_desc"
+            }
+          ]
+        },
+        {
           "title_key": "set_volume",
           "key": "set_volume",
           "shortcut": "u",

@@ -15,6 +15,7 @@ static PlatformMode cached_mode = -1;
 
 static int platform_get_linux_volume_percent(int *percent, char *message, size_t message_size);
 static int platform_set_linux_volume_percent(int percent, char *message, size_t message_size);
+static int platform_set_linux_audio_output(const char *output, char *message, size_t message_size);
 
 static void platform_set_message(char *message, size_t message_size, const char *text) {
     if (!message || message_size == 0) {
@@ -219,6 +220,90 @@ static int platform_write_text_file(const char *path, const char *value) {
         fputs(value, file);
     }
     fclose(file);
+    return 1;
+}
+
+static int platform_get_first_line(const char *command, char *buffer, size_t buffer_size) {
+    if (!platform_command_success(command, buffer, buffer_size)) {
+        if (buffer && buffer_size > 0) {
+            buffer[0] = '\0';
+        }
+        return 0;
+    }
+
+    platform_trim(buffer);
+    return buffer && buffer[0] != '\0';
+}
+
+static int platform_write_alsa_config_file(const char *path,
+                                           const char *card_index,
+                                           const char *device_index) {
+    FILE *file;
+
+    if (!path || !card_index || !card_index[0] || !device_index || !device_index[0]) {
+        return 0;
+    }
+
+    file = fopen(path, "w");
+    if (!file) {
+        return 0;
+    }
+
+    fprintf(file,
+            "pcm.!default {\n"
+            "    type plug\n"
+            "    slave.pcm \"hw:%s,%s\"\n"
+            "}\n\n"
+            "ctl.!default {\n"
+            "    type hw\n"
+            "    card %s\n"
+            "}\n",
+            card_index,
+            device_index,
+            card_index);
+    fclose(file);
+    return 1;
+}
+
+static int platform_find_linux_audio_target(const char *output,
+                                            char *card_index,
+                                            size_t card_index_size,
+                                            char *device_index,
+                                            size_t device_index_size) {
+    char card_command[512];
+    char device_command[768];
+    const char *card_pattern;
+    const char *device_pattern = "";
+
+    if (!output || !card_index || !device_index) {
+        return 0;
+    }
+
+    card_index[0] = '\0';
+    device_index[0] = '\0';
+
+    if (strcmp(output, "hat") == 0) {
+        card_pattern = "hifiberry|pirate|iqaudio|dac";
+    } else {
+        card_pattern = "bcm2835|vc4hdmi|HDMI";
+        device_pattern = "&& $0 ~ /HDMI/";
+    }
+
+    snprintf(card_command, sizeof(card_command),
+             "awk '/%s/i {print $1; exit} /^[[:space:]]*[0-9]+[[:space:]]+\\[/ && first == \"\" { first = $1 } END { if (first != \"\") print first }' /proc/asound/cards 2>/dev/null | tr -d '[:space:]'",
+             card_pattern);
+    if (!platform_get_first_line(card_command, card_index, card_index_size)) {
+        return 0;
+    }
+
+    snprintf(device_command, sizeof(device_command),
+             "awk -F: -v card='%s' '$1 ~ \"^\" card \"-[0-9]+\" && $0 ~ /playback/ %s { split($1, parts, \"-\"); print parts[2]; exit } $1 ~ \"^\" card \"-[0-9]+\" && $0 ~ /playback/ && first == \"\" { split($1, parts, \"-\"); first = parts[2]; } END { if (first != \"\") print first }' /proc/asound/pcm 2>/dev/null | tr -d '[:space:]'",
+             card_index,
+             device_pattern);
+    if (!platform_get_first_line(device_command, device_index, device_index_size)) {
+        snprintf(device_index, device_index_size, "%s", "0");
+    }
+
     return 1;
 }
 
@@ -759,6 +844,40 @@ int platform_ops_set_system_volume_percent(int percent, char *message, size_t me
     return platform_set_linux_volume_percent(percent, message, message_size);
 }
 
+int platform_ops_set_audio_output(const char *output, char *message, size_t message_size) {
+    PlatformWifiResponse response;
+    const char *label;
+
+    if (!output || (strcmp(output, "hdmi") != 0 && strcmp(output, "hat") != 0)) {
+        platform_set_message(message, message_size, "Audio output must be HDMI or Audio HAT.");
+        return 0;
+    }
+
+    label = strcmp(output, "hat") == 0 ? "Audio HAT" : "HDMI";
+
+    if (platform_ops_get_mode() == PLATFORM_MODE_STUB) {
+        char text[128];
+
+        snprintf(text, sizeof(text), "macOS stub mode: audio output set to %s.", label);
+        platform_set_message(message, message_size, text);
+        return 1;
+    }
+
+    if (platform_ops_get_mode() == PLATFORM_MODE_TINYCORE) {
+        if (!platform_tinycore_request("set_audio_output", output, NULL, NULL, NULL, &response, NULL, 0)) {
+            platform_set_message(message, message_size,
+                                 response.message[0] ? response.message : "Unable to update audio output.");
+            return 0;
+        }
+        setenv("ALSA_CONFIG_PATH", "/tmp/sai-asound.conf", 1);
+        platform_set_message(message, message_size,
+                             response.message[0] ? response.message : "Audio output updated.");
+        return 1;
+    }
+
+    return platform_set_linux_audio_output(output, message, message_size);
+}
+
 static int platform_run_privileged_linux(const char *command, char *message, size_t message_size) {
     char full_command[2048];
     char prefix[64];
@@ -832,6 +951,31 @@ static int platform_set_linux_volume_percent(int percent, char *message, size_t 
     }
 
     return 0;
+}
+
+static int platform_set_linux_audio_output(const char *output, char *message, size_t message_size) {
+    char card_index[32];
+    char device_index[32];
+    char config_path[PATH_MAX];
+    const char *state_dir;
+    const char *label;
+
+    label = strcmp(output, "hat") == 0 ? "Audio HAT" : "HDMI";
+    if (!platform_find_linux_audio_target(output, card_index, sizeof(card_index), device_index, sizeof(device_index))) {
+        snprintf(message, message_size, "Unable to find an ALSA device for %s.", label);
+        return 0;
+    }
+
+    state_dir = platform_get_dev_state_dir();
+    snprintf(config_path, sizeof(config_path), "%s/asound.conf", state_dir);
+    if (!platform_write_alsa_config_file(config_path, card_index, device_index)) {
+        platform_set_message(message, message_size, "Unable to write ALSA config for the selected audio output.");
+        return 0;
+    }
+
+    setenv("ALSA_CONFIG_PATH", config_path, 1);
+    snprintf(message, message_size, "Audio output set to %s using ALSA device hw:%s,%s.", label, card_index, device_index);
+    return 1;
 }
 
 int platform_ops_set_timezone(const char *timezone, char *message, size_t message_size) {

@@ -38,6 +38,7 @@ int platform_ops_wifi_disconnect(PlatformWifiResponse *response);
 
 int platform_ops_get_system_volume_percent(int *percent, char *message, size_t message_size);
 int platform_ops_set_system_volume_percent(int percent, char *message, size_t message_size);
+int platform_ops_set_audio_output(const char *output, char *message, size_t message_size);
 
 int platform_ops_set_timezone(const char *timezone, char *message, size_t message_size);
 int platform_ops_set_system_time(int hour, int minute, int second, char *message, size_t message_size);

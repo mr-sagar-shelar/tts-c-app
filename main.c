@@ -13,6 +13,7 @@
 #include "file_manager.h"
 #include "menu_audio.h"
 #include "menu.h"
+#include "platform_ops.h"
 #include "speech_engine.h"
 #include "utils.h"
 
@@ -63,6 +64,15 @@ int main() {
     enable_utf8_terminal_mode();
 
     init_config();
+    {
+        char *audio_output = get_setting("audio_output");
+        char audio_message[256];
+
+        if (audio_output) {
+            platform_ops_set_audio_output(audio_output, audio_message, sizeof(audio_message));
+            free(audio_output);
+        }
+    }
     {
         char speech_error[128];
         speech_engine_startup(speech_error, sizeof(speech_error));

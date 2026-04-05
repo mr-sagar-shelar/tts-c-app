@@ -39,6 +39,7 @@ void system_ui_change_timezone(void);
  */
 void system_ui_change_time_format(void);
 void system_ui_set_volume(void);
+void system_ui_set_audio_output(const char *output_key);
 
 /**
  * UI handler for manual time setting.

@@ -327,6 +327,10 @@ void app_dispatch_leaf_action(MenuNode *selected_node, MenuNode *root) {
         system_ui_set_city();
     } else if (strcmp(selected_node->key, "set_volume") == 0) {
         system_ui_set_volume();
+    } else if (strcmp(selected_node->key, "audio_output_hdmi") == 0) {
+        system_ui_set_audio_output("hdmi");
+    } else if (strcmp(selected_node->key, "audio_output_hat") == 0) {
+        system_ui_set_audio_output("hat");
     } else if (strcmp(selected_node->key, "timezone") == 0) {
         system_ui_change_timezone();
     } else if (strcmp(selected_node->key, "time_format") == 0) {

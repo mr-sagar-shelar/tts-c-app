@@ -9,6 +9,7 @@
 #include "menu_audio.h"
 #include "menu.h"
 #include "platform_ops.h"
+#include "speech_engine.h"
 
 static void append_accessible_line(char lines[][256], int *count, int max_lines, const char *format, ...) {
     va_list args;
@@ -925,6 +926,29 @@ void system_ui_set_volume(void) {
             }
         }
     }
+}
+
+void system_ui_set_audio_output(const char *output_key) {
+    char message[256];
+
+    if (!output_key || output_key[0] == '\0') {
+        show_platform_result_screen(menu_translate("audio_output", "Audio Output"),
+                                    "Audio output selection is required.");
+        return;
+    }
+
+    save_setting("audio_output", output_key);
+    if (!platform_ops_set_audio_output(output_key, message, sizeof(message))) {
+        show_platform_result_screen(menu_translate("audio_output", "Audio Output"), message);
+        return;
+    }
+
+    speech_engine_shutdown();
+    {
+        char speech_error[128];
+        speech_engine_startup(speech_error, sizeof(speech_error));
+    }
+    show_platform_result_screen(menu_translate("audio_output", "Audio Output"), message);
 }
 
 void system_ui_set_time_manual(void) {

@@ -43,6 +43,20 @@ static char *menu_selected_value_label(MenuNode *node) {
         }
     }
 
+    if (strcmp(node->key, "audio_output") == 0) {
+        char *audio_output = get_setting("audio_output");
+        char *label = NULL;
+
+        if (!audio_output || strcmp(audio_output, "hdmi") == 0) {
+            label = strdup(menu_translate("audio_output_hdmi", "HDMI"));
+        } else if (strcmp(audio_output, "hat") == 0) {
+            label = strdup(menu_translate("audio_output_hat", "Audio HAT"));
+        }
+
+        free(audio_output);
+        return label;
+    }
+
     return NULL;
 }
 
