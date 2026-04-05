@@ -583,6 +583,44 @@
           ]
         },
         {
+          "title_key": "speech_speed",
+          "key": "speech_speed",
+          "shortcut": "s",
+          "description_key": "speech_speed_desc",
+          "items": [
+            {
+              "title_key": "speech_speed_very_slow",
+              "key": "speech_speed_very_slow",
+              "shortcut": "v",
+              "description_key": "speech_speed_very_slow_desc"
+            },
+            {
+              "title_key": "speech_speed_slow",
+              "key": "speech_speed_slow",
+              "shortcut": "l",
+              "description_key": "speech_speed_slow_desc"
+            },
+            {
+              "title_key": "speech_speed_normal",
+              "key": "speech_speed_normal",
+              "shortcut": "n",
+              "description_key": "speech_speed_normal_desc"
+            },
+            {
+              "title_key": "speech_speed_fast",
+              "key": "speech_speed_fast",
+              "shortcut": "f",
+              "description_key": "speech_speed_fast_desc"
+            },
+            {
+              "title_key": "speech_speed_very_fast",
+              "key": "speech_speed_very_fast",
+              "shortcut": "t",
+              "description_key": "speech_speed_very_fast_desc"
+            }
+          ]
+        },
+        {
           "title_key": "download_voice",
           "key": "download_voice",
           "shortcut": "d",

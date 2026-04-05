@@ -42,6 +42,7 @@ static void create_default_config() {
     cJSON_AddStringToObject(config_json, "time_format", "12h");
     cJSON_AddStringToObject(config_json, "tts_voice", "slt");
     cJSON_AddStringToObject(config_json, "tts_volume", "medium");
+    cJSON_AddStringToObject(config_json, "tts_speed", "1.0");
     cJSON_AddStringToObject(config_json, "speech_mode", "on");
     cJSON_AddStringToObject(config_json, "audio_playback", "off");
     cJSON_AddItemToObject(config_json, "contacts", cJSON_CreateArray());
@@ -135,6 +136,7 @@ void init_config() {
     ensure_default_string("time_format", "12h");
     ensure_default_string("tts_voice", "slt");
     ensure_default_string("tts_volume", "medium");
+    ensure_default_string("tts_speed", "1.0");
     ensure_default_string("speech_mode", "on");
     ensure_default_string("audio_playback", "off");
     ensure_default_string("last_sync", "Never");
@@ -149,11 +151,6 @@ void save_config() {
     char *out = cJSON_Print(config_json);
     if (out) {
         FILE *f = fopen(CONFIG_FILE, "w");
-        if (f) {
-            fputs(out, f);
-            fclose(f);
-        }
-        f = fopen(LEGACY_CONFIG_FILE, "w");
         if (f) {
             fputs(out, f);
             fclose(f);

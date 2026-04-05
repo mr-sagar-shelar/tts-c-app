@@ -5,8 +5,9 @@
 
 /**
  * Initializes the configuration system.
- * If userSettings.json is missing, falls back to legacy userConfig.json,
- * then attempts to sync from server.
+ * If userSettings.json is missing, falls back to legacy userConfig.json.
+ * Future saves are written to userSettings.json.
+ * If no local settings exist, it then attempts to sync from server.
  * If sync fails, initializes with default values.
  */
 void init_config();
@@ -17,8 +18,7 @@ void init_config();
 void cleanup_config();
 
 /**
- * Saves the current configuration object to userSettings.json and mirrors
- * it to legacy userConfig.json for compatibility.
+ * Saves the current configuration object to userSettings.json.
  */
 void save_config();
 
