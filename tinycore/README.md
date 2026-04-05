@@ -299,6 +299,22 @@ If `/usr/local/bin/sai-audio-init` or another Sai helper is reported as missing 
 ./tinycore/scripts/build-picore-image-macos.sh
 ```
 
+If Sai itself is missing after flashing or boot scripts report `not found`, verify the packaged extension contents before rebuilding the image:
+
+```sh
+sed -n '1,40p' build/tinycore/artifacts/sai-app.tcz.list
+```
+
+The list should include:
+
+```sh
+usr/local/bin/sai-audio-init
+usr/local/bin/sai-autostart
+usr/local/bin/sai-launch
+usr/local/bin/sai-restart
+usr/local/bin/sai-storage-init
+```
+
 List playback devices:
 
 ```sh
@@ -329,6 +345,22 @@ The command line should include:
 ```sh
 kmap=us
 ```
+
+Also check whether the keymap helper actually loaded at boot:
+
+```sh
+cat /tmp/sai-keymap-init.log
+which loadkmap
+ls /usr/share/kmap/us.kmap
+```
+
+If `kmap=us` is present and `loadkmap` succeeds but `Shift` still does not work outside Sai, the issue is likely not layout selection. At that point test with:
+
+```sh
+showkey
+```
+
+and press `Shift`, `a`, `|`, and `?` to see whether the console receives the expected key events at all.
 
 Try a manual WAV playback test:
 
