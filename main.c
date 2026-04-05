@@ -56,6 +56,7 @@ int main() {
     int has_utf8_locale;
     MenuNode *last_spoken_node = NULL;
     int last_spoken_index = -1;
+    int startup_ready_announced = 0;
 
     has_utf8_locale = init_utf8_locale();
     enable_utf8_terminal_mode();
@@ -106,7 +107,19 @@ int main() {
             selected_index = visible_count - 1;
         }
         if (visible_count > 0) {
-            if (last_spoken_node != current_node || last_spoken_index != selected_index) {
+            if (!startup_ready_announced) {
+                char startup_message[640];
+                build_menu_speech_text(visible_items[selected_index], menu_speech, sizeof(menu_speech));
+                if (menu_speech[0] != '\0') {
+                    snprintf(startup_message, sizeof(startup_message), "Sai is ready. %s", menu_speech);
+                } else {
+                    snprintf(startup_message, sizeof(startup_message), "Sai is ready");
+                }
+                menu_audio_speak(startup_message);
+                startup_ready_announced = 1;
+                last_spoken_node = current_node;
+                last_spoken_index = selected_index;
+            } else if (last_spoken_node != current_node || last_spoken_index != selected_index) {
                 build_menu_speech_text(visible_items[selected_index], menu_speech, sizeof(menu_speech));
                 menu_audio_request(menu_speech);
                 last_spoken_node = current_node;

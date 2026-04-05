@@ -21,6 +21,24 @@ speech mode is enabled.
 
 `./sai`
 
+## macOS commands
+
+Build Tiny Core artifacts:
+
+```sh
+./tinycore/scripts/build-artifacts.sh
+```
+
+Build a custom piCore image:
+
+```sh
+./tinycore/scripts/build-picore-image-macos.sh
+```
+
+```sh
+TC_VERSION=17.x sh ./tinycore/scripts/build-picore-image-macos.sh
+```
+
 ## Next Features
 
 - Hindi/Devnagari font default install on RPI OS
