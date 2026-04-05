@@ -9,7 +9,7 @@ APP_BASE_DIR ?= $(PREFIX)/share/sai-base
 AR ?= ar
 RANLIB ?= ranlib
 
-OBJS=main.o app_actions.o menu.o cJSON.o config.o contacts.o utils.o file_manager.o notepad.o dictionary.o entertainment.o tools.o typing_tutor.o alarm.o calendar.o radio.o text_processor.o document_reader.o speech_settings.o speech_engine.o voice_library.o download_manager.o download_ui.o task_ui.o wifi_manager.o
+OBJS=main.o app_actions.o menu.o cJSON.o config.o contacts.o utils.o file_manager.o notepad.o dictionary.o entertainment.o tools.o typing_tutor.o alarm.o calendar.o radio.o text_processor.o document_reader.o speech_settings.o speech_engine.o voice_library.o download_manager.o download_ui.o task_ui.o wifi_manager.o platform_ops.o
 APP_DATA_FILES=menu.json en.json hi.json dict_en.json dict_hn.json typing_tutor.json typing_leaderboard_mock.json timezones.json userConfig.json
 
 ifeq ($(ENABLE_MENU_SPEECH),1)
@@ -131,8 +131,11 @@ download_ui.o: download_ui.c download_ui.h download_manager.h utils.h
 task_ui.o: task_ui.c task_ui.h utils.h
 	$(CC) $(CFLAGS) -c task_ui.c
 
-wifi_manager.o: wifi_manager.c wifi_manager.h utils.h config.h menu.h menu_audio.h
+wifi_manager.o: wifi_manager.c wifi_manager.h utils.h config.h menu.h menu_audio.h platform_ops.h
 	$(CC) $(CFLAGS) -c wifi_manager.c
+
+platform_ops.o: platform_ops.c platform_ops.h
+	$(CC) $(CFLAGS) -c platform_ops.c
 
 menu_audio.o: menu_audio.c menu_audio.h speech_engine.h config.h
 	$(CC) $(CFLAGS) -c menu_audio.c

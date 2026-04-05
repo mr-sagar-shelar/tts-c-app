@@ -1,260 +1,13 @@
 #include "wifi_manager.h"
 
-#include <dirent.h>
-#include <errno.h>
-#include <limits.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <time.h>
-#include <unistd.h>
 
 #include "config.h"
 #include "menu.h"
 #include "menu_audio.h"
+#include "platform_ops.h"
 #include "utils.h"
-
-#define WIFI_IPC_DIR "/tmp/sai-wifi-ipc"
-#define WIFI_MAX_SCAN_RESULTS 64
-
-typedef struct {
-    char ssid[128];
-    char security[32];
-    char signal[64];
-} WifiScanResult;
-
-typedef struct {
-    int success;
-    char message[256];
-    char interface_name[64];
-    char connected[32];
-    char ssid[128];
-    char ip_address[64];
-    WifiScanResult scans[WIFI_MAX_SCAN_RESULTS];
-    int scan_count;
-} WifiResponse;
-
-static int wifi_write_text_file(const char *path, const char *value) {
-    FILE *file = fopen(path, "w");
-
-    if (!file) {
-        return 0;
-    }
-
-    if (value && value[0] != '\0') {
-        fputs(value, file);
-    }
-    fclose(file);
-    return 1;
-}
-
-static char *wifi_read_text_file(const char *path) {
-    FILE *file;
-    long size;
-    char *data;
-
-    file = fopen(path, "rb");
-    if (!file) {
-        return NULL;
-    }
-
-    if (fseek(file, 0, SEEK_END) != 0) {
-        fclose(file);
-        return NULL;
-    }
-    size = ftell(file);
-    if (size < 0) {
-        fclose(file);
-        return NULL;
-    }
-    if (fseek(file, 0, SEEK_SET) != 0) {
-        fclose(file);
-        return NULL;
-    }
-
-    data = (char *)malloc((size_t)size + 1);
-    if (!data) {
-        fclose(file);
-        return NULL;
-    }
-
-    if (size > 0) {
-        fread(data, 1, (size_t)size, file);
-    }
-    data[size] = '\0';
-    fclose(file);
-
-    while (size > 0 && (data[size - 1] == '\n' || data[size - 1] == '\r')) {
-        data[size - 1] = '\0';
-        size--;
-    }
-
-    return data;
-}
-
-static void wifi_cleanup_request_dir(const char *request_dir) {
-    DIR *dir;
-    struct dirent *entry;
-
-    dir = opendir(request_dir);
-    if (!dir) {
-        return;
-    }
-
-    while ((entry = readdir(dir)) != NULL) {
-        char child_path[PATH_MAX];
-
-        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
-            continue;
-        }
-
-        snprintf(child_path, sizeof(child_path), "%s/%s", request_dir, entry->d_name);
-        unlink(child_path);
-    }
-
-    closedir(dir);
-    rmdir(request_dir);
-}
-
-static void wifi_store_response_value(char *buffer, size_t buffer_size, char *value) {
-    if (!buffer || buffer_size == 0) {
-        free(value);
-        return;
-    }
-
-    if (value) {
-        snprintf(buffer, buffer_size, "%s", value);
-        free(value);
-    } else {
-        buffer[0] = '\0';
-    }
-}
-
-static int wifi_load_scan_results(const char *request_dir, WifiResponse *response) {
-    char path[PATH_MAX];
-    FILE *file;
-    char line[512];
-
-    if (!response) {
-        return 0;
-    }
-
-    snprintf(path, sizeof(path), "%s/scan.tsv", request_dir);
-    file = fopen(path, "r");
-    if (!file) {
-        return 0;
-    }
-
-    response->scan_count = 0;
-    while (fgets(line, sizeof(line), file) && response->scan_count < WIFI_MAX_SCAN_RESULTS) {
-        char *ssid;
-        char *security;
-        char *signal;
-        WifiScanResult *item;
-
-        line[strcspn(line, "\r\n")] = '\0';
-        if (line[0] == '\0') {
-            continue;
-        }
-
-        ssid = strtok(line, "\t");
-        security = strtok(NULL, "\t");
-        signal = strtok(NULL, "\t");
-        if (!ssid || ssid[0] == '\0') {
-            continue;
-        }
-
-        item = &response->scans[response->scan_count++];
-        snprintf(item->ssid, sizeof(item->ssid), "%s", ssid);
-        snprintf(item->security, sizeof(item->security), "%s", security ? security : "unknown");
-        snprintf(item->signal, sizeof(item->signal), "%s", signal ? signal : "?");
-    }
-
-    fclose(file);
-    return 1;
-}
-
-static int wifi_send_request(const char *command,
-                             const char *ssid,
-                             const char *password,
-                             WifiResponse *response) {
-    char request_template[] = WIFI_IPC_DIR "/req-XXXXXX";
-    char done_path[PATH_MAX];
-    char path[PATH_MAX];
-    int waited_ms = 0;
-
-    if (!command || !response) {
-        return 0;
-    }
-
-    memset(response, 0, sizeof(*response));
-    snprintf(response->message, sizeof(response->message), "%s",
-             menu_translate("wifi_error_service_unavailable",
-                            "Wi-Fi service is not available."));
-
-    mkdir(WIFI_IPC_DIR, 0777);
-    if (!mkdtemp(request_template)) {
-        snprintf(response->message, sizeof(response->message),
-                 "%s: %s",
-                 menu_translate("wifi_error_prepare_request", "Unable to prepare Wi-Fi request"),
-                 strerror(errno));
-        return 0;
-    }
-
-    snprintf(path, sizeof(path), "%s/command", request_template);
-    wifi_write_text_file(path, command);
-
-    if (ssid) {
-        snprintf(path, sizeof(path), "%s/ssid", request_template);
-        wifi_write_text_file(path, ssid);
-    }
-    if (password) {
-        snprintf(path, sizeof(path), "%s/password", request_template);
-        wifi_write_text_file(path, password);
-    }
-
-    snprintf(done_path, sizeof(done_path), "%s/done", request_template);
-    while (access(done_path, F_OK) != 0) {
-        if (waited_ms >= 30000) {
-            snprintf(response->message, sizeof(response->message),
-                     "%s",
-                     menu_translate("wifi_error_timeout", "Wi-Fi operation timed out."));
-            wifi_cleanup_request_dir(request_template);
-            return 0;
-        }
-        usleep(100000);
-        waited_ms += 100;
-    }
-
-    snprintf(path, sizeof(path), "%s/status", request_template);
-    {
-        char *status = wifi_read_text_file(path);
-        response->success = (status && strcmp(status, "ok") == 0);
-        free(status);
-    }
-
-    snprintf(path, sizeof(path), "%s/message", request_template);
-    wifi_store_response_value(response->message, sizeof(response->message), wifi_read_text_file(path));
-
-    snprintf(path, sizeof(path), "%s/interface", request_template);
-    wifi_store_response_value(response->interface_name, sizeof(response->interface_name), wifi_read_text_file(path));
-
-    snprintf(path, sizeof(path), "%s/connected", request_template);
-    wifi_store_response_value(response->connected, sizeof(response->connected), wifi_read_text_file(path));
-
-    snprintf(path, sizeof(path), "%s/current_ssid", request_template);
-    wifi_store_response_value(response->ssid, sizeof(response->ssid), wifi_read_text_file(path));
-
-    snprintf(path, sizeof(path), "%s/ip_address", request_template);
-    wifi_store_response_value(response->ip_address, sizeof(response->ip_address), wifi_read_text_file(path));
-
-    wifi_load_scan_results(request_template, response);
-    wifi_cleanup_request_dir(request_template);
-
-    return response->success;
-}
 
 static void wifi_wait_for_exit(void) {
     printf("\n%s", menu_translate("ui_press_any_key_to_continue", "Press any key to continue..."));
@@ -263,10 +16,10 @@ static void wifi_wait_for_exit(void) {
 }
 
 static void wifi_show_status_screen(void) {
-    WifiResponse response;
+    PlatformWifiResponse response;
     char spoken[512];
 
-    wifi_send_request("status", NULL, NULL, &response);
+    platform_ops_wifi_status(&response);
 
     printf("\033[H\033[J--- %s ---\n\n",
            menu_translate("wifi_status_title", "Wi-Fi Status"));
@@ -302,7 +55,7 @@ static void wifi_show_status_screen(void) {
     wifi_wait_for_exit();
 }
 
-static int wifi_show_scan_picker(WifiResponse *response) {
+static int wifi_show_scan_picker(PlatformWifiResponse *response) {
     int selected = 0;
     int last_spoken = -1;
 
@@ -316,7 +69,7 @@ static int wifi_show_scan_picker(WifiResponse *response) {
         printf("\033[H\033[J--- %s ---\n\n",
                menu_translate("wifi_select_network_title", "Select Wi-Fi Network"));
         for (i = 0; i < response->scan_count; i++) {
-            const WifiScanResult *item = &response->scans[i];
+            const PlatformWifiScanResult *item = &response->scans[i];
             const char *pointer = (i == selected) ? "> " : "  ";
 
             printf("%s%s [%s, %s]\n",
@@ -358,8 +111,8 @@ static int wifi_show_scan_picker(WifiResponse *response) {
 }
 
 static void wifi_connect_flow(void) {
-    WifiResponse scan_response;
-    WifiResponse connect_response;
+    PlatformWifiResponse scan_response;
+    PlatformWifiResponse connect_response;
     int selection;
     char password[256] = {0};
 
@@ -368,7 +121,7 @@ static void wifi_connect_flow(void) {
            menu_translate("wifi_scan_wait", "Scanning for available networks. Please wait."));
     fflush(stdout);
 
-    wifi_send_request("scan", NULL, NULL, &scan_response);
+    platform_ops_wifi_scan(&scan_response);
     if (!scan_response.success || scan_response.scan_count <= 0) {
         printf("\033[H\033[J--- %s ---\n\n%s\n",
                menu_translate("wifi_scan_title", "Scanning Wi-Fi"),
@@ -396,10 +149,9 @@ static void wifi_connect_flow(void) {
            menu_translate("wifi_connect_wait", "Connecting to the selected Wi-Fi network. Please wait."));
     fflush(stdout);
 
-    wifi_send_request("connect",
-                      scan_response.scans[selection].ssid,
-                      password,
-                      &connect_response);
+    platform_ops_wifi_connect(scan_response.scans[selection].ssid,
+                              password,
+                              &connect_response);
 
     printf("\033[H\033[J--- %s ---\n\n%s\n",
            menu_translate("wifi_connect_title", "Connecting to Wi-Fi"),
@@ -425,14 +177,14 @@ static void wifi_connect_flow(void) {
 }
 
 static void wifi_disconnect_flow(void) {
-    WifiResponse response;
+    PlatformWifiResponse response;
 
     printf("\033[H\033[J--- %s ---\n\n%s\n",
            menu_translate("wifi_disconnect_title", "Disconnect Wi-Fi"),
            menu_translate("wifi_disconnect_wait", "Disconnecting Wi-Fi. Please wait."));
     fflush(stdout);
 
-    wifi_send_request("disconnect", NULL, NULL, &response);
+    platform_ops_wifi_disconnect(&response);
 
     printf("\033[H\033[J--- %s ---\n\n%s\n",
            menu_translate("wifi_disconnect_title", "Disconnect Wi-Fi"),
@@ -469,6 +221,9 @@ void wifi_manager_show_menu(void) {
 
         printf("\033[H\033[J--- %s ---\n\n",
                menu_translate("setup_internet", "Setup Internet"));
+        printf("%s: %s\n\n",
+               menu_translate("ui_current_value", "Current Value"),
+               platform_ops_get_mode_name());
         for (i = 0; i < option_count; i++) {
             printf("%s%s\n",
                    i == selected ? "> " : "  ",

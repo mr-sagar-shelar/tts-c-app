@@ -7,6 +7,7 @@
 #include "entertainment.h"
 #include "menu_audio.h"
 #include "menu.h"
+#include "platform_ops.h"
 
 static void append_accessible_line(char lines[][256], int *count, int max_lines, const char *format, ...) {
     va_list args;
@@ -25,6 +26,15 @@ static void speak_menu_option(const char *title, int selected, int last_spoken) 
     if (title && selected != last_spoken) {
         menu_audio_speak(title);
     }
+}
+
+static void show_platform_result_screen(const char *title, const char *message) {
+    printf("\033[H\033[J--- %s ---\n\n%s\n\n%s",
+           title,
+           message && message[0] ? message : "Done.",
+           menu_translate("ui_press_any_key_to_continue", "Press any key to continue..."));
+    fflush(stdout);
+    read_key();
 }
 
 static int calculator_is_input_char(int key) {
@@ -420,7 +430,10 @@ static void handle_change_timezone() {
         } else if (key == KEY_ENTER && match_count > 0) {
             menu_audio_stop();
             const char *selected_tz = cJSON_GetArrayItem(tz_array, matches[sel])->valuestring;
+            char apply_message[256];
             save_setting("timezone", selected_tz);
+            platform_ops_set_timezone(selected_tz, apply_message, sizeof(apply_message));
+            show_platform_result_screen(menu_translate("timezone", "Time Zone"), apply_message);
             break;
         } else if (key == KEY_ESC) {
             menu_audio_stop();
@@ -555,12 +568,13 @@ void system_ui_set_time_manual(void) {
                 if (val != -1) s = val;
             } else if (sel == 3) {
                 char buffer[16];
+                char apply_message[256];
                 snprintf(buffer, sizeof(buffer), "%02d:%02d:%02d", h, m, s);
                 save_setting("manual_time", buffer);
-                printf("\n%s %s",
-                       menu_translate("ui_time_saved", "Time saved!"),
-                       menu_translate("ui_press_any_key", "Press any key..."));
-                fflush(stdout); read_key();
+                platform_ops_set_system_time(h, m, s, apply_message, sizeof(apply_message));
+                show_platform_result_screen(menu_translate("set_time_manual", "Set Time"),
+                                            apply_message[0] ? apply_message
+                                                             : menu_translate("ui_time_saved", "Time saved!"));
                 break;
             }
         } else if (key == KEY_ESC) {
@@ -636,12 +650,13 @@ void system_ui_set_date_manual(void) {
                 if (val != -1) day = val;
             } else if (sel == 3) {
                 char buffer[16];
+                char apply_message[256];
                 snprintf(buffer, sizeof(buffer), "%04d-%02d-%02d", year, month, day);
                 save_setting("manual_date", buffer);
-                printf("\n%s %s",
-                       menu_translate("ui_date_saved", "Date saved!"),
-                       menu_translate("ui_press_any_key", "Press any key..."));
-                fflush(stdout); read_key();
+                platform_ops_set_system_date(year, month, day, apply_message, sizeof(apply_message));
+                show_platform_result_screen(menu_translate("set_date_manual", "Set Date"),
+                                            apply_message[0] ? apply_message
+                                                             : menu_translate("ui_date_saved", "Date saved!"));
                 break;
             }
         } else if (key == KEY_ESC) {
