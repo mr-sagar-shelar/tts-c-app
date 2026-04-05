@@ -14,11 +14,13 @@ EXT_BASE_URL_DEFAULT="http://repo.tinycorelinux.net/${TC_VERSION}/${TC_ARCH}/tcz
 RELEASE_BASE_URL="${RELEASE_BASE_URL:-$RELEASE_BASE_URL_DEFAULT}"
 EXT_BASE_URL="${EXT_BASE_URL:-$EXT_BASE_URL_DEFAULT}"
 AUDIO_MODULES_EXT="${AUDIO_MODULES_EXT:-}"
+WIRELESS_MODULES_EXT="${WIRELESS_MODULES_EXT:-}"
 OUTPUT_IMAGE="${OUTPUT_IMAGE:-$WORK_DIR/piCore-sai-custom-${TC_VERSION}-${TC_ARCH}.img}"
 RELEASE_BASE_URL_RESOLVED=""
 EXT_BASE_URL_RESOLVED=""
 RELEASE_IMAGE_DISCOVERED=""
 AUDIO_MODULES_EXT_DISCOVERED=""
+WIRELESS_MODULES_EXT_DISCOVERED=""
 RELEASE_VERSION_RESOLVED=""
 EXT_CACHE_DIR=""
 
@@ -187,6 +189,22 @@ download_extension_tree() {
                 return 1
             fi
             ;;
+        wireless-KERNEL.tcz)
+            if [ -z "$WIRELESS_MODULES_EXT" ]; then
+                discover_wireless_modules_ext || true
+                WIRELESS_MODULES_EXT="${WIRELESS_MODULES_EXT_DISCOVERED:-}"
+                if [ -n "$EXT_BASE_URL_RESOLVED" ]; then
+                    EXT_BASE_URL="$EXT_BASE_URL_RESOLVED"
+                fi
+            fi
+            if [ -n "$WIRELESS_MODULES_EXT" ]; then
+                ext="$WIRELESS_MODULES_EXT"
+                repo_ext="$WIRELESS_MODULES_EXT"
+            else
+                printf 'Unable to resolve Tiny Core extension: %s from %s\n' "wireless-KERNEL.tcz" "$EXT_BASE_URL" >&2
+                return 1
+            fi
+            ;;
     esac
 
     case "$ext" in
@@ -282,6 +300,35 @@ discover_audio_modules_ext() {
     return 1
 }
 
+discover_wireless_modules_ext() {
+    for base_url in \
+        "$EXT_BASE_URL" \
+        "http://repo.tinycorelinux.net/17.x/${TC_ARCH}/tcz/" \
+        "http://repo.tinycorelinux.net/16.x/${TC_ARCH}/tcz/" \
+        "http://repo.tinycorelinux.net/15.x/${TC_ARCH}/tcz/" \
+        "http://repo.tinycorelinux.net/14.x/${TC_ARCH}/tcz/"
+    do
+        page="$(curl -fsSL "$base_url" 2>/dev/null || true)"
+        ext="$(printf '%s' "$page" \
+            | grep -Eo 'wireless-[^" ]+piCore-v7\.tcz' \
+            | sort -u \
+            | tail -n 1 || true)"
+        if [ -z "$ext" ]; then
+            ext="$(printf '%s' "$page" \
+                | grep -Eo 'wireless-[^" ]+piCore-v7[^" ]*\.tcz' \
+                | sort -u \
+                | tail -n 1 || true)"
+        fi
+        if [ -n "$ext" ]; then
+            EXT_BASE_URL_RESOLVED="$base_url"
+            WIRELESS_MODULES_EXT_DISCOVERED="$ext"
+            return 0
+        fi
+    done
+
+    return 1
+}
+
 require_file "$ARTIFACT_DIR/sai-app.tcz"
 require_file "$ARTIFACT_DIR/mydata.tgz"
 require_file "$ARTIFACT_DIR/onboot.lst"
@@ -294,7 +341,8 @@ for required_entry in \
     usr/local/bin/sai-autostart \
     usr/local/bin/sai-launch \
     usr/local/bin/sai-restart \
-    usr/local/bin/sai-storage-init
+    usr/local/bin/sai-storage-init \
+    usr/local/bin/sai-wifi-service
 do
     if ! grep -Fqx "$required_entry" "$ARTIFACT_DIR/sai-app.tcz.list"; then
         printf 'Artifact validation failed: %s is missing from %s\n' "$required_entry" "$ARTIFACT_DIR/sai-app.tcz.list" >&2
@@ -393,6 +441,10 @@ if [ -z "$AUDIO_MODULES_EXT" ]; then
     discover_audio_modules_ext || true
     AUDIO_MODULES_EXT="${AUDIO_MODULES_EXT_DISCOVERED:-}"
 fi
+if [ -z "$WIRELESS_MODULES_EXT" ]; then
+    discover_wireless_modules_ext || true
+    WIRELESS_MODULES_EXT="${WIRELESS_MODULES_EXT_DISCOVERED:-}"
+fi
 if [ -n "$EXT_BASE_URL_RESOLVED" ]; then
     EXT_BASE_URL="$EXT_BASE_URL_RESOLVED"
 fi
@@ -400,10 +452,17 @@ printf 'Using Tiny Core extensions from %s\n' "$EXT_BASE_URL"
 if [ -n "$AUDIO_MODULES_EXT" ] && ! grep -Fqx "$AUDIO_MODULES_EXT" "$ONBOOT_FILE"; then
     printf '%s\n' "$AUDIO_MODULES_EXT" >> "$ONBOOT_FILE"
 fi
+if [ -n "$WIRELESS_MODULES_EXT" ] && ! grep -Fqx "$WIRELESS_MODULES_EXT" "$ONBOOT_FILE"; then
+    printf '%s\n' "$WIRELESS_MODULES_EXT" >> "$ONBOOT_FILE"
+fi
 if [ -n "$AUDIO_MODULES_EXT" ]; then
     printf 'Using ALSA kernel modules extension %s\n' "$AUDIO_MODULES_EXT"
 fi
+if [ -n "$WIRELESS_MODULES_EXT" ]; then
+    printf 'Using wireless kernel modules extension %s\n' "$WIRELESS_MODULES_EXT"
+fi
 sed -i '' '/^alsa-modules-KERNEL\.tcz$/d' "$ONBOOT_FILE" 2>/dev/null || true
+sed -i '' '/^wireless-KERNEL\.tcz$/d' "$ONBOOT_FILE" 2>/dev/null || true
 
 while IFS= read -r ext; do
     [ -n "$ext" ] || continue

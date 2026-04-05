@@ -313,6 +313,7 @@ usr/local/bin/sai-autostart
 usr/local/bin/sai-launch
 usr/local/bin/sai-restart
 usr/local/bin/sai-storage-init
+usr/local/bin/sai-wifi-service
 ```
 
 List playback devices:
@@ -389,8 +390,16 @@ If card `0` does not exist, replace `0` with the card number shown in `/proc/aso
 After the first successful launch:
 
 1. Download the voice files you want from the app's voice management flow.
-2. Reboot once manually to confirm the downloaded voices and settings persist.
-3. If Wi-Fi is needed later, follow Tiny Core's piCore Wi-Fi guidance and store the related configuration in persistent storage.
+2. Use `Settings -> Setup Internet` to scan nearby Wi-Fi networks, enter the password, and connect.
+3. Reboot once manually to confirm the downloaded voices, Wi-Fi settings, and user settings persist.
+
+## Wi-Fi Notes
+
+- The Tiny Core image now includes `wireless_tools`, `wpa_supplicant`, Raspberry Pi Wi-Fi firmware, and a matching wireless kernel module extension when the image builder can resolve one.
+- `sai-wifi-service` runs as root at boot and handles scan/connect requests from the app over `/tmp/sai-wifi-ipc`, while the main app continues to run as user `tc`.
+- Saved Wi-Fi credentials are written to `/opt/sai-wifi/wpa_supplicant.conf`, which persists after the first-boot storage setup moves `/opt` to the writable partition.
+- On later boots the Wi-Fi service attempts to reconnect automatically using the saved configuration before Sai starts.
+- Service logs are written to `/tmp/sai-wifi-service.log`.
 
 ## Recovery Notes
 

@@ -20,6 +20,7 @@
 #include "typing_tutor.h"
 #include "utils.h"
 #include "voice_library.h"
+#include "wifi_manager.h"
 
 static int app_confirm_action(const char *title, const char *message) {
     int selected_index = 0;
@@ -329,6 +330,8 @@ void app_dispatch_leaf_action(MenuNode *selected_node, MenuNode *root) {
         system_ui_set_date_manual();
     } else if (strcmp(selected_node->key, "alarm") == 0) {
         handle_alarm();
+    } else if (strcmp(selected_node->key, "setup_internet") == 0) {
+        wifi_manager_show_menu();
     } else if (strcmp(selected_node->key, "internet_radio") == 0) {
         radio_ui_show_menu();
     } else if (app_is_descendant_of(selected_node, "settings")) {

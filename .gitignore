@@ -14,6 +14,9 @@ sai
 *.swo
 build/
 bin/
+!tinycore/rootfs/usr/local/bin/
+tinycore/rootfs/usr/local/bin/*
+!tinycore/rootfs/usr/local/bin/sai-wifi-service
 third_party/flite/build/
 third_party/flite/bin/
 Docker.dmg
