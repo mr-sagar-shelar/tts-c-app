@@ -399,18 +399,6 @@
       "shortcut": "x",
       "items": [
         {
-          "title_key": "excel_viewer",
-          "key": "excel_viewer",
-          "shortcut": "x",
-          "description_key": "excel_viewer_desc"
-        },
-        {
-          "title_key": "online_daisy",
-          "key": "online_daisy",
-          "shortcut": "o",
-          "description_key": "online_daisy_desc"
-        },
-        {
           "title_key": "english_only_dictionary",
           "key": "english_only_dictionary",
           "shortcut": "e",
@@ -463,12 +451,6 @@
           "key": "sense_dictionary",
           "shortcut": "s",
           "description_key": "sense_dictionary_desc"
-        },
-        {
-          "title_key": "color_reader",
-          "key": "color_reader",
-          "shortcut": "c",
-          "description_key": "color_reader_desc"
         }
       ],
       "description_key": "extras_desc"
@@ -499,46 +481,16 @@
           "description_key": "calculator_desc"
         },
         {
-          "title_key": "bs_math",
-          "key": "bs_math",
-          "shortcut": "m",
-          "description_key": "bs_math_desc"
-        },
-        {
           "title_key": "world_clock",
           "key": "world_clock",
           "shortcut": "w",
           "description_key": "world_clock_desc"
         },
         {
-          "title_key": "compass",
-          "key": "compass",
-          "shortcut": "o",
-          "description_key": "compass_desc"
-        },
-        {
-          "title_key": "current_time_date",
-          "key": "current_time_date",
-          "shortcut": "t",
-          "description_key": "current_time_date_desc"
-        },
-        {
-          "title_key": "display_time_date",
-          "key": "display_time_date",
-          "shortcut": "d",
-          "description_key": "display_time_date_desc"
-        },
-        {
           "title_key": "alarm",
           "key": "alarm",
           "shortcut": "a",
           "description_key": "alarm_desc"
-        },
-        {
-          "title_key": "terminal",
-          "key": "terminal",
-          "shortcut": "s",
-          "description_key": "terminal_desc"
         }
       ],
       "description_key": "utilities_desc"
@@ -548,12 +500,6 @@
       "key": "settings",
       "shortcut": "s",
       "items": [
-        {
-          "title_key": "set_time_date",
-          "key": "set_time_date",
-          "shortcut": "t",
-          "description_key": "set_time_date_desc"
-        },
         {
           "title_key": "set_city",
           "key": "set_city",
@@ -571,24 +517,6 @@
           "key": "bluetooth_manager",
           "shortcut": "b",
           "description_key": "bluetooth_manager_desc"
-        },
-        {
-          "title_key": "menu_manager",
-          "key": "menu_manager",
-          "shortcut": "m",
-          "description_key": "menu_manager_desc"
-        },
-        {
-          "title_key": "global_options",
-          "key": "global_options",
-          "shortcut": "g",
-          "description_key": "global_options_desc"
-        },
-        {
-          "title_key": "android_settings",
-          "key": "android_settings",
-          "shortcut": "a",
-          "description_key": "android_settings_desc"
         },
         {
           "title_key": "language_switch",
@@ -638,33 +566,7 @@
           "title_key": "set_volume",
           "key": "set_volume",
           "shortcut": "u",
-          "description_key": "set_volume_desc",
-          "items": [
-            {
-              "title_key": "volume_low",
-              "key": "volume_low",
-              "shortcut": "l",
-              "description_key": "volume_low_desc"
-            },
-            {
-              "title_key": "volume_medium",
-              "key": "volume_medium",
-              "shortcut": "m",
-              "description_key": "volume_medium_desc"
-            },
-            {
-              "title_key": "volume_high",
-              "key": "volume_high",
-              "shortcut": "h",
-              "description_key": "volume_high_desc"
-            },
-            {
-              "title_key": "volume_max",
-              "key": "volume_max",
-              "shortcut": "x",
-              "description_key": "volume_max_desc"
-            }
-          ]
+          "description_key": "set_volume_desc"
         },
         {
           "title_key": "toggle_speech_mode",
@@ -744,24 +646,6 @@
       "key": "help",
       "shortcut": "h",
       "description_key": "help_desc"
-    },
-    {
-      "title_key": "play_store",
-      "key": "play_store",
-      "shortcut": "p",
-      "description_key": "play_store_desc"
-    },
-    {
-      "title_key": "all_apps",
-      "key": "all_apps",
-      "shortcut": "a",
-      "description_key": "all_apps_desc"
-    },
-    {
-      "title_key": "info",
-      "key": "info",
-      "shortcut": "i",
-      "description_key": "info_desc"
     }
   ]
 }

@@ -13,6 +13,9 @@
 
 static PlatformMode cached_mode = -1;
 
+static int platform_get_linux_volume_percent(int *percent, char *message, size_t message_size);
+static int platform_set_linux_volume_percent(int percent, char *message, size_t message_size);
+
 static void platform_set_message(char *message, size_t message_size, const char *text) {
     if (!message || message_size == 0) {
         return;
@@ -280,17 +283,21 @@ static int platform_parse_scan_file(const char *path, PlatformWifiResponse *resp
     return 1;
 }
 
-static int platform_tinycore_wifi_request(const char *command,
-                                          const char *ssid,
-                                          const char *password,
-                                          PlatformWifiResponse *response) {
-    char request_template[] = "/tmp/sai-wifi-ipc/req-XXXXXX";
+static int platform_tinycore_request(const char *command,
+                                     const char *value1,
+                                     const char *value2,
+                                     const char *value3,
+                                     const char *value4,
+                                     PlatformWifiResponse *response,
+                                     char *value_out,
+                                     size_t value_out_size) {
+    char request_template[] = "/tmp/sai-platform-ipc/req-XXXXXX";
     char path[PATH_MAX];
     char done_path[PATH_MAX];
     int waited_ms = 0;
 
-    platform_init_wifi_response(response, "Wi-Fi service is not available.");
-    mkdir("/tmp/sai-wifi-ipc", 0777);
+    platform_init_wifi_response(response, "Platform service is not available.");
+    mkdir("/tmp/sai-platform-ipc", 0777);
     if (!mkdtemp(request_template)) {
         platform_set_message(response->message, sizeof(response->message), "Unable to prepare Wi-Fi request.");
         return 0;
@@ -298,13 +305,21 @@ static int platform_tinycore_wifi_request(const char *command,
 
     snprintf(path, sizeof(path), "%s/command", request_template);
     platform_write_text_file(path, command);
-    if (ssid) {
-        snprintf(path, sizeof(path), "%s/ssid", request_template);
-        platform_write_text_file(path, ssid);
+    if (value1) {
+        snprintf(path, sizeof(path), "%s/value1", request_template);
+        platform_write_text_file(path, value1);
     }
-    if (password) {
-        snprintf(path, sizeof(path), "%s/password", request_template);
-        platform_write_text_file(path, password);
+    if (value2) {
+        snprintf(path, sizeof(path), "%s/value2", request_template);
+        platform_write_text_file(path, value2);
+    }
+    if (value3) {
+        snprintf(path, sizeof(path), "%s/value3", request_template);
+        platform_write_text_file(path, value3);
+    }
+    if (value4) {
+        snprintf(path, sizeof(path), "%s/value4", request_template);
+        platform_write_text_file(path, value4);
     }
 
     snprintf(done_path, sizeof(done_path), "%s/done", request_template);
@@ -336,9 +351,20 @@ static int platform_tinycore_wifi_request(const char *command,
     platform_read_text_file(path, response->ip_address, sizeof(response->ip_address));
     snprintf(path, sizeof(path), "%s/scan.tsv", request_template);
     platform_parse_scan_file(path, response);
+    if (value_out && value_out_size > 0) {
+        snprintf(path, sizeof(path), "%s/value", request_template);
+        platform_read_text_file(path, value_out, value_out_size);
+    }
     platform_cleanup_dir(request_template);
 
     return response->success;
+}
+
+static int platform_tinycore_wifi_request(const char *command,
+                                          const char *ssid,
+                                          const char *password,
+                                          PlatformWifiResponse *response) {
+    return platform_tinycore_request(command, ssid, password, NULL, NULL, response, NULL, 0);
 }
 
 static int platform_linux_prefix(char *buffer, size_t buffer_size) {
@@ -677,10 +703,70 @@ int platform_ops_wifi_disconnect(PlatformWifiResponse *response) {
     return 1;
 }
 
+int platform_ops_get_system_volume_percent(int *percent, char *message, size_t message_size) {
+    PlatformWifiResponse response;
+    char value[64] = {0};
+
+    if (platform_ops_get_mode() == PLATFORM_MODE_STUB) {
+        if (percent) {
+            *percent = 0;
+        }
+        platform_set_message(message, message_size, "macOS stub mode: volume read skipped.");
+        return 1;
+    }
+
+    if (platform_ops_get_mode() == PLATFORM_MODE_TINYCORE) {
+        if (!platform_tinycore_request("get_volume", NULL, NULL, NULL, NULL, &response, value, sizeof(value))) {
+            platform_set_message(message, message_size,
+                                 response.message[0] ? response.message : "Unable to read system volume.");
+            return 0;
+        }
+        if (percent) {
+            *percent = atoi(value);
+        }
+        platform_set_message(message, message_size,
+                             response.message[0] ? response.message : "System volume loaded.");
+        return 1;
+    }
+
+    return platform_get_linux_volume_percent(percent, message, message_size);
+}
+
+int platform_ops_set_system_volume_percent(int percent, char *message, size_t message_size) {
+    PlatformWifiResponse response;
+    char value[32];
+
+    if (platform_ops_get_mode() == PLATFORM_MODE_STUB) {
+        char text[128];
+
+        snprintf(text, sizeof(text), "macOS stub mode: volume change skipped for %d%%.", percent);
+        platform_set_message(message, message_size, text);
+        return 1;
+    }
+
+    if (platform_ops_get_mode() == PLATFORM_MODE_TINYCORE) {
+        snprintf(value, sizeof(value), "%d", percent);
+        if (!platform_tinycore_request("set_volume", value, NULL, NULL, NULL, &response, NULL, 0)) {
+            platform_set_message(message, message_size,
+                                 response.message[0] ? response.message : "Unable to update system volume.");
+            return 0;
+        }
+        platform_set_message(message, message_size,
+                             response.message[0] ? response.message : "System volume updated.");
+        return 1;
+    }
+
+    return platform_set_linux_volume_percent(percent, message, message_size);
+}
+
 static int platform_run_privileged_linux(const char *command, char *message, size_t message_size) {
     char full_command[2048];
     char prefix[64];
     int has_privilege_hint = platform_linux_prefix(prefix, sizeof(prefix));
+
+    if (platform_command_success(command, NULL, 0)) {
+        return 1;
+    }
 
     snprintf(full_command, sizeof(full_command), "%s%s", prefix, command);
     if (platform_command_success(full_command, NULL, 0)) {
@@ -693,6 +779,58 @@ static int platform_run_privileged_linux(const char *command, char *message, siz
         platform_set_message(message, message_size,
                              "Operation failed. Passwordless sudo may be required in dev mode.");
     }
+    return 0;
+}
+
+static int platform_get_linux_volume_percent(int *percent, char *message, size_t message_size) {
+    char output[512];
+    int value = -1;
+    char *cursor;
+
+    if (!percent) {
+        return 0;
+    }
+
+    if (!(platform_command_success("amixer sget Master 2>/dev/null", output, sizeof(output)) ||
+          platform_command_success("amixer sget PCM 2>/dev/null", output, sizeof(output)))) {
+        platform_set_message(message, message_size, "Unable to read system volume.");
+        return 0;
+    }
+
+    cursor = strchr(output, '[');
+    while (cursor) {
+        if (sscanf(cursor, "[%d%%]", &value) == 1) {
+            *percent = value;
+            if (message && message_size > 0) {
+                snprintf(message, message_size, "System volume is %d%%.", value);
+            }
+            return 1;
+        }
+        cursor = strchr(cursor + 1, '[');
+    }
+
+    platform_set_message(message, message_size, "Unable to parse system volume.");
+    return 0;
+}
+
+static int platform_set_linux_volume_percent(int percent, char *message, size_t message_size) {
+    char command[256];
+
+    if (percent < 0) {
+        percent = 0;
+    } else if (percent > 100) {
+        percent = 100;
+    }
+
+    snprintf(command, sizeof(command),
+             "(amixer -q sset Master %d%% unmute) || (amixer -q sset PCM %d%% unmute)",
+             percent, percent);
+    if (platform_run_privileged_linux(command, message, message_size)) {
+        snprintf(command, sizeof(command), "System volume updated to %d%%.", percent);
+        platform_set_message(message, message_size, command);
+        return 1;
+    }
+
     return 0;
 }
 
@@ -712,9 +850,16 @@ int platform_ops_set_timezone(const char *timezone, char *message, size_t messag
     }
 
     if (platform_ops_get_mode() == PLATFORM_MODE_TINYCORE) {
-        snprintf(command, sizeof(command),
-                 "ln -sf /usr/share/zoneinfo/%s /etc/localtime && printf '%s\\n' > /etc/timezone",
-                 timezone, timezone);
+        PlatformWifiResponse response;
+
+        if (platform_tinycore_request("set_timezone", timezone, NULL, NULL, NULL, &response, NULL, 0)) {
+            platform_set_message(message, message_size,
+                                 response.message[0] ? response.message : "Timezone updated.");
+            return 1;
+        }
+        platform_set_message(message, message_size,
+                             response.message[0] ? response.message : "Unable to update timezone.");
+        return 0;
     } else {
         snprintf(command, sizeof(command),
                  "(command -v timedatectl >/dev/null 2>&1 && timedatectl set-timezone %s) || "
@@ -746,6 +891,25 @@ int platform_ops_set_system_time(int hour, int minute, int second, char *message
         return 1;
     }
 
+    if (platform_ops_get_mode() == PLATFORM_MODE_TINYCORE) {
+        PlatformWifiResponse response;
+        char hour_buffer[16];
+        char minute_buffer[16];
+        char second_buffer[16];
+
+        snprintf(hour_buffer, sizeof(hour_buffer), "%d", hour);
+        snprintf(minute_buffer, sizeof(minute_buffer), "%d", minute);
+        snprintf(second_buffer, sizeof(second_buffer), "%d", second);
+        if (platform_tinycore_request("set_time", hour_buffer, minute_buffer, second_buffer, NULL, &response, NULL, 0)) {
+            platform_set_message(message, message_size,
+                                 response.message[0] ? response.message : "System time updated.");
+            return 1;
+        }
+        platform_set_message(message, message_size,
+                             response.message[0] ? response.message : "Unable to update system time.");
+        return 0;
+    }
+
     now = time(NULL);
     local_tm = *localtime(&now);
     local_tm.tm_hour = hour;
@@ -773,6 +937,25 @@ int platform_ops_set_system_date(int year, int month, int day, char *message, si
                  year, month, day);
         platform_set_message(message, message_size, command);
         return 1;
+    }
+
+    if (platform_ops_get_mode() == PLATFORM_MODE_TINYCORE) {
+        PlatformWifiResponse response;
+        char year_buffer[16];
+        char month_buffer[16];
+        char day_buffer[16];
+
+        snprintf(year_buffer, sizeof(year_buffer), "%d", year);
+        snprintf(month_buffer, sizeof(month_buffer), "%d", month);
+        snprintf(day_buffer, sizeof(day_buffer), "%d", day);
+        if (platform_tinycore_request("set_date", year_buffer, month_buffer, day_buffer, NULL, &response, NULL, 0)) {
+            platform_set_message(message, message_size,
+                                 response.message[0] ? response.message : "System date updated.");
+            return 1;
+        }
+        platform_set_message(message, message_size,
+                             response.message[0] ? response.message : "Unable to update system date.");
+        return 0;
     }
 
     now = time(NULL);

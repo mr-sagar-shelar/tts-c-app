@@ -2,9 +2,9 @@
 
 set -eu
 
-IPC_DIR="${SAI_WIFI_IPC_DIR:-/tmp/sai-wifi-ipc}"
-STATE_DIR="${SAI_WIFI_STATE_DIR:-/opt/sai-wifi}"
-LOG_FILE="${SAI_WIFI_LOG_FILE:-/tmp/sai-wifi-service.log}"
+IPC_DIR="${SAI_PLATFORM_IPC_DIR:-/tmp/sai-platform-ipc}"
+STATE_DIR="${SAI_PLATFORM_STATE_DIR:-/opt/sai-platform}"
+LOG_FILE="${SAI_PLATFORM_LOG_FILE:-/tmp/sai-platform-service.log}"
 
 mkdir -p "$IPC_DIR" "$STATE_DIR"
 touch "$LOG_FILE"
@@ -18,6 +18,24 @@ write_response_file() {
     name="$2"
     shift 2
     printf '%s' "$*" > "$req_dir/$name"
+}
+
+read_request_value() {
+    req_dir="$1"
+    primary="$2"
+    fallback="$3"
+
+    if [ -f "$req_dir/$primary" ]; then
+        cat "$req_dir/$primary" 2>/dev/null || true
+        return 0
+    fi
+
+    if [ -n "$fallback" ] && [ -f "$req_dir/$fallback" ]; then
+        cat "$req_dir/$fallback" 2>/dev/null || true
+        return 0
+    fi
+
+    return 0
 }
 
 detect_wireless_interface() {
@@ -130,6 +148,67 @@ connect_saved_network() {
     done
 
     return 1
+}
+
+detect_mixer_control() {
+    if amixer scontrols 2>/dev/null | grep -q "'Master'"; then
+        printf '%s\n' "Master"
+        return 0
+    fi
+    if amixer scontrols 2>/dev/null | grep -q "'PCM'"; then
+        printf '%s\n' "PCM"
+        return 0
+    fi
+    return 1
+}
+
+current_volume_percent() {
+    control="$(detect_mixer_control || true)"
+
+    [ -n "$control" ] || return 1
+    amixer sget "$control" 2>/dev/null | awk '
+        match($0, /\[[0-9]+%\]/) {
+            value = substr($0, RSTART + 1, RLENGTH - 3)
+            print value
+            exit
+        }
+    '
+}
+
+set_volume_percent() {
+    percent="$1"
+    control="$(detect_mixer_control || true)"
+
+    [ -n "$control" ] || return 1
+    amixer -q sset "$control" "${percent}%" unmute >/dev/null 2>&1
+}
+
+set_timezone_value() {
+    timezone="$1"
+
+    [ -n "$timezone" ] || return 1
+    ln -sf "/usr/share/zoneinfo/$timezone" /etc/localtime || return 1
+    printf '%s\n' "$timezone" > /etc/timezone
+}
+
+set_time_value() {
+    hour="$1"
+    minute="$2"
+    second="$3"
+    current_date="$(date '+%Y-%m-%d' 2>/dev/null || true)"
+
+    [ -n "$current_date" ] || return 1
+    date -s "$current_date $hour:$minute:$second" >/dev/null 2>&1
+}
+
+set_date_value() {
+    year="$1"
+    month="$2"
+    day="$3"
+    current_time="$(date '+%H:%M:%S' 2>/dev/null || true)"
+
+    [ -n "$current_time" ] || return 1
+    date -s "$year-$month-$day $current_time" >/dev/null 2>&1
 }
 
 scan_networks() {
@@ -251,8 +330,8 @@ process_request() {
                 write_response_file "$req_dir" status error
                 write_response_file "$req_dir" message "No wireless interface was detected."
             else
-                ssid="$(cat "$req_dir/ssid" 2>/dev/null || true)"
-                password="$(cat "$req_dir/password" 2>/dev/null || true)"
+                ssid="$(read_request_value "$req_dir" ssid value1)"
+                password="$(read_request_value "$req_dir" password value2)"
                 conf_path="$STATE_DIR/wpa_supplicant.conf"
 
                 if [ -z "$ssid" ]; then
@@ -278,6 +357,74 @@ process_request() {
                         write_response_file "$req_dir" message "Failed to connect to $ssid."
                     fi
                 fi
+            fi
+            ;;
+        get_volume)
+            volume="$(current_volume_percent || true)"
+            if [ -n "$volume" ]; then
+                write_response_file "$req_dir" status ok
+                write_response_file "$req_dir" value "$volume"
+                write_response_file "$req_dir" message "System volume is $volume%."
+            else
+                write_response_file "$req_dir" status error
+                write_response_file "$req_dir" message "Unable to read system volume."
+            fi
+            ;;
+        set_volume)
+            volume="$(read_request_value "$req_dir" value1 '')"
+            if [ -z "$volume" ]; then
+                write_response_file "$req_dir" status error
+                write_response_file "$req_dir" message "A volume value is required."
+            elif set_volume_percent "$volume"; then
+                write_response_file "$req_dir" status ok
+                write_response_file "$req_dir" value "$volume"
+                write_response_file "$req_dir" message "System volume updated to $volume%."
+            else
+                write_response_file "$req_dir" status error
+                write_response_file "$req_dir" message "Unable to update system volume."
+            fi
+            ;;
+        set_timezone)
+            timezone="$(read_request_value "$req_dir" value1 '')"
+            if [ -z "$timezone" ]; then
+                write_response_file "$req_dir" status error
+                write_response_file "$req_dir" message "A timezone value is required."
+            elif set_timezone_value "$timezone"; then
+                write_response_file "$req_dir" status ok
+                write_response_file "$req_dir" message "Timezone updated to $timezone."
+            else
+                write_response_file "$req_dir" status error
+                write_response_file "$req_dir" message "Unable to update timezone."
+            fi
+            ;;
+        set_time)
+            hour="$(read_request_value "$req_dir" value1 '')"
+            minute="$(read_request_value "$req_dir" value2 '')"
+            second="$(read_request_value "$req_dir" value3 '')"
+            if [ -z "$hour" ] || [ -z "$minute" ] || [ -z "$second" ]; then
+                write_response_file "$req_dir" status error
+                write_response_file "$req_dir" message "Time values are required."
+            elif set_time_value "$hour" "$minute" "$second"; then
+                write_response_file "$req_dir" status ok
+                write_response_file "$req_dir" message "System time updated to $hour:$minute:$second."
+            else
+                write_response_file "$req_dir" status error
+                write_response_file "$req_dir" message "Unable to update system time."
+            fi
+            ;;
+        set_date)
+            year="$(read_request_value "$req_dir" value1 '')"
+            month="$(read_request_value "$req_dir" value2 '')"
+            day="$(read_request_value "$req_dir" value3 '')"
+            if [ -z "$year" ] || [ -z "$month" ] || [ -z "$day" ]; then
+                write_response_file "$req_dir" status error
+                write_response_file "$req_dir" message "Date values are required."
+            elif set_date_value "$year" "$month" "$day"; then
+                write_response_file "$req_dir" status ok
+                write_response_file "$req_dir" message "System date updated to $year-$month-$day."
+            else
+                write_response_file "$req_dir" status error
+                write_response_file "$req_dir" message "Unable to update system date."
             fi
             ;;
         disconnect)

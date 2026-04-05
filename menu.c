@@ -1,5 +1,6 @@
 #include "menu.h"
 #include "config.h"
+#include "platform_ops.h"
 #include "speech_settings.h"
 #include "utils.h"
 
@@ -29,6 +30,17 @@ static char *menu_selected_value_label(MenuNode *node) {
         }
         free(language);
         return strdup(menu_translate("ui_language_english", "English"));
+    }
+
+    if (strcmp(node->key, "set_volume") == 0) {
+        int percent = 0;
+        char message[128];
+        char label[32];
+
+        if (platform_ops_get_system_volume_percent(&percent, message, sizeof(message))) {
+            snprintf(label, sizeof(label), "%d%%", percent);
+            return strdup(label);
+        }
     }
 
     return NULL;

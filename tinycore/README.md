@@ -311,9 +311,9 @@ The list should include:
 usr/local/bin/sai-audio-init
 usr/local/bin/sai-autostart
 usr/local/bin/sai-launch
+usr/local/bin/sai-platform-service
 usr/local/bin/sai-restart
 usr/local/bin/sai-storage-init
-usr/local/bin/sai-wifi-service
 ```
 
 List playback devices:
@@ -396,10 +396,10 @@ After the first successful launch:
 ## Wi-Fi Notes
 
 - The Tiny Core image now includes `wireless_tools`, `wpa_supplicant`, Raspberry Pi Wi-Fi firmware, and a matching wireless kernel module extension when the image builder can resolve one.
-- `sai-wifi-service` runs as root at boot and handles scan/connect requests from the app over `/tmp/sai-wifi-ipc`, while the main app continues to run as user `tc`.
-- Saved Wi-Fi credentials are written to `/opt/sai-wifi/wpa_supplicant.conf`, which persists after the first-boot storage setup moves `/opt` to the writable partition.
-- On later boots the Wi-Fi service attempts to reconnect automatically using the saved configuration before Sai starts.
-- Service logs are written to `/tmp/sai-wifi-service.log`.
+- `sai-platform-service` runs as root at boot and handles platform requests from the app over `/tmp/sai-platform-ipc`, while the main app continues to run as user `tc`.
+- Saved Wi-Fi credentials and related platform state are written under `/opt/sai-platform`, which persists after the first-boot storage setup moves `/opt` to the writable partition.
+- On later boots the platform service attempts to reconnect Wi-Fi automatically using the saved configuration before Sai starts.
+- Service logs are written to `/tmp/sai-platform-service.log`.
 
 ## Recovery Notes
 

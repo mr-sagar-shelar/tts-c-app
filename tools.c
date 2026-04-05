@@ -2,6 +2,7 @@
 #include <ctype.h>
 #include <stdarg.h>
 #include <strings.h>
+#include <time.h>
 
 #include "download_ui.h"
 #include "entertainment.h"
@@ -236,64 +237,254 @@ void system_ui_show_weather(void) {
     free(city);
 }
 
-void system_ui_show_current_time_date(void) {
-    char *city = get_setting("city");
-    char error[256] = {0};
-    char *response;
+static cJSON *load_timezones_json(char **error_message) {
+    FILE *f = fopen("timezones.json", "rb");
+    char *data;
+    long len;
+    cJSON *json;
+
+    if (error_message) {
+        *error_message = NULL;
+    }
+
+    if (!f) {
+        if (error_message) {
+            *error_message = strdup(menu_translate("world_clock_error_loading", "Unable to load time zone data."));
+        }
+        return NULL;
+    }
+
+    fseek(f, 0, SEEK_END);
+    len = ftell(f);
+    fseek(f, 0, SEEK_SET);
+
+    data = (char *)malloc((size_t)len + 1);
+    if (!data) {
+        fclose(f);
+        if (error_message) {
+            *error_message = strdup(menu_translate("world_clock_error_loading", "Unable to load time zone data."));
+        }
+        return NULL;
+    }
+
+    fread(data, 1, (size_t)len, f);
+    data[len] = '\0';
+    fclose(f);
+
+    json = cJSON_Parse(data);
+    free(data);
+    if (!json && error_message) {
+        *error_message = strdup(menu_translate("world_clock_error_loading", "Unable to load time zone data."));
+    }
+    return json;
+}
+
+static int pick_timezone_from_json(cJSON *tz_array, const char *title, const char *current_timezone, char *selected_timezone, size_t selected_timezone_size) {
+    int total_count;
+    char search_term[256] = {0};
+    int sel = 0;
+    int scroll = 0;
+    int page_size = 15;
+    int last_spoken = -1;
+
+    if (!cJSON_IsArray(tz_array) || !selected_timezone || selected_timezone_size == 0) {
+        return 0;
+    }
+
+    total_count = cJSON_GetArraySize(tz_array);
+    selected_timezone[0] = '\0';
+
+    while (1) {
+        int matches[total_count > 0 ? total_count : 1];
+        int match_count = 0;
+        char lower_search[256] = {0};
+        int i;
+
+        for (i = 0; search_term[i]; i++) {
+            lower_search[i] = (char)tolower((unsigned char)search_term[i]);
+        }
+
+        printf("\033[H\033[J--- %s ---\n", title);
+        printf("%s: %s\n",
+               menu_translate("ui_selected_value", "Selected Value"),
+               current_timezone && current_timezone[0] ? current_timezone : "Asia/Kolkata");
+        printf("%s\n", menu_translate("world_clock_prompt", "Choose a time zone to hear the current local time."));
+        printf("%s: %s_\n", menu_translate("ui_search", "Search"), search_term);
+        printf("---------------------------\n");
+
+        for (i = 0; i < total_count; i++) {
+            const char *tz = cJSON_GetArrayItem(tz_array, i)->valuestring;
+            char lower_tz[256] = {0};
+            int j;
+
+            for (j = 0; tz[j] && j < 255; j++) {
+                lower_tz[j] = (char)tolower((unsigned char)tz[j]);
+            }
+
+            if (strlen(lower_search) == 0 || strstr(lower_tz, lower_search) != NULL) {
+                matches[match_count++] = i;
+            }
+        }
+
+        if (sel >= match_count) {
+            sel = (match_count > 0) ? match_count - 1 : 0;
+        }
+        if (sel < scroll) {
+            scroll = sel;
+        }
+        if (sel >= scroll + page_size) {
+            scroll = sel - page_size + 1;
+        }
+
+        if (match_count == 0) {
+            printf("  (%s)\n", menu_translate("world_clock_no_match", "No matching time zones"));
+        } else {
+            int end = scroll + page_size;
+            if (end > match_count) {
+                end = match_count;
+            }
+
+            for (i = scroll; i < end; i++) {
+                const char *tz = cJSON_GetArrayItem(tz_array, matches[i])->valuestring;
+                if (i == sel) {
+                    printf("> %s\n", tz);
+                } else {
+                    printf("  %s\n", tz);
+                }
+            }
+
+            if (sel != last_spoken) {
+                menu_audio_speak(cJSON_GetArrayItem(tz_array, matches[sel])->valuestring);
+                last_spoken = sel;
+            }
+        }
+
+        printf("\n%s\n", menu_translate("ui_footer_search", "[Arrows: Navigate | Enter: Select | Esc: Cancel | Type to Search]"));
+        fflush(stdout);
+
+        {
+            int key = read_key();
+
+            if (key == KEY_UP) {
+                menu_audio_stop();
+                sel = menu_next_index(sel, -1, match_count);
+            } else if (key == KEY_DOWN) {
+                menu_audio_stop();
+                sel = menu_next_index(sel, 1, match_count);
+            } else if (key == KEY_ENTER && match_count > 0) {
+                menu_audio_stop();
+                snprintf(selected_timezone, selected_timezone_size, "%s",
+                         cJSON_GetArrayItem(tz_array, matches[sel])->valuestring);
+                return 1;
+            } else if (key == KEY_ESC) {
+                menu_audio_stop();
+                return 0;
+            } else if (key == KEY_BACKSPACE) {
+                int slen = (int)strlen(search_term);
+                menu_audio_stop();
+                if (slen > 0) {
+                    search_term[slen - 1] = '\0';
+                    sel = 0;
+                    scroll = 0;
+                    last_spoken = -1;
+                }
+            } else if (key > 0 && key < 1000 && isprint(key)) {
+                int slen = (int)strlen(search_term);
+                menu_audio_stop();
+                if (slen < 254) {
+                    search_term[slen] = (char)key;
+                    search_term[slen + 1] = '\0';
+                    sel = 0;
+                    scroll = 0;
+                    last_spoken = -1;
+                }
+            }
+        }
+    }
+}
+
+void system_ui_show_world_clock(void) {
+    char *current_timezone = get_setting("timezone");
+    char *load_error = NULL;
+    cJSON *json = load_timezones_json(&load_error);
+    char selected_timezone[128];
     char lines[8][256];
     int line_count = 0;
     char text[2048];
-    if (!city) city = strdup("Pune");
+    cJSON *tz_array;
+    const char *timezone;
+    time_t now;
+    struct tm tm_value;
+    char date_str[32];
+    char time_str[32];
+    char *original_tz = NULL;
 
-    const char *timezone = "Asia/Kolkata";
-    if (city) {
-        if (strcasecmp(city, "London") == 0) timezone = "Europe/London";
-        else if (strcasecmp(city, "New York") == 0) timezone = "America/New_York";
-        else if (strcasecmp(city, "Tokyo") == 0) timezone = "Asia/Tokyo";
-        else if (strcasecmp(city, "Sydney") == 0) timezone = "Australia/Sydney";
-        else if (strcasecmp(city, "Paris") == 0) timezone = "Europe/Paris";
-        else if (strcasecmp(city, "Berlin") == 0) timezone = "Europe/Berlin";
+    if (!current_timezone) {
+        current_timezone = strdup("Asia/Kolkata");
+    }
+    if (!json) {
+        show_platform_result_screen(menu_translate("world_clock_title", "World Clock"),
+                                    load_error ? load_error : menu_translate("world_clock_error_loading", "Unable to load time zone data."));
+        free(load_error);
+        free(current_timezone);
+        return;
     }
 
-    char url[512];
-    snprintf(url, sizeof(url), "http://worldtimeapi.org/api/timezone/%s", timezone);
+    tz_array = cJSON_GetObjectItemCaseSensitive(json, "timezones");
+    if (!pick_timezone_from_json(tz_array,
+                                 menu_translate("world_clock_search_title", "Select Time Zone"),
+                                 current_timezone,
+                                 selected_timezone,
+                                 sizeof(selected_timezone))) {
+        cJSON_Delete(json);
+        free(current_timezone);
+        return;
+    }
+    cJSON_Delete(json);
+    free(current_timezone);
 
-    response = fetch_text_with_progress_ui("Current Time and Date", url, "time data", error, sizeof(error));
-    if (response) {
-        cJSON *json = cJSON_Parse(response);
-        free(response);
-        if (json) {
-            cJSON *datetime = cJSON_GetObjectItemCaseSensitive(json, "datetime");
-            if (datetime && cJSON_IsString(datetime)) {
-                char date_str[11] = {0};
-                char time_str[9] = {0};
-                if (strlen(datetime->valuestring) >= 19) {
-                    strncpy(date_str, datetime->valuestring, 10);
-                    strncpy(time_str, datetime->valuestring + 11, 8);
-                    append_accessible_line(lines, &line_count, 8, "Date: %s", date_str);
-                    append_accessible_line(lines, &line_count, 8, "Time: %s", time_str);
-                    append_accessible_line(lines, &line_count, 8, "Timezone: %s", timezone);
-                } else {
-                    append_accessible_line(lines, &line_count, 8, "Date and time: %s", datetime->valuestring);
-                }
-            } else {
-                append_accessible_line(lines, &line_count, 8, "Error: Could not retrieve time for %s.", city);
-            }
-            cJSON_Delete(json);
-        } else {
-            append_accessible_line(lines, &line_count, 8, "%s", "Error parsing time data.");
+    timezone = selected_timezone;
+
+    {
+        char *tz_env = getenv("TZ");
+        if (tz_env) {
+            original_tz = strdup(tz_env);
         }
+    }
+
+    setenv("TZ", timezone, 1);
+    tzset();
+    now = time(NULL);
+    if (localtime_r(&now, &tm_value)) {
+        strftime(date_str, sizeof(date_str), "%Y-%m-%d", &tm_value);
+        strftime(time_str, sizeof(time_str), "%H:%M:%S", &tm_value);
+        append_accessible_line(lines, &line_count, 8, "%s: %s",
+                               menu_translate("world_clock_date_label", "Date"), date_str);
+        append_accessible_line(lines, &line_count, 8, "%s: %s",
+                               menu_translate("world_clock_time_label", "Time"), time_str);
+        append_accessible_line(lines, &line_count, 8, "%s: %s",
+                               menu_translate("world_clock_timezone_label", "Time Zone"), timezone);
     } else {
         append_accessible_line(lines, &line_count, 8, "%s",
-                               error[0] ? error : "Failed to connect to Time API.");
+                               menu_translate("world_clock_fetch_failed", "Failed to load world clock data."));
     }
+
+    if (original_tz) {
+        setenv("TZ", original_tz, 1);
+        free(original_tz);
+    } else {
+        unsetenv("TZ");
+    }
+    tzset();
+
     text[0] = '\0';
     for (int i = 0; i < line_count; i++) {
         strncat(text, lines[i], sizeof(text) - strlen(text) - 1);
         strncat(text, "\n", sizeof(text) - strlen(text) - 1);
     }
-    content_ui_show_spoken_text("Current Time and Date", "Current Time and Date", text);
-    free(city);
+    content_ui_show_spoken_text(menu_translate("world_clock_title", "World Clock"),
+                                menu_translate("world_clock_title", "World Clock"),
+                                text);
 }
 
 void system_ui_show_news(void) {
@@ -511,6 +702,55 @@ void system_ui_change_time_format(void) {
         } else if (key == KEY_ESC) {
             menu_audio_stop();
             break;
+        }
+    }
+}
+
+void system_ui_set_volume(void) {
+    int volume = 0;
+    char message[256];
+    int last_spoken = -1;
+
+    platform_ops_get_system_volume_percent(&volume, message, sizeof(message));
+
+    while (1) {
+        printf("\033[H\033[J--- %s ---\n", menu_translate("set_volume", "Set Volume"));
+        printf("%s: %d%%\n", menu_translate("ui_selected_value", "Selected Value"), volume);
+        printf("%s: %s\n\n", menu_translate("ui_current_value", "Current Value"), platform_ops_get_mode_name());
+        printf("%s\n", menu_translate("volume_adjust_help", "Use Up and Down arrows to change volume by 10 percent."));
+        if (message[0]) {
+            printf("\n%s\n", message);
+        }
+        printf("\n%s\n",
+               menu_translate("volume_footer", "[Up/Down: Change | Enter: Refresh | Esc: Back]"));
+        fflush(stdout);
+
+        if (volume != last_spoken) {
+            char spoken[64];
+            snprintf(spoken, sizeof(spoken), "%d percent", volume);
+            menu_audio_speak(spoken);
+            last_spoken = volume;
+        }
+
+        {
+            int key = read_key();
+            if (key == KEY_UP || key == KEY_DOWN) {
+                int next_volume = volume + (key == KEY_UP ? 10 : -10);
+
+                if (next_volume < 0) {
+                    next_volume = 0;
+                } else if (next_volume > 100) {
+                    next_volume = 100;
+                }
+
+                if (platform_ops_set_system_volume_percent(next_volume, message, sizeof(message))) {
+                    platform_ops_get_system_volume_percent(&volume, message, sizeof(message));
+                }
+            } else if (key == KEY_ENTER) {
+                platform_ops_get_system_volume_percent(&volume, message, sizeof(message));
+            } else if (key == KEY_ESC) {
+                break;
+            }
         }
     }
 }

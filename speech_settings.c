@@ -21,13 +21,6 @@ static const SpeechSettingOption voice_options[] = {
     {"voice_awb", "tts_voice", "awb", "Awb", "Voice"}
 };
 
-static const SpeechSettingOption volume_options[] = {
-    {"volume_low", "tts_volume", "low", "Low", "Volume"},
-    {"volume_medium", "tts_volume", "medium", "Medium", "Volume"},
-    {"volume_high", "tts_volume", "high", "High", "Volume"},
-    {"volume_max", "tts_volume", "max", "Max", "Volume"}
-};
-
 static const SpeechSettingOption speech_mode_options[] = {
     {"speech_mode_off", "speech_mode", "off", "Off", "Speech mode"},
     {"speech_mode_on", "speech_mode", "on", "On", "Speech mode"}
@@ -56,9 +49,6 @@ static int apply_option_group(const SpeechSettingOption *options, size_t count, 
 
 int handle_speech_setting_selection(const char *menu_key, char *message, size_t message_size) {
     if (apply_option_group(voice_options, sizeof(voice_options) / sizeof(voice_options[0]), menu_key, message, message_size)) {
-        return 1;
-    }
-    if (apply_option_group(volume_options, sizeof(volume_options) / sizeof(volume_options[0]), menu_key, message, message_size)) {
         return 1;
     }
     if (apply_option_group(speech_mode_options, sizeof(speech_mode_options) / sizeof(speech_mode_options[0]), menu_key, message, message_size)) {
@@ -100,9 +90,6 @@ static char *lookup_selected_label(const SpeechSettingOption *options, size_t co
 char *speech_settings_get_selected_label(const char *menu_key) {
     if (strcmp(menu_key, "voice_select") == 0) {
         return lookup_selected_label(voice_options, sizeof(voice_options) / sizeof(voice_options[0]), "tts_voice");
-    }
-    if (strcmp(menu_key, "set_volume") == 0) {
-        return lookup_selected_label(volume_options, sizeof(volume_options) / sizeof(volume_options[0]), "tts_volume");
     }
     if (strcmp(menu_key, "toggle_speech_mode") == 0) {
         return lookup_selected_label(speech_mode_options, sizeof(speech_mode_options) / sizeof(speech_mode_options[0]), "speech_mode");

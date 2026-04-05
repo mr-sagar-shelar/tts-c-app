@@ -15,10 +15,7 @@ void system_ui_run_calculator(void);
  */
 void system_ui_show_weather(void);
 
-/**
- * UI handler for current time and date.
- */
-void system_ui_show_current_time_date(void);
+void system_ui_show_world_clock(void);
 
 /**
  * UI handler for news (placeholder).
@@ -39,6 +36,7 @@ void system_ui_change_timezone(void);
  * UI handler for time format (12h/24h).
  */
 void system_ui_change_time_format(void);
+void system_ui_set_volume(void);
 
 /**
  * UI handler for manual time setting.

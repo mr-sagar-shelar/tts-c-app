@@ -310,8 +310,8 @@ void app_dispatch_leaf_action(MenuNode *selected_node, MenuNode *root) {
         handle_typing_tutor();
     } else if (strcmp(selected_node->key, "weather") == 0) {
         system_ui_show_weather();
-    } else if (strcmp(selected_node->key, "current_time_date") == 0) {
-        system_ui_show_current_time_date();
+    } else if (strcmp(selected_node->key, "world_clock") == 0) {
+        system_ui_show_world_clock();
     } else if (strcmp(selected_node->key, "news") == 0) {
         system_ui_show_news();
     } else if (strcmp(selected_node->key, "poems") == 0) {
@@ -320,6 +320,8 @@ void app_dispatch_leaf_action(MenuNode *selected_node, MenuNode *root) {
         content_ui_run_word_viewer();
     } else if (strcmp(selected_node->key, "set_city") == 0) {
         system_ui_set_city();
+    } else if (strcmp(selected_node->key, "set_volume") == 0) {
+        system_ui_set_volume();
     } else if (strcmp(selected_node->key, "timezone") == 0) {
         system_ui_change_timezone();
     } else if (strcmp(selected_node->key, "time_format") == 0) {
