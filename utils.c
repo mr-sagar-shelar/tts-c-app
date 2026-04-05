@@ -85,20 +85,31 @@ static int read_key_internal(int timeout_ms) {
         tmp_termios.c_cc[VTIME] = 1; // 100ms timeout
         tcsetattr(STDIN_FILENO, TCSANOW, &tmp_termios);
 
-        char seq[2];
-        int n = read(STDIN_FILENO, &seq[0], 1);
-        if (n <= 0) {
+        char seq[16];
+        int len = 0;
+        int n;
+
+        do {
+            n = read(STDIN_FILENO, &seq[len], 1);
+            if (n == 1) {
+                len++;
+            }
+        } while (n == 1 && len < (int)sizeof(seq));
+
+        if (len <= 0) {
             tcsetattr(STDIN_FILENO, TCSANOW, &work_termios);
             return KEY_ESC;
         }
-        n = read(STDIN_FILENO, &seq[1], 1);
 
         tcsetattr(STDIN_FILENO, TCSANOW, &work_termios);
 
-        if (seq[0] == '[') {
-            switch (seq[1]) {
+        if (seq[0] == '[' || seq[0] == 'O') {
+            char final = seq[len - 1];
+            switch (final) {
                 case 'A': return KEY_UP;
                 case 'B': return KEY_DOWN;
+                case 'C': return 'R';
+                case 'D': return 'L';
             }
         }
         return KEY_ESC;

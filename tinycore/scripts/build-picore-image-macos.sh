@@ -6,10 +6,10 @@ ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 ARTIFACT_DIR="${ARTIFACT_DIR:-$ROOT_DIR/build/tinycore/artifacts}"
 WORK_DIR="${WORK_DIR:-$ROOT_DIR/build/tinycore/image}"
 CACHE_DIR="${CACHE_DIR:-$ROOT_DIR/build/tinycore/cache}"
-TC_VERSION="${TC_VERSION:-15.x}"
+TC_VERSION="${TC_VERSION:-16.x}"
 TC_ARCH="${TC_ARCH:-armhf}"
 TCE_NAME="${TCE_NAME:-tce}"
-RELEASE_BASE_URL_DEFAULT="http://tinycorelinux.net/${TC_VERSION}/${TC_ARCH}/releases/RPi/"
+RELEASE_BASE_URL_DEFAULT="http://tinycorelinux.net/${TC_VERSION}/${TC_ARCH}/release/RPi/"
 EXT_BASE_URL_DEFAULT="http://repo.tinycorelinux.net/${TC_VERSION}/${TC_ARCH}/tcz/"
 RELEASE_BASE_URL="${RELEASE_BASE_URL:-$RELEASE_BASE_URL_DEFAULT}"
 EXT_BASE_URL="${EXT_BASE_URL:-$EXT_BASE_URL_DEFAULT}"
@@ -51,6 +51,16 @@ copy_cached_or_download() {
 
     if [ ! -f "$dest" ]; then
         cp "$cache_path" "$dest"
+    fi
+}
+
+sanitize_dep_file() {
+    dep_file="$1"
+
+    [ -f "$dep_file" ] || return 0
+
+    if [ -n "${AUDIO_MODULES_EXT:-}" ]; then
+        sed -i '' "s/^alsa-modules-KERNEL\.tcz$/${AUDIO_MODULES_EXT}/" "$dep_file" 2>/dev/null || true
     fi
 }
 
@@ -199,8 +209,11 @@ download_extension_tree() {
     fi
     if curl -fsI "${EXT_BASE_URL}${repo_ext}.dep" >/dev/null 2>&1; then
         copy_cached_or_download "${EXT_BASE_URL}${repo_ext}.dep" "$EXT_CACHE_DIR/$repo_ext.dep" "$optional_dir/$repo_ext.dep"
+        sanitize_dep_file "$EXT_CACHE_DIR/$repo_ext.dep"
+        sanitize_dep_file "$optional_dir/$repo_ext.dep"
         if [ "$repo_ext" != "$ext" ] && [ ! -e "$optional_dir/$ext.dep" ]; then
             cp "$optional_dir/$repo_ext.dep" "$optional_dir/$ext.dep"
+            sanitize_dep_file "$optional_dir/$ext.dep"
         fi
         while IFS= read -r dep; do
             [ -n "$dep" ] || continue
@@ -218,8 +231,11 @@ download_extension_tree() {
 discover_release_image() {
     for base_url in \
         "$RELEASE_BASE_URL" \
+        "http://tinycorelinux.net/17.x/${TC_ARCH}/release/RPi/" \
         "http://tinycorelinux.net/17.x/${TC_ARCH}/releases/RPi/" \
+        "http://tinycorelinux.net/16.x/${TC_ARCH}/release/RPi/" \
         "http://tinycorelinux.net/16.x/${TC_ARCH}/releases/RPi/" \
+        "http://tinycorelinux.net/15.x/${TC_ARCH}/release/RPi/" \
         "http://tinycorelinux.net/15.x/${TC_ARCH}/releases/RPi/" \
         "http://tinycorelinux.net/14.x/${TC_ARCH}/releases/RPi/"
     do
@@ -245,10 +261,17 @@ discover_audio_modules_ext() {
         "http://repo.tinycorelinux.net/15.x/${TC_ARCH}/tcz/" \
         "http://repo.tinycorelinux.net/14.x/${TC_ARCH}/tcz/"
     do
-        ext="$(curl -fsSL "$base_url" 2>/dev/null \
-            | grep -Eo 'alsa-modules-[^" ]+piCore-v7[^" ]*\.tcz' \
+        page="$(curl -fsSL "$base_url" 2>/dev/null || true)"
+        ext="$(printf '%s' "$page" \
+            | grep -Eo 'alsa-modules-[^" ]+piCore-v7\.tcz' \
             | sort -u \
             | tail -n 1 || true)"
+        if [ -z "$ext" ]; then
+            ext="$(printf '%s' "$page" \
+                | grep -Eo 'alsa-modules-[^" ]+piCore-v7[^" ]*\.tcz' \
+                | sort -u \
+                | tail -n 1 || true)"
+        fi
         if [ -n "$ext" ]; then
             EXT_BASE_URL_RESOLVED="$base_url"
             AUDIO_MODULES_EXT_DISCOVERED="$ext"
@@ -264,6 +287,21 @@ require_file "$ARTIFACT_DIR/mydata.tgz"
 require_file "$ARTIFACT_DIR/onboot.lst"
 require_file "$ARTIFACT_DIR/config.txt.append"
 require_file "$ARTIFACT_DIR/cmdline.append"
+require_file "$ARTIFACT_DIR/sai-app.tcz.list"
+
+for required_entry in \
+    usr/local/bin/sai-audio-init \
+    usr/local/bin/sai-autostart \
+    usr/local/bin/sai-launch \
+    usr/local/bin/sai-restart \
+    usr/local/bin/sai-storage-init
+do
+    if ! grep -Fqx "$required_entry" "$ARTIFACT_DIR/sai-app.tcz.list"; then
+        printf 'Artifact validation failed: %s is missing from %s\n' "$required_entry" "$ARTIFACT_DIR/sai-app.tcz.list" >&2
+        printf 'Rebuild artifacts first with ./tinycore/scripts/build-artifacts.sh\n' >&2
+        exit 1
+    fi
+done
 
 mkdir -p "$WORK_DIR"
 
@@ -361,6 +399,9 @@ fi
 printf 'Using Tiny Core extensions from %s\n' "$EXT_BASE_URL"
 if [ -n "$AUDIO_MODULES_EXT" ] && ! grep -Fqx "$AUDIO_MODULES_EXT" "$ONBOOT_FILE"; then
     printf '%s\n' "$AUDIO_MODULES_EXT" >> "$ONBOOT_FILE"
+fi
+if [ -n "$AUDIO_MODULES_EXT" ]; then
+    printf 'Using ALSA kernel modules extension %s\n' "$AUDIO_MODULES_EXT"
 fi
 sed -i '' '/^alsa-modules-KERNEL\.tcz$/d' "$ONBOOT_FILE" 2>/dev/null || true
 

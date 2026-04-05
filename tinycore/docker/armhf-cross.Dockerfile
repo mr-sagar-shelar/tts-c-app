@@ -56,6 +56,7 @@ RUN rm -rf /tmp/sai-package /tmp/mydata /out \
     && install -m 0755 tinycore/rootfs/usr/local/bin/sai-audio-init /tmp/sai-package/usr/local/bin/sai-audio-init \
     && install -m 0755 tinycore/rootfs/usr/local/bin/sai-autostart /tmp/sai-package/usr/local/bin/sai-autostart \
     && install -m 0755 tinycore/rootfs/usr/local/bin/sai-launch /tmp/sai-package/usr/local/bin/sai-launch \
+    && install -m 0755 tinycore/rootfs/usr/local/bin/sai-restart /tmp/sai-package/usr/local/bin/sai-restart \
     && install -m 0755 tinycore/rootfs/usr/local/bin/sai-storage-init /tmp/sai-package/usr/local/bin/sai-storage-init \
     && install -m 0644 tinycore/overlay/usr/local/etc/asound.conf /tmp/sai-package/usr/local/etc/asound.conf
 
@@ -74,6 +75,7 @@ unzip.tcz
 mpg123.tcz
 ca-certificates.tcz
 util-linux.tcz
+kmaps.tcz
 EOF
 
 RUN cat > /out/sai-app.tcz.info <<'EOF'

@@ -52,6 +52,7 @@ The app itself shells out to a few external tools, so the image preloads:
 - `mpg123.tcz`
 - `ca-certificates.tcz`
 - `util-linux.tcz`
+- `kmaps.tcz`
 
 The image build script also tries to auto-add a matching `alsa-modules-...tcz` for the chosen piCore release. If the repo layout changes, set `AUDIO_MODULES_EXT` manually when running the script.
 
@@ -64,6 +65,7 @@ The image build script also tries to auto-add a matching `alsa-modules-...tcz` f
 - On the first boot after flashing, `sai-storage-init` expands partition 2 to fill the SD card, grows the ext filesystem, updates `cmdline.txt` to use that partition for `tce`, `home`, and `opt`, and then reboots.
 - Because of that resize flow, the very first power-on should be treated as a setup boot. Expect up to two automatic reboots before Sai reaches its normal startup path.
 - `bootlocal.sh` starts audio setup and then launches Sai on `tty1`.
+- The boot command line includes `kmap=us` so the console uses a standard US keyboard layout.
 - `sai-autostart` uses a 1 second default delay to let the boot console settle before input begins.
 - On the first spoken prompt after launch, the app says `Sai is ready` before announcing the current menu item.
 
@@ -76,7 +78,7 @@ The image build script also tries to auto-add a matching `alsa-modules-...tcz` f
   - a USB audio adapter
   - a PWM/I2S audio HAT that exposes an ALSA device
 
-The default `asound.conf` points to card `0`. If your device enumerates differently, update the generated image or override `/usr/local/etc/asound.conf`.
+At boot, `sai-audio-init` tries to detect the active ALSA playback device and writes a runtime config to `/tmp/sai-asound.conf`. If no playback card is detected, Sai falls back to the system ALSA defaults instead of forcing card `0`.
 
 ## macOS commands
 
@@ -95,13 +97,13 @@ Build a custom piCore image:
 This writes a versioned image such as:
 
 ```sh
-build/tinycore/image/piCore-sai-custom-15.x-armhf.img
+build/tinycore/image/piCore-sai-custom-16.x-armhf.img
 ```
 
 Write that image to an SD card:
 
 ```sh
-./tinycore/scripts/flash-sd-card-macos.sh build/tinycore/image/piCore-sai-custom-15.x-armhf.img disk4
+./tinycore/scripts/flash-sd-card-macos.sh build/tinycore/image/piCore-sai-custom-16.x-armhf.img disk4
 ```
 
 `disk4` is an example only. Always confirm the target with `diskutil list` first.
@@ -117,20 +119,20 @@ Write that image to an SD card:
 2. Build the custom piCore image:
 
 ```sh
-TC_VERSION=15.x ./tinycore/scripts/build-picore-image-macos.sh
+TC_VERSION=16.x ./tinycore/scripts/build-picore-image-macos.sh
 ```
 
 3. Verify the resulting image exists:
 
 ```sh
-ls -lh build/tinycore/image/piCore-sai-custom-15.x-armhf.img
+ls -lh build/tinycore/image/piCore-sai-custom-16.x-armhf.img
 ```
 
 4. Flash it to the SD card:
 
 ```sh
 diskutil list
-./tinycore/scripts/flash-sd-card-macos.sh build/tinycore/image/piCore-sai-custom-15.x-armhf.img disk4
+./tinycore/scripts/flash-sd-card-macos.sh build/tinycore/image/piCore-sai-custom-16.x-armhf.img disk4
 ```
 
 5. Safely eject the SD card and insert it into the Raspberry Pi Zero 2 W.
@@ -151,6 +153,16 @@ the script downloads two groups of files:
    - `.dep`
    - `.md5.txt`
 
+During image creation the script also prints the resolved ALSA kernel module extension name, for example:
+
+```sh
+Using ALSA kernel modules extension alsa-modules-<kernel>-piCore-v7.tcz
+```
+
+That is the exact package that should be present in `tce/optional` and available at boot for sound modules to load.
+
+For `armhf` Raspberry Pi builds, that ALSA module extension should normally match the running kernel string closely. For example, if `uname -r` prints `6.12.25-piCore-v7`, the expected extension name should also end in `piCore-v7.tcz`, not `piCore-v71.tcz`.
+
 Local storage locations:
 
 - Base piCore release archives and extracted images:
@@ -160,10 +172,10 @@ Local storage locations:
 
 Examples:
 
-- `build/tinycore/image/piCore-15.0.0.zip`
-- `build/tinycore/image/extracted-15.x-armhf/piCore-15.0.0.img`
-- `build/tinycore/cache/15.x-armhf/tcz/SDL2.tcz`
-- `build/tinycore/cache/15.x-armhf/tcz/alsa.tcz.dep`
+- `build/tinycore/image/piCore-16.0.0.img.gz`
+- `build/tinycore/image/extracted-16.x-armhf/piCore-16.0.0.img`
+- `build/tinycore/cache/16.x-armhf/tcz/SDL2.tcz`
+- `build/tinycore/cache/16.x-armhf/tcz/alsa.tcz.dep`
 
 ## Download Reuse And Optimization
 
@@ -178,7 +190,7 @@ Because of this, the first build downloads the most data and later builds should
 If you want to force a fresh extension download, remove the cache directory for that release:
 
 ```sh
-rm -rf build/tinycore/cache/15.x-armhf
+rm -rf build/tinycore/cache/16.x-armhf
 ```
 
 ## Hardware Before First Boot
@@ -229,6 +241,116 @@ cat /opt/.tce_dir
 ```
 
 The expected result after the first-boot storage setup is a path on `/mnt/mmcblk0p2/tce`.
+
+## Restarting Sai From The Raspberry Pi Command Line
+
+If Sai exits and you are back at a shell prompt on the Raspberry Pi, restart it with:
+
+```sh
+/usr/local/bin/sai-restart
+```
+
+If you specifically want to relaunch it on `tty1` from another shell session:
+
+```sh
+su tc -s /bin/sh -c 'setsid /usr/local/bin/sai-autostart </dev/tty1 >/dev/tty1 2>&1 &'
+```
+
+Useful commands:
+
+```sh
+pkill -f '/usr/local/share/sai-base/sai'
+/usr/local/bin/sai-launch
+```
+
+If audio still does not start after a restart, inspect:
+
+```sh
+cat /tmp/sai-audio-init.log
+cat /tmp/sai-asound.conf
+```
+
+## Audio Debug Commands
+
+Use these commands on the Raspberry Pi shell to check whether ALSA and HDMI audio are available:
+
+List ALSA cards:
+
+```sh
+cat /proc/asound/cards
+aplay -l
+```
+
+If `/proc/asound/cards` does not exist, ALSA kernel support is not active on that boot. In that case check:
+
+```sh
+uname -r
+lsmod | grep '^snd\|^vc4'
+find /lib/modules/$(uname -r) -path '*sound*' | head
+modprobe snd_bcm2835
+modprobe vc4
+cat /tmp/sai-audio-init.log
+```
+
+If `/usr/local/bin/sai-audio-init` or another Sai helper is reported as missing at boot, the flashed image was built from stale artifacts. Rebuild the packaged extension first:
+
+```sh
+./tinycore/scripts/build-artifacts.sh
+./tinycore/scripts/build-picore-image-macos.sh
+```
+
+List playback devices:
+
+```sh
+cat /proc/asound/pcm
+```
+
+Show the runtime ALSA config Sai is using:
+
+```sh
+cat /tmp/sai-asound.conf
+echo "$ALSA_CONFIG_PATH"
+```
+
+Check the audio-init log:
+
+```sh
+cat /tmp/sai-audio-init.log
+```
+
+If shifted keys like `|`, `>`, `?`, or `_` do not work even outside Sai, verify the console keymap:
+
+```sh
+cat /proc/cmdline
+```
+
+The command line should include:
+
+```sh
+kmap=us
+```
+
+Try a manual WAV playback test:
+
+```sh
+speaker-test -c 2 -t wav
+```
+
+If `speaker-test` is unavailable, try:
+
+```sh
+aplay /usr/local/share/sounds/alsa/Front_Center.wav
+```
+
+Check mixer controls on the detected card:
+
+```sh
+amixer controls
+amixer scontrols
+amixer -c 0 scontents
+```
+
+If card `0` does not exist, replace `0` with the card number shown in `/proc/asound/cards` or `aplay -l`.
 
 ## Recommended Post-Boot Steps
 
