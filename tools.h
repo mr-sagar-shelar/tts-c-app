@@ -14,6 +14,8 @@ void system_ui_run_calculator(void);
  * UI handler for weather information.
  */
 void system_ui_show_weather(void);
+void system_ui_google_search(void);
+void system_ui_wiki_search(void);
 
 void system_ui_show_world_clock(void);
 

@@ -10,7 +10,7 @@ AR ?= ar
 RANLIB ?= ranlib
 
 OBJS=main.o app_actions.o menu.o cJSON.o config.o contacts.o utils.o file_manager.o notepad.o dictionary.o entertainment.o tools.o typing_tutor.o alarm.o calendar.o radio.o text_processor.o document_reader.o speech_settings.o speech_engine.o voice_library.o download_manager.o download_ui.o task_ui.o wifi_manager.o platform_ops.o database_manager.o
-APP_DATA_FILES=menu.json en.json hi.json dict_en.json dict_hn.json typing_tutor.json typing_leaderboard_mock.json timezones.json userConfig.json
+APP_DATA_FILES=menu.json en.json hi.json dict_en.json dict_hn.json typing_tutor.json typing_leaderboard_mock.json timezones.json userConfig.json userSettings.json
 
 ifeq ($(ENABLE_MENU_SPEECH),1)
 OBJS += menu_audio.o

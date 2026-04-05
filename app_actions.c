@@ -311,6 +311,10 @@ void app_dispatch_leaf_action(MenuNode *selected_node, MenuNode *root) {
         handle_typing_tutor();
     } else if (strcmp(selected_node->key, "weather") == 0) {
         system_ui_show_weather();
+    } else if (strcmp(selected_node->key, "google_search") == 0) {
+        system_ui_google_search();
+    } else if (strcmp(selected_node->key, "wiki_search") == 0) {
+        system_ui_wiki_search();
     } else if (strcmp(selected_node->key, "world_clock") == 0) {
         system_ui_show_world_clock();
     } else if (strcmp(selected_node->key, "news") == 0) {

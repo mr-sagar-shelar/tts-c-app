@@ -8,10 +8,19 @@
 #include "download_ui.h"
 #include "menu.h"
 
-#define CONFIG_FILE "userConfig.json"
+#define CONFIG_FILE "userSettings.json"
+#define LEGACY_CONFIG_FILE "userConfig.json"
 #define SERVER_URL "https://api.example.com/sync/userConfig" // Placeholder URL
 
 static cJSON *config_json = NULL;
+
+static FILE *open_config_file_for_read(void) {
+    FILE *file = fopen(CONFIG_FILE, "rb");
+    if (file) {
+        return file;
+    }
+    return fopen(LEGACY_CONFIG_FILE, "rb");
+}
 
 static void ensure_default_string(const char *key, const char *value) {
     cJSON *item = cJSON_GetObjectItemCaseSensitive(config_json, key);
@@ -90,7 +99,7 @@ static void upload_to_server() {
 void init_config() {
     if (config_json) return;
 
-    FILE *f = fopen(CONFIG_FILE, "rb");
+    FILE *f = open_config_file_for_read();
     if (!f) {
         // File doesn't exist, try to sync from server
         if (!download_from_server()) {
@@ -140,6 +149,11 @@ void save_config() {
     char *out = cJSON_Print(config_json);
     if (out) {
         FILE *f = fopen(CONFIG_FILE, "w");
+        if (f) {
+            fputs(out, f);
+            fclose(f);
+        }
+        f = fopen(LEGACY_CONFIG_FILE, "w");
         if (f) {
             fputs(out, f);
             fclose(f);

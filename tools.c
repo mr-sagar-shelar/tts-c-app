@@ -237,6 +237,178 @@ void system_ui_show_weather(void) {
     free(city);
 }
 
+void system_ui_google_search(void) {
+    char query[256];
+    char error[256] = {0};
+    char *response;
+
+    get_user_input(query, sizeof(query), "Enter search term");
+    if (query[0] == '\0') {
+        return;
+    }
+
+    {
+        char *encoded_query = url_encode(query);
+        char url[1024];
+        char text[4096];
+
+        if (!encoded_query) {
+            return;
+        }
+
+        snprintf(url, sizeof(url),
+                 "https://api.duckduckgo.com/?q=%s&format=json&no_html=1&skip_disambig=1",
+                 encoded_query);
+        free(encoded_query);
+
+        response = fetch_text_with_progress_ui("Google Search", url, "search results", error, sizeof(error));
+        if (!response || !response[0]) {
+            snprintf(text, sizeof(text), "%s", error[0] ? error : "No search results found.");
+            content_ui_show_spoken_text("Google Search", "Google Search", text);
+            free(response);
+            return;
+        }
+
+        {
+            cJSON *json = cJSON_Parse(response);
+            free(response);
+            if (!json) {
+                content_ui_show_spoken_text("Google Search", "Google Search", "Unable to parse search results.");
+                return;
+            }
+
+            text[0] = '\0';
+            {
+                cJSON *heading = cJSON_GetObjectItemCaseSensitive(json, "Heading");
+                cJSON *abstract = cJSON_GetObjectItemCaseSensitive(json, "AbstractText");
+                cJSON *related = cJSON_GetObjectItemCaseSensitive(json, "RelatedTopics");
+                int added = 0;
+
+                if (heading && cJSON_IsString(heading) && heading->valuestring[0]) {
+                    strncat(text, heading->valuestring, sizeof(text) - strlen(text) - 1);
+                    strncat(text, "\n\n", sizeof(text) - strlen(text) - 1);
+                    added = 1;
+                }
+                if (abstract && cJSON_IsString(abstract) && abstract->valuestring[0]) {
+                    strncat(text, abstract->valuestring, sizeof(text) - strlen(text) - 1);
+                    strncat(text, "\n\n", sizeof(text) - strlen(text) - 1);
+                    added = 1;
+                }
+                if (cJSON_IsArray(related)) {
+                    int i;
+                    int count = cJSON_GetArraySize(related);
+                    for (i = 0; i < count && i < 5; i++) {
+                        cJSON *item = cJSON_GetArrayItem(related, i);
+                        cJSON *text_item = cJSON_GetObjectItemCaseSensitive(item, "Text");
+                        if (!cJSON_IsString(text_item) || !text_item->valuestring[0]) {
+                            cJSON *topics = cJSON_GetObjectItemCaseSensitive(item, "Topics");
+                            if (cJSON_IsArray(topics) && cJSON_GetArraySize(topics) > 0) {
+                                item = cJSON_GetArrayItem(topics, 0);
+                                text_item = cJSON_GetObjectItemCaseSensitive(item, "Text");
+                            }
+                        }
+                        if (cJSON_IsString(text_item) && text_item->valuestring[0]) {
+                            strncat(text, "- ", sizeof(text) - strlen(text) - 1);
+                            strncat(text, text_item->valuestring, sizeof(text) - strlen(text) - 1);
+                            strncat(text, "\n", sizeof(text) - strlen(text) - 1);
+                            added = 1;
+                        }
+                    }
+                }
+
+                if (!added) {
+                    snprintf(text, sizeof(text), "No search summary found for %s.", query);
+                }
+            }
+
+            content_ui_show_spoken_text("Google Search", query, text);
+            cJSON_Delete(json);
+        }
+    }
+}
+
+void system_ui_wiki_search(void) {
+    char query[256];
+    char error[256] = {0};
+    char *response;
+
+    get_user_input(query, sizeof(query), "Enter Wikipedia search term");
+    if (query[0] == '\0') {
+        return;
+    }
+
+    {
+        char *encoded_query = url_encode(query);
+        char url[1024];
+        char text[4096];
+
+        if (!encoded_query) {
+            return;
+        }
+
+        snprintf(url, sizeof(url),
+                 "https://en.wikipedia.org/w/api.php?action=opensearch&search=%s&limit=5&namespace=0&format=json",
+                 encoded_query);
+        free(encoded_query);
+
+        response = fetch_text_with_progress_ui("Wiki Search", url, "search results", error, sizeof(error));
+        if (!response || !response[0]) {
+            snprintf(text, sizeof(text), "%s", error[0] ? error : "No search results found.");
+            content_ui_show_spoken_text("Wiki Search", "Wiki Search", text);
+            free(response);
+            return;
+        }
+
+        {
+            cJSON *json = cJSON_Parse(response);
+            free(response);
+            if (!json || !cJSON_IsArray(json) || cJSON_GetArraySize(json) < 4) {
+                if (json) {
+                    cJSON_Delete(json);
+                }
+                content_ui_show_spoken_text("Wiki Search", "Wiki Search", "Unable to parse search results.");
+                return;
+            }
+
+            text[0] = '\0';
+            {
+                cJSON *titles = cJSON_GetArrayItem(json, 1);
+                cJSON *descriptions = cJSON_GetArrayItem(json, 2);
+                cJSON *links = cJSON_GetArrayItem(json, 3);
+                int count = cJSON_IsArray(titles) ? cJSON_GetArraySize(titles) : 0;
+                int i;
+
+                for (i = 0; i < count && i < 5; i++) {
+                    cJSON *title = cJSON_GetArrayItem(titles, i);
+                    cJSON *desc = cJSON_GetArrayItem(descriptions, i);
+                    cJSON *link = cJSON_GetArrayItem(links, i);
+
+                    if (cJSON_IsString(title) && title->valuestring[0]) {
+                        strncat(text, title->valuestring, sizeof(text) - strlen(text) - 1);
+                        strncat(text, "\n", sizeof(text) - strlen(text) - 1);
+                    }
+                    if (cJSON_IsString(desc) && desc->valuestring[0]) {
+                        strncat(text, desc->valuestring, sizeof(text) - strlen(text) - 1);
+                        strncat(text, "\n", sizeof(text) - strlen(text) - 1);
+                    }
+                    if (cJSON_IsString(link) && link->valuestring[0]) {
+                        strncat(text, link->valuestring, sizeof(text) - strlen(text) - 1);
+                        strncat(text, "\n", sizeof(text) - strlen(text) - 1);
+                    }
+                    strncat(text, "\n", sizeof(text) - strlen(text) - 1);
+                }
+
+                if (text[0] == '\0') {
+                    snprintf(text, sizeof(text), "No Wikipedia results found for %s.", query);
+                }
+            }
+
+            content_ui_show_spoken_text("Wiki Search", query, text);
+            cJSON_Delete(json);
+        }
+    }
+}
+
 static cJSON *load_timezones_json(char **error_message) {
     FILE *f = fopen("timezones.json", "rb");
     char *data;
