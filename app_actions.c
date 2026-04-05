@@ -9,6 +9,7 @@
 #include "calendar.h"
 #include "config.h"
 #include "contacts.h"
+#include "database_manager.h"
 #include "dictionary.h"
 #include "entertainment.h"
 #include "file_manager.h"
@@ -351,5 +352,7 @@ void app_dispatch_leaf_action(MenuNode *selected_node, MenuNode *root) {
         handle_address_manager(selected_node);
     } else if (app_is_descendant_of(selected_node, "calendar")) {
         handle_calendar(selected_node);
+    } else if (app_is_descendant_of(selected_node, "database_manager")) {
+        handle_database_manager(selected_node);
     }
 }

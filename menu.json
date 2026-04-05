@@ -362,6 +362,32 @@
           "title_key": "database_manager",
           "key": "database_manager",
           "shortcut": "d",
+          "items": [
+            {
+              "title_key": "db_table_list",
+              "key": "db_table_list",
+              "shortcut": "l",
+              "description_key": "db_table_list_desc"
+            },
+            {
+              "title_key": "db_table_create",
+              "key": "db_table_create",
+              "shortcut": "c",
+              "description_key": "db_table_create_desc"
+            },
+            {
+              "title_key": "db_table_open",
+              "key": "db_table_open",
+              "shortcut": "o",
+              "description_key": "db_table_open_desc"
+            },
+            {
+              "title_key": "db_table_delete",
+              "key": "db_table_delete",
+              "shortcut": "d",
+              "description_key": "db_table_delete_desc"
+            }
+          ],
           "description_key": "database_manager_desc"
         }
       ],

@@ -37,6 +37,7 @@ static void create_default_config() {
     cJSON_AddStringToObject(config_json, "audio_playback", "off");
     cJSON_AddItemToObject(config_json, "contacts", cJSON_CreateArray());
     cJSON_AddItemToObject(config_json, "alarms", cJSON_CreateArray());
+    cJSON_AddItemToObject(config_json, "database_tables", cJSON_CreateArray());
     cJSON_AddStringToObject(config_json, "last_sync", "Never");
 }
 
@@ -128,6 +129,9 @@ void init_config() {
     ensure_default_string("speech_mode", "on");
     ensure_default_string("audio_playback", "off");
     ensure_default_string("last_sync", "Never");
+    if (!cJSON_IsArray(cJSON_GetObjectItemCaseSensitive(config_json, "database_tables"))) {
+        cJSON_ReplaceItemInObject(config_json, "database_tables", cJSON_CreateArray());
+    }
     save_config();
 }
 

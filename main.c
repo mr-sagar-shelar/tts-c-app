@@ -9,6 +9,7 @@
 #include "calendar.h"
 #include "config.h"
 #include "contacts.h"
+#include "database_manager.h"
 #include "file_manager.h"
 #include "menu_audio.h"
 #include "menu.h"
@@ -68,6 +69,7 @@ int main() {
     }
     init_contacts();
     init_calendar();
+    init_database_manager();
     
     mkdir(USER_SPACE, 0777);
     mkdir("Downloads", 0777);
@@ -200,5 +202,6 @@ int main() {
     cleanup_config();
     cleanup_contacts();
     cleanup_calendar();
+    cleanup_database_manager();
     return 0;
 }
