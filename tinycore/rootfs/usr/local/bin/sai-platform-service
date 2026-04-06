@@ -183,6 +183,89 @@ set_volume_percent() {
     amixer -q sset "$control" "${percent}%" unmute >/dev/null 2>&1
 }
 
+find_audio_card() {
+    output="$1"
+
+    [ -r /proc/asound/cards ] || return 1
+
+    case "$output" in
+        hat)
+            awk '/hifiberry|pirate|iqaudio|dac/i { print $1; exit }' /proc/asound/cards | tr -d '[:space:]'
+            ;;
+        *)
+            awk '/bcm2835|vc4hdmi|HDMI/i { print $1; exit }' /proc/asound/cards | tr -d '[:space:]'
+            ;;
+    esac
+}
+
+find_audio_device() {
+    output="$1"
+    card="$2"
+
+    [ -n "$card" ] || return 1
+    [ -r /proc/asound/pcm ] || return 1
+
+    case "$output" in
+        hat)
+            awk -F: -v card="$card" '
+                $1 ~ "^" card "-[0-9]+" && $0 ~ /playback/ {
+                    split($1, parts, "-");
+                    print parts[2];
+                    exit
+                }
+            ' /proc/asound/pcm | tr -d '[:space:]'
+            ;;
+        *)
+            awk -F: -v card="$card" '
+                $1 ~ "^" card "-[0-9]+" && $0 ~ /playback/ && $0 ~ /HDMI/ {
+                    split($1, parts, "-");
+                    print parts[2];
+                    exit
+                }
+                $1 ~ "^" card "-[0-9]+" && $0 ~ /playback/ && first == "" {
+                    split($1, parts, "-");
+                    first = parts[2];
+                }
+                END {
+                    if (first != "") print first;
+                }
+            ' /proc/asound/pcm | tr -d '[:space:]'
+            ;;
+    esac
+}
+
+write_audio_config() {
+    card="$1"
+    device="$2"
+
+    [ -n "$card" ] || return 1
+    [ -n "$device" ] || return 1
+
+    cat > /tmp/sai-asound.conf <<EOF
+pcm.!default {
+    type plug
+    slave.pcm "hw:${card},${device}"
+}
+
+ctl.!default {
+    type hw
+    card ${card}
+}
+EOF
+}
+
+set_audio_output_value() {
+    output="$1"
+    card="$(find_audio_card "$output" || true)"
+    device=""
+
+    [ -n "$card" ] || return 1
+    device="$(find_audio_device "$output" "$card" || true)"
+    [ -n "$device" ] || device="0"
+
+    write_audio_config "$card" "$device"
+}
+
 set_timezone_value() {
     timezone="$1"
 
@@ -382,6 +465,28 @@ process_request() {
             else
                 write_response_file "$req_dir" status error
                 write_response_file "$req_dir" message "Unable to update system volume."
+            fi
+            ;;
+        set_audio_output)
+            output="$(read_request_value "$req_dir" value1 '')"
+            if [ "$output" != "hdmi" ] && [ "$output" != "hat" ]; then
+                write_response_file "$req_dir" status error
+                write_response_file "$req_dir" message "Audio output must be hdmi or hat."
+            elif set_audio_output_value "$output"; then
+                write_response_file "$req_dir" status ok
+                write_response_file "$req_dir" value "$output"
+                if [ "$output" = "hat" ]; then
+                    write_response_file "$req_dir" message "Audio output set to Audio HAT."
+                else
+                    write_response_file "$req_dir" message "Audio output set to HDMI."
+                fi
+            else
+                write_response_file "$req_dir" status error
+                if [ "$output" = "hat" ]; then
+                    write_response_file "$req_dir" message "Unable to find an Audio HAT ALSA device."
+                else
+                    write_response_file "$req_dir" message "Unable to find an HDMI ALSA device."
+                fi
             fi
             ;;
         set_timezone)

@@ -190,7 +190,7 @@ radio.o: radio.c radio.h utils.h
 	$(CC) $(CFLAGS) -c radio.c
 
 clean:
-	rm -f $(TARGET) $(OBJS)
+	rm -f $(TARGET) *.o
 	@if [ -d "$(LOCAL_FLITEDIR)" ]; then $(MAKE) -C $(LOCAL_FLITEDIR) clean; fi
 	@rm -f $(LOCAL_FLITEDIR)/build/.built
 

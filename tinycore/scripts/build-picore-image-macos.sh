@@ -9,6 +9,7 @@ CACHE_DIR="${CACHE_DIR:-$ROOT_DIR/build/tinycore/cache}"
 TC_VERSION="${TC_VERSION:-16.x}"
 TC_ARCH="${TC_ARCH:-armhf}"
 TCE_NAME="${TCE_NAME:-tce}"
+RPI_BOOT_PROFILE="${RPI_BOOT_PROFILE:-cm4}"
 RELEASE_BASE_URL_DEFAULT="http://tinycorelinux.net/${TC_VERSION}/${TC_ARCH}/release/RPi/"
 EXT_BASE_URL_DEFAULT="http://repo.tinycorelinux.net/${TC_VERSION}/${TC_ARCH}/tcz/"
 RELEASE_BASE_URL="${RELEASE_BASE_URL:-$RELEASE_BASE_URL_DEFAULT}"
@@ -120,6 +121,54 @@ append_cmdline_tokens() {
         esac
     done < "$src"
     printf '%s\n' "$current" > "$dest"
+}
+
+prune_boot_partition_for_profile() {
+    boot_mount="$1"
+
+    case "$RPI_BOOT_PROFILE" in
+        all|"")
+            return 0
+            ;;
+        cm4|pi4)
+            printf 'Pruning boot files for %s profile to free FAT partition space\n' "$RPI_BOOT_PROFILE"
+            rm -f \
+                "$boot_mount/kernel61225.img" \
+                "$boot_mount/kernel61225v7.img" \
+                "$boot_mount/kernel61225v7l.img" \
+                "$boot_mount/modules-6.12.25-piCore.gz" \
+                "$boot_mount/modules-6.12.25-piCore-v7.gz" \
+                "$boot_mount/modules-6.12.25-piCore-v7l.gz" \
+                "$boot_mount/start.elf" \
+                "$boot_mount/start_cd.elf" \
+                "$boot_mount/start_x.elf" \
+                "$boot_mount/fixup.dat" \
+                "$boot_mount/fixup_cd.dat" \
+                "$boot_mount/fixup_x.dat" \
+                "$boot_mount/start4cd.elf" \
+                "$boot_mount/start4x.elf" \
+                "$boot_mount/fixup4cd.dat" \
+                "$boot_mount/fixup4x.dat"
+            find "$boot_mount" -maxdepth 1 -type f -name 'bcm2708-*.dtb' -delete
+            find "$boot_mount" -maxdepth 1 -type f -name 'bcm2709-*.dtb' -delete
+            find "$boot_mount" -maxdepth 1 -type f -name 'bcm2710-*.dtb' -delete
+            find "$boot_mount" -maxdepth 1 -type f -name 'bcm2712-*.dtb' -delete
+            find "$boot_mount" -maxdepth 1 -type f -name 'bcm2712d0-*.dtb' -delete
+            find "$boot_mount" -maxdepth 1 -type f -name 'bcm2711-rpi-4-b.dtb' -delete
+            find "$boot_mount" -maxdepth 1 -type f -name 'bcm2711-rpi-400.dtb' -delete
+            find "$boot_mount" -maxdepth 1 -type f -name 'bcm2711-rpi-cm4s.dtb' -delete
+            ;;
+        *)
+            printf 'Unknown RPI_BOOT_PROFILE: %s\n' "$RPI_BOOT_PROFILE" >&2
+            exit 1
+            ;;
+    esac
+}
+
+print_boot_partition_usage() {
+    boot_mount="$1"
+    printf 'Boot partition usage after pruning:\n'
+    df -h "$boot_mount" | sed -n '1,2p'
 }
 
 extract_hdiutil_value() {
@@ -433,6 +482,9 @@ trap 'hdiutil detach "$DISK_DEV" >/dev/null 2>&1 || true' EXIT
 OPTIONAL_DIR="$BOOT_MOUNT/$TCE_NAME/optional"
 ONBOOT_FILE="$BOOT_MOUNT/$TCE_NAME/onboot.lst"
 mkdir -p "$OPTIONAL_DIR"
+
+prune_boot_partition_for_profile "$BOOT_MOUNT"
+print_boot_partition_usage "$BOOT_MOUNT"
 
 cp "$ARTIFACT_DIR/mydata.tgz" "$BOOT_MOUNT/mydata.tgz"
 cp "$ARTIFACT_DIR/onboot.lst" "$ONBOOT_FILE"
