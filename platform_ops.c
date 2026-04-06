@@ -1,5 +1,6 @@
 #include "platform_ops.h"
 
+#include <ctype.h>
 #include <dirent.h>
 #include <errno.h>
 #include <limits.h>
@@ -16,6 +17,10 @@ static PlatformMode cached_mode = -1;
 static int platform_get_linux_volume_percent(int *percent, char *message, size_t message_size);
 static int platform_set_linux_volume_percent(int percent, char *message, size_t message_size);
 static int platform_set_linux_audio_output(const char *output, char *message, size_t message_size);
+static int platform_command_matches_model(const char *needle);
+static int platform_is_cm4(void);
+static int platform_is_pi_zero(void);
+static int platform_read_text_file(const char *path, char *buffer, size_t buffer_size);
 
 static void platform_set_message(char *message, size_t message_size, const char *text) {
     if (!message || message_size == 0) {
@@ -132,6 +137,64 @@ static int platform_file_contains(const char *path, const char *needle) {
     return 0;
 }
 #endif
+
+int platform_ops_get_device_model(char *buffer, size_t buffer_size) {
+    if (!buffer || buffer_size == 0) {
+        return 0;
+    }
+
+    buffer[0] = '\0';
+
+#if defined(__APPLE__)
+    snprintf(buffer, buffer_size, "%s", "macOS host");
+    return 1;
+#elif defined(__linux__)
+    if (platform_read_text_file("/sys/firmware/devicetree/base/model", buffer, buffer_size) ||
+        platform_read_text_file("/proc/device-tree/model", buffer, buffer_size) ||
+        platform_read_text_file("/sys/firmware/devicetree/base/compatible", buffer, buffer_size)) {
+        return 1;
+    }
+#endif
+
+    snprintf(buffer, buffer_size, "%s", platform_ops_get_mode_name());
+    return 1;
+}
+
+static int platform_command_matches_model(const char *needle) {
+    char model[256];
+    char lower_model[256];
+    char lower_needle[128];
+    size_t i;
+
+    if (!needle || !needle[0]) {
+        return 0;
+    }
+
+    if (!platform_ops_get_device_model(model, sizeof(model))) {
+        return 0;
+    }
+
+    for (i = 0; model[i] && i < sizeof(lower_model) - 1; i++) {
+        lower_model[i] = (char)tolower((unsigned char)model[i]);
+    }
+    lower_model[i] = '\0';
+
+    for (i = 0; needle[i] && i < sizeof(lower_needle) - 1; i++) {
+        lower_needle[i] = (char)tolower((unsigned char)needle[i]);
+    }
+    lower_needle[i] = '\0';
+
+    return strstr(lower_model, lower_needle) != NULL;
+}
+
+static int platform_is_cm4(void) {
+    return platform_command_matches_model("compute module 4") ||
+           platform_command_matches_model("cm4");
+}
+
+static int platform_is_pi_zero(void) {
+    return platform_command_matches_model("pi zero");
+}
 
 static const char *platform_get_dev_state_dir(void) {
     static char path[PATH_MAX];
@@ -898,6 +961,145 @@ static int platform_run_privileged_linux(const char *command, char *message, siz
         platform_set_message(message, message_size,
                              "Operation failed. Passwordless sudo may be required in dev mode.");
     }
+    return 0;
+}
+
+int platform_ops_power_off(char *message, size_t message_size) {
+    PlatformWifiResponse response;
+
+    if (platform_ops_get_mode() == PLATFORM_MODE_STUB) {
+        platform_set_message(message, message_size, "macOS stub mode: power off skipped.");
+        return 1;
+    }
+
+    if (platform_ops_get_mode() == PLATFORM_MODE_TINYCORE && platform_is_cm4()) {
+        if (platform_tinycore_request("power_off", NULL, NULL, NULL, NULL, &response, NULL, 0)) {
+            platform_set_message(message, message_size,
+                                 response.message[0] ? response.message : "Power off request sent.");
+            return 1;
+        }
+        platform_set_message(message, message_size,
+                             response.message[0] ? response.message : "Unable to power off in TinyCore CM4 mode.");
+        return 0;
+    }
+
+    if (platform_run_privileged_linux("poweroff || shutdown -h now", message, message_size)) {
+        if (platform_is_pi_zero()) {
+            platform_set_message(message, message_size, "Pi Zero power off command executed.");
+        } else {
+            platform_set_message(message, message_size, "Power off command executed.");
+        }
+        return 1;
+    }
+
+    return 0;
+}
+
+int platform_ops_record_voice(const char *path, int seconds, char *message, size_t message_size) {
+    PlatformWifiResponse response;
+    char escaped_path[PATH_MAX * 2];
+    char command[4096];
+    char seconds_text[32];
+
+    if (!path || path[0] == '\0') {
+        platform_set_message(message, message_size, "A recording path is required.");
+        return 0;
+    }
+
+    if (seconds <= 0) {
+        seconds = 10;
+    }
+
+    if (platform_ops_get_mode() == PLATFORM_MODE_STUB) {
+        snprintf(command, sizeof(command),
+                 "macOS stub mode: voice recording skipped for %s.", path);
+        platform_set_message(message, message_size, command);
+        return 1;
+    }
+
+    if (platform_ops_get_mode() == PLATFORM_MODE_TINYCORE && platform_is_cm4()) {
+        snprintf(seconds_text, sizeof(seconds_text), "%d", seconds);
+        if (platform_tinycore_request("record_voice", path, seconds_text, NULL, NULL, &response, NULL, 0)) {
+            platform_set_message(message, message_size,
+                                 response.message[0] ? response.message : "Voice recording finished.");
+            return 1;
+        }
+        platform_set_message(message, message_size,
+                             response.message[0] ? response.message : "Unable to record voice in TinyCore CM4 mode.");
+        return 0;
+    }
+
+    snprintf(command, sizeof(command),
+             "(command -v arecord >/dev/null 2>&1 && arecord -q -f cd -d %d %s) || "
+             "(command -v rec >/dev/null 2>&1 && rec -q %s trim 0.0 %d)",
+             seconds,
+             platform_escape_shell_arg(path, escaped_path, sizeof(escaped_path)),
+             escaped_path,
+             seconds);
+    if (platform_command_success(command, NULL, 0)) {
+        if (platform_is_pi_zero()) {
+            snprintf(command, sizeof(command), "Pi Zero recording saved to %s.", path);
+        } else {
+            snprintf(command, sizeof(command), "Recording saved to %s.", path);
+        }
+        platform_set_message(message, message_size, command);
+        return 1;
+    }
+
+    platform_set_message(message, message_size,
+                         "Voice recording failed. Install `arecord` or `rec` and verify the microphone.");
+    return 0;
+}
+
+int platform_ops_play_mp3(const char *path, char *message, size_t message_size) {
+    PlatformWifiResponse response;
+    char escaped_path[PATH_MAX * 2];
+    char command[4096];
+
+    if (!path || path[0] == '\0') {
+        platform_set_message(message, message_size, "An MP3 path is required.");
+        return 0;
+    }
+
+    if (platform_ops_get_mode() == PLATFORM_MODE_STUB) {
+        snprintf(command, sizeof(command),
+                 "macOS stub mode: MP3 playback skipped for %s.", path);
+        platform_set_message(message, message_size, command);
+        return 1;
+    }
+
+    if (platform_ops_get_mode() == PLATFORM_MODE_TINYCORE && platform_is_cm4()) {
+        if (platform_tinycore_request("play_mp3", path, NULL, NULL, NULL, &response, NULL, 0)) {
+            platform_set_message(message, message_size,
+                                 response.message[0] ? response.message : "MP3 playback completed.");
+            return 1;
+        }
+        platform_set_message(message, message_size,
+                             response.message[0] ? response.message : "Unable to play MP3 in TinyCore CM4 mode.");
+        return 0;
+    }
+
+    snprintf(command, sizeof(command),
+             "(command -v mpg123 >/dev/null 2>&1 && mpg123 %s) || "
+             "(command -v madplay >/dev/null 2>&1 && madplay %s) || "
+             "(command -v ffplay >/dev/null 2>&1 && ffplay -nodisp -autoexit %s) || "
+             "(command -v play >/dev/null 2>&1 && play %s)",
+             platform_escape_shell_arg(path, escaped_path, sizeof(escaped_path)),
+             escaped_path,
+             escaped_path,
+             escaped_path);
+    if (platform_command_success(command, NULL, 0)) {
+        if (platform_is_pi_zero()) {
+            snprintf(command, sizeof(command), "Pi Zero played %s.", path);
+        } else {
+            snprintf(command, sizeof(command), "Playback finished for %s.", path);
+        }
+        platform_set_message(message, message_size, command);
+        return 1;
+    }
+
+    platform_set_message(message, message_size,
+                         "MP3 playback failed. Install `mpg123`, `madplay`, `ffplay`, or `play`.");
     return 0;
 }
 

@@ -30,6 +30,7 @@ typedef struct {
 
 PlatformMode platform_ops_get_mode(void);
 const char *platform_ops_get_mode_name(void);
+int platform_ops_get_device_model(char *buffer, size_t buffer_size);
 
 int platform_ops_wifi_status(PlatformWifiResponse *response);
 int platform_ops_wifi_scan(PlatformWifiResponse *response);
@@ -43,5 +44,8 @@ int platform_ops_set_audio_output(const char *output, char *message, size_t mess
 int platform_ops_set_timezone(const char *timezone, char *message, size_t message_size);
 int platform_ops_set_system_time(int hour, int minute, int second, char *message, size_t message_size);
 int platform_ops_set_system_date(int year, int month, int day, char *message, size_t message_size);
+int platform_ops_power_off(char *message, size_t message_size);
+int platform_ops_record_voice(const char *path, int seconds, char *message, size_t message_size);
+int platform_ops_play_mp3(const char *path, char *message, size_t message_size);
 
 #endif /* PLATFORM_OPS_H */

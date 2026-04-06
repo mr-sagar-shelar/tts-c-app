@@ -267,6 +267,12 @@
           "key": "daisy_player",
           "shortcut": "d",
           "description_key": "daisy_player_desc"
+        },
+        {
+          "title_key": "mp3_player",
+          "key": "mp3_player",
+          "shortcut": "p",
+          "description_key": "mp3_player_desc"
         }
       ],
       "description_key": "media_desc"
@@ -517,6 +523,36 @@
           "key": "alarm",
           "shortcut": "a",
           "description_key": "alarm_desc"
+        },
+        {
+          "title_key": "voice_recorder",
+          "key": "voice_recorder",
+          "shortcut": "v",
+          "description_key": "voice_recorder_desc"
+        },
+        {
+          "title_key": "display_free_memory",
+          "key": "display_free_memory",
+          "shortcut": "f",
+          "description_key": "display_free_memory_desc"
+        },
+        {
+          "title_key": "display_time_date",
+          "key": "display_time_date",
+          "shortcut": "d",
+          "description_key": "display_time_date_desc"
+        },
+        {
+          "title_key": "display_network_status",
+          "key": "display_network_status",
+          "shortcut": "n",
+          "description_key": "display_network_status_desc"
+        },
+        {
+          "title_key": "display_power_status",
+          "key": "display_power_status",
+          "shortcut": "p",
+          "description_key": "display_power_status_desc"
         }
       ],
       "description_key": "utilities_desc"
@@ -721,6 +757,12 @@
           "key": "sync_server",
           "shortcut": "s",
           "description_key": "sync_server_desc"
+        },
+        {
+          "title_key": "power_off",
+          "key": "power_off",
+          "shortcut": "q",
+          "description_key": "power_off_desc"
         }
       ],
       "description_key": "settings_desc"
@@ -729,7 +771,21 @@
       "title_key": "help",
       "key": "help",
       "shortcut": "h",
-      "description_key": "help_desc"
+      "description_key": "help_desc",
+      "items": [
+        {
+          "title_key": "user_guide",
+          "key": "user_guide",
+          "shortcut": "u",
+          "description_key": "user_guide_desc"
+        },
+        {
+          "title_key": "about_sai",
+          "key": "about_sai",
+          "shortcut": "a",
+          "description_key": "about_sai_desc"
+        }
+      ]
     }
   ]
 }

@@ -1,11 +1,13 @@
 #include "tools.h"
 #include <ctype.h>
+#include <dirent.h>
 #include <stdarg.h>
 #include <strings.h>
 #include <time.h>
 
 #include "download_ui.h"
 #include "entertainment.h"
+#include "file_manager.h"
 #include "menu_audio.h"
 #include "menu.h"
 #include "platform_ops.h"
@@ -37,6 +39,402 @@ static void show_platform_result_screen(const char *title, const char *message) 
            menu_translate("ui_press_any_key_to_continue", "Press any key to continue..."));
     fflush(stdout);
     read_key();
+}
+
+static int read_first_line_from_file(const char *path, char *buffer, size_t buffer_size) {
+    FILE *file;
+
+    if (!path || !buffer || buffer_size == 0) {
+        return 0;
+    }
+
+    buffer[0] = '\0';
+    file = fopen(path, "r");
+    if (!file) {
+        return 0;
+    }
+
+    if (!fgets(buffer, (int)buffer_size, file)) {
+        fclose(file);
+        return 0;
+    }
+
+    fclose(file);
+    buffer[strcspn(buffer, "\r\n")] = '\0';
+    return buffer[0] != '\0';
+}
+
+static int read_first_line_from_command(const char *command, char *buffer, size_t buffer_size) {
+    FILE *pipe;
+
+    if (!command || !buffer || buffer_size == 0) {
+        return 0;
+    }
+
+    buffer[0] = '\0';
+    pipe = popen(command, "r");
+    if (!pipe) {
+        return 0;
+    }
+
+    if (!fgets(buffer, (int)buffer_size, pipe)) {
+        pclose(pipe);
+        buffer[0] = '\0';
+        return 0;
+    }
+
+    pclose(pipe);
+    buffer[strcspn(buffer, "\r\n")] = '\0';
+    return buffer[0] != '\0';
+}
+
+static void show_accessible_text_screen(const char *title, const char *text) {
+    content_ui_show_spoken_text(title, title, text ? text : "");
+}
+
+static int confirm_system_action(const char *title, const char *message) {
+    int selected = 1;
+    const char *options[2] = {
+        menu_translate("ui_yes", "Yes"),
+        menu_translate("ui_no", "No")
+    };
+
+    while (1) {
+        printf("\033[H\033[J--- %s ---\n\n%s\n\n", title, message);
+        for (int i = 0; i < 2; i++) {
+            printf("%c %s\n", i == selected ? '>' : ' ', options[i]);
+        }
+        printf("\n%s\n", menu_translate("ui_footer_cancel", "[Arrows: Navigate | Enter: Select | Esc: Cancel]"));
+        fflush(stdout);
+
+        {
+            int key = read_key();
+            if (key == KEY_UP || key == KEY_DOWN) {
+                selected = menu_next_index(selected, key == KEY_UP ? -1 : 1, 2);
+            } else if (key == KEY_ENTER) {
+                return selected == 0;
+            } else if (key == KEY_ESC) {
+                return 0;
+            }
+        }
+    }
+}
+
+void system_ui_power_off(void) {
+    char message[512];
+
+    if (!confirm_system_action("Power Off",
+                               "This will execute the system poweroff command and shut down the device.")) {
+        return;
+    }
+
+    platform_ops_power_off(message, sizeof(message));
+    show_platform_result_screen("Power Off", message);
+}
+
+void system_ui_voice_recorder(void) {
+    char filename[256];
+    char seconds_text[32];
+    int seconds;
+    char path[1024];
+    char message[1400];
+
+    get_user_input(filename, sizeof(filename), "Enter recording file name");
+    if (filename[0] == '\0') {
+        return;
+    }
+
+    get_user_input(seconds_text, sizeof(seconds_text), "Enter recording duration in seconds");
+    seconds = atoi(seconds_text);
+    if (seconds <= 0) {
+        seconds = 10;
+    }
+    if (seconds > 600) {
+        seconds = 600;
+    }
+
+    if (!strstr(filename, ".wav")) {
+        snprintf(path, sizeof(path), "%s/%s.wav", USER_SPACE, filename);
+    } else {
+        snprintf(path, sizeof(path), "%s/%s", USER_SPACE, filename);
+    }
+
+    printf("\033[H\033[J--- Voice Recorder ---\n\nRecording will be saved to:\n%s\n\nDuration: %d seconds\n\nStarting recorder...\n",
+           path,
+           seconds);
+    fflush(stdout);
+
+    platform_ops_record_voice(path, seconds, message, sizeof(message));
+    show_platform_result_screen("Voice Recorder", message);
+}
+
+void system_ui_display_free_memory(void) {
+    FILE *file;
+    char line[256];
+    unsigned long total_kb = 0;
+    unsigned long free_kb = 0;
+    unsigned long available_kb = 0;
+    char text[1024];
+
+    if (platform_ops_get_mode() == PLATFORM_MODE_STUB) {
+        show_platform_result_screen("Free Memory", "macOS stub mode: free memory display skipped.");
+        return;
+    }
+
+    file = fopen("/proc/meminfo", "r");
+    if (!file) {
+        show_platform_result_screen("Free Memory", "Unable to read /proc/meminfo on this device.");
+        return;
+    }
+
+    while (fgets(line, sizeof(line), file)) {
+        if (sscanf(line, "MemTotal: %lu kB", &total_kb) == 1) {
+            continue;
+        }
+        if (sscanf(line, "MemFree: %lu kB", &free_kb) == 1) {
+            continue;
+        }
+        if (sscanf(line, "MemAvailable: %lu kB", &available_kb) == 1) {
+            continue;
+        }
+    }
+    fclose(file);
+
+    if (total_kb == 0) {
+        show_platform_result_screen("Free Memory", "Memory information is unavailable.");
+        return;
+    }
+
+    snprintf(text, sizeof(text),
+             "Memory summary\n\n"
+             "Total memory: %lu MB\n"
+             "Available memory: %lu MB\n"
+             "Free memory: %lu MB\n"
+             "Used memory estimate: %lu MB",
+             total_kb / 1024UL,
+             available_kb / 1024UL,
+             free_kb / 1024UL,
+             (total_kb - available_kb) / 1024UL);
+    show_accessible_text_screen("Free Memory", text);
+}
+
+void system_ui_display_time_date(void) {
+    time_t now;
+    struct tm tm_value;
+    char date_buffer[64];
+    char time_buffer[64];
+    char text[512];
+    char *time_format = get_setting("time_format");
+    char *timezone = get_setting("timezone");
+    char model[256];
+
+    if (platform_ops_get_mode() == PLATFORM_MODE_STUB) {
+        show_platform_result_screen("Time and Date", "macOS stub mode: time and date display skipped.");
+        free(time_format);
+        free(timezone);
+        return;
+    }
+
+    now = time(NULL);
+    localtime_r(&now, &tm_value);
+    platform_ops_get_device_model(model, sizeof(model));
+
+    strftime(date_buffer, sizeof(date_buffer), "%A, %d %B %Y", &tm_value);
+    if (time_format && strcmp(time_format, "24h") == 0) {
+        strftime(time_buffer, sizeof(time_buffer), "%H:%M:%S", &tm_value);
+    } else {
+        strftime(time_buffer, sizeof(time_buffer), "%I:%M:%S %p", &tm_value);
+    }
+
+    snprintf(text, sizeof(text),
+             "Current date and time\n\nDate: %s\nTime: %s\nTime zone: %s\nDevice: %s",
+             date_buffer,
+             time_buffer,
+             timezone && timezone[0] ? timezone : "System default",
+             model);
+    show_accessible_text_screen("Time and Date", text);
+
+    free(time_format);
+    free(timezone);
+}
+
+void system_ui_display_network_status(void) {
+    PlatformWifiResponse response;
+    char text[1024];
+    char model[256];
+
+    memset(&response, 0, sizeof(response));
+    platform_ops_wifi_status(&response);
+    platform_ops_get_device_model(model, sizeof(model));
+
+    snprintf(text, sizeof(text),
+             "Network status\n\n"
+             "Platform mode: %s\n"
+             "Device: %s\n"
+             "Interface: %s\n"
+             "Connected: %s\n"
+             "Network: %s\n"
+             "IP address: %s\n"
+             "Message: %s",
+             platform_ops_get_mode_name(),
+             model,
+             response.interface_name[0] ? response.interface_name : menu_translate("wifi_not_available", "Not available"),
+             (strcasecmp(response.connected, "yes") == 0)
+                 ? menu_translate("wifi_connected", "Connected")
+                 : menu_translate("wifi_not_connected", "Not connected"),
+             response.ssid[0] ? response.ssid : menu_translate("wifi_not_connected", "Not connected"),
+             response.ip_address[0] ? response.ip_address : menu_translate("wifi_not_assigned", "Not assigned"),
+             response.message[0] ? response.message : "No additional status message.");
+    show_accessible_text_screen("Network Status", text);
+}
+
+void system_ui_display_power_status(void) {
+    DIR *dir;
+    struct dirent *entry;
+    char source_name[128] = "";
+    char capacity[64] = "";
+    char status[64] = "";
+    char online[64] = "";
+    char text[1024];
+    char model[256];
+
+    if (platform_ops_get_mode() == PLATFORM_MODE_STUB) {
+        show_platform_result_screen("Power Status", "macOS stub mode: power status display skipped.");
+        return;
+    }
+
+    platform_ops_get_device_model(model, sizeof(model));
+
+    dir = opendir("/sys/class/power_supply");
+    if (dir) {
+        while ((entry = readdir(dir)) != NULL) {
+            char path[512];
+            char type[64];
+
+            if (entry->d_name[0] == '.') {
+                continue;
+            }
+
+            snprintf(path, sizeof(path), "/sys/class/power_supply/%s/type", entry->d_name);
+            if (!read_first_line_from_file(path, type, sizeof(type))) {
+                continue;
+            }
+
+            if (strcasecmp(type, "Battery") == 0) {
+                snprintf(source_name, sizeof(source_name), "%s", entry->d_name);
+                snprintf(path, sizeof(path), "/sys/class/power_supply/%s/capacity", entry->d_name);
+                read_first_line_from_file(path, capacity, sizeof(capacity));
+                snprintf(path, sizeof(path), "/sys/class/power_supply/%s/status", entry->d_name);
+                read_first_line_from_file(path, status, sizeof(status));
+                break;
+            }
+        }
+        closedir(dir);
+    }
+
+    if (source_name[0]) {
+        snprintf(text, sizeof(text),
+                 "Power status\n\nDevice: %s\nPower source: %s\nBattery level: %s%%\nBattery state: %s",
+                 model,
+                 source_name,
+                 capacity[0] ? capacity : "Unknown",
+                 status[0] ? status : "Unknown");
+        show_accessible_text_screen("Power Status", text);
+        return;
+    }
+
+    dir = opendir("/sys/class/power_supply");
+    if (dir) {
+        while ((entry = readdir(dir)) != NULL) {
+            char path[512];
+            char type[64];
+
+            if (entry->d_name[0] == '.') {
+                continue;
+            }
+
+            snprintf(path, sizeof(path), "/sys/class/power_supply/%s/type", entry->d_name);
+            if (!read_first_line_from_file(path, type, sizeof(type))) {
+                continue;
+            }
+
+            if (strcasecmp(type, "Mains") == 0 || strcasecmp(type, "USB") == 0) {
+                snprintf(source_name, sizeof(source_name), "%s", entry->d_name);
+                snprintf(path, sizeof(path), "/sys/class/power_supply/%s/online", entry->d_name);
+                read_first_line_from_file(path, online, sizeof(online));
+                break;
+            }
+        }
+        closedir(dir);
+    }
+
+    if (source_name[0]) {
+        snprintf(text, sizeof(text),
+                 "Power status\n\nDevice: %s\nPower source: %s\nExternal power: %s",
+                 model,
+                 source_name,
+                 strcmp(online, "1") == 0 ? "Connected" : "Not connected");
+        show_accessible_text_screen("Power Status", text);
+        return;
+    }
+
+    if (read_first_line_from_command("vcgencmd get_throttled 2>/dev/null", status, sizeof(status))) {
+        snprintf(text, sizeof(text),
+                 "Power status\n\nDevice: %s\nRaspberry Pi voltage monitor: %s\n\nA value of throttled=0x0 means power is healthy.",
+                 model,
+                 status);
+        show_accessible_text_screen("Power Status", text);
+        return;
+    }
+
+    show_platform_result_screen("Power Status",
+                                "No battery or external power status source was found on this device.");
+}
+
+void system_ui_mp3_player(void) {
+    char *selected_path = file_navigator(USER_SPACE, 0);
+    char message[1400];
+    const char *extension;
+
+    if (!selected_path) {
+        return;
+    }
+
+    extension = strrchr(selected_path, '.');
+    if (!extension || strcasecmp(extension, ".mp3") != 0) {
+        free(selected_path);
+        show_platform_result_screen("MP3 Player", "Please select an `.mp3` file from UserSpace.");
+        return;
+    }
+
+    printf("\033[H\033[J--- MP3 Player ---\n\nNow opening:\n%s\n\nUse the player's own keyboard controls if available.\n",
+           selected_path);
+    fflush(stdout);
+
+    platform_ops_play_mp3(selected_path, message, sizeof(message));
+
+    free(selected_path);
+    show_platform_result_screen("MP3 Player", message);
+}
+
+void system_ui_show_user_guide(void) {
+    show_accessible_text_screen(
+        "User Guide",
+        "Sai user guide\n\n"
+        "Use the Up and Down arrow keys to move through each menu.\n"
+        "Press Enter to open a menu or start the highlighted feature.\n"
+        "Press Escape to go back to the previous menu.\n"
+        "Press Control and I together to hear or read more information about the current item.\n\n"
+        "Most tools save files inside the UserSpace folder. Settings let you adjust language, audio, time, and device behavior.");
+}
+
+void system_ui_show_about_sai(void) {
+    show_accessible_text_screen(
+        "About Sai",
+        "About Sai\n\n"
+        "Sai is a menu-driven accessible application written in C for lightweight Linux systems such as TinyCore Linux on Raspberry Pi.\n"
+        "It combines speech-friendly menus with reading, writing, utilities, media, connectivity, and organizer tools.\n"
+        "The design goal is to keep interaction simple, keyboard-first, and reliable on low-resource hardware.");
 }
 
 static int calculator_is_input_char(int key) {

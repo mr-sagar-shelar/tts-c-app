@@ -339,12 +339,31 @@ void app_dispatch_leaf_action(MenuNode *selected_node, MenuNode *root) {
         system_ui_set_time_manual();
     } else if (strcmp(selected_node->key, "set_date_manual") == 0) {
         system_ui_set_date_manual();
+    } else if (strcmp(selected_node->key, "power_off") == 0) {
+        system_ui_power_off();
     } else if (strcmp(selected_node->key, "alarm") == 0) {
         handle_alarm();
+    } else if (strcmp(selected_node->key, "voice_recorder") == 0) {
+        system_ui_voice_recorder();
+    } else if (strcmp(selected_node->key, "display_free_memory") == 0) {
+        system_ui_display_free_memory();
+    } else if (strcmp(selected_node->key, "display_time_date") == 0) {
+        system_ui_display_time_date();
+    } else if (strcmp(selected_node->key, "display_network_status") == 0) {
+        system_ui_display_network_status();
+    } else if (strcmp(selected_node->key, "display_power_status") == 0) {
+        system_ui_display_power_status();
     } else if (strcmp(selected_node->key, "setup_internet") == 0) {
         wifi_manager_show_menu();
     } else if (strcmp(selected_node->key, "internet_radio") == 0) {
         radio_ui_show_menu();
+    } else if (strcmp(selected_node->key, "mp3_player") == 0 ||
+               strcmp(selected_node->key, "media_player") == 0) {
+        system_ui_mp3_player();
+    } else if (strcmp(selected_node->key, "user_guide") == 0) {
+        system_ui_show_user_guide();
+    } else if (strcmp(selected_node->key, "about_sai") == 0) {
+        system_ui_show_about_sai();
     } else if (app_is_descendant_of(selected_node, "settings")) {
         if (strcmp(selected_node->key, "sync_server") == 0) {
             sync_config();

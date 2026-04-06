@@ -50,5 +50,14 @@ void system_ui_set_time_manual(void);
  * UI handler for manual date setting.
  */
 void system_ui_set_date_manual(void);
+void system_ui_power_off(void);
+void system_ui_voice_recorder(void);
+void system_ui_display_free_memory(void);
+void system_ui_display_time_date(void);
+void system_ui_display_network_status(void);
+void system_ui_display_power_status(void);
+void system_ui_mp3_player(void);
+void system_ui_show_user_guide(void);
+void system_ui_show_about_sai(void);
 
 #endif /* TOOLS_H */
