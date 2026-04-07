@@ -38,5 +38,6 @@ void content_ui_run_word_viewer(void);
  * Displays arbitrary text with automatic speech playback and pause/resume support.
  */
 void content_ui_show_spoken_text(const char *title, const char *source_name, const char *text);
+int content_ui_run_spoken_stage(const char *title, const char *text, const char *footer_text);
 
 #endif /* ENTERTAINMENT_H */

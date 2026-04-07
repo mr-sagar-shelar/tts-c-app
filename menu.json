@@ -557,6 +557,50 @@
           "key": "convert_units",
           "shortcut": "c",
           "description_key": "convert_units_desc"
+        },
+        {
+          "title_key": "trivia",
+          "key": "trivia",
+          "shortcut": "v",
+          "description_key": "trivia_desc",
+          "items": [
+            {
+              "title_key": "trivia_start",
+              "key": "trivia_start",
+              "shortcut": "s",
+              "description_key": "trivia_start_desc"
+            },
+            {
+              "title_key": "trivia_amount",
+              "key": "trivia_amount",
+              "shortcut": "n",
+              "description_key": "trivia_amount_desc"
+            },
+            {
+              "title_key": "trivia_category",
+              "key": "trivia_category",
+              "shortcut": "c",
+              "description_key": "trivia_category_desc"
+            },
+            {
+              "title_key": "trivia_difficulty",
+              "key": "trivia_difficulty",
+              "shortcut": "d",
+              "description_key": "trivia_difficulty_desc"
+            },
+            {
+              "title_key": "trivia_type",
+              "key": "trivia_type",
+              "shortcut": "t",
+              "description_key": "trivia_type_desc"
+            },
+            {
+              "title_key": "trivia_encoding",
+              "key": "trivia_encoding",
+              "shortcut": "e",
+              "description_key": "trivia_encoding_desc"
+            }
+          ]
         }
       ],
       "description_key": "extras_desc"

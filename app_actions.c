@@ -19,6 +19,7 @@
 #include "speech_engine.h"
 #include "speech_settings.h"
 #include "tools.h"
+#include "trivia.h"
 #include "typing_tutor.h"
 #include "utils.h"
 #include "voice_library.h"
@@ -299,6 +300,10 @@ void app_dispatch_leaf_action(MenuNode *selected_node, MenuNode *root) {
         handle_dictionary();
     } else if (strcmp(selected_node->key, "convert_units") == 0) {
         system_ui_convert_units();
+    } else if (strcmp(selected_node->key, "trivia_start") == 0) {
+        trivia_run_quiz();
+    } else if (strncmp(selected_node->key, "trivia_", 7) == 0) {
+        trivia_show_settings_menu(selected_node->key);
     } else if (strcmp(selected_node->key, "english_only_dictionary") == 0) {
         handle_english_only_dictionary();
     } else if (strcmp(selected_node->key, "multi_lang_dictionary") == 0) {

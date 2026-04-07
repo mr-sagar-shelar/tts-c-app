@@ -16,6 +16,7 @@
 #include "menu.h"
 #include "platform_ops.h"
 #include "speech_engine.h"
+#include "trivia.h"
 #include "utils.h"
 
 static void append_menu_speech_part(char *buffer, size_t buffer_size, const char *text) {
@@ -82,6 +83,7 @@ int main() {
     init_calendar();
     init_database_manager();
     init_keys_manager();
+    init_trivia();
     
     mkdir(USER_SPACE, 0777);
     mkdir("Downloads", 0777);
@@ -216,5 +218,6 @@ int main() {
     cleanup_calendar();
     cleanup_database_manager();
     cleanup_keys_manager();
+    cleanup_trivia();
     return 0;
 }

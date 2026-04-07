@@ -3,6 +3,7 @@
 #include "keys_manager.h"
 #include "platform_ops.h"
 #include "speech_settings.h"
+#include "trivia.h"
 #include "utils.h"
 
 static char *current_lang_code = NULL;
@@ -70,6 +71,10 @@ static char *menu_selected_value_label(MenuNode *node) {
 
         free(api_key);
         return label;
+    }
+
+    if (strncmp(node->key, "trivia_", 7) == 0) {
+        return trivia_get_selected_label(node->key);
     }
 
     return NULL;

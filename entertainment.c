@@ -497,7 +497,7 @@ static int read_nonzero_key(void) {
     return key;
 }
 
-static int content_ui_run_spoken_stage(const char *title, const char *text, const char *footer_text) {
+int content_ui_run_spoken_stage(const char *title, const char *text, const char *footer_text) {
     TextProcessor *processor;
     WordReaderState reader_state;
     size_t index = 0;
