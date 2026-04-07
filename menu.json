@@ -523,6 +523,12 @@
           "description_key": "joke_desc"
         },
         {
+          "title_key": "riddles",
+          "key": "riddles",
+          "shortcut": "r",
+          "description_key": "riddles_desc"
+        },
+        {
           "title_key": "weather",
           "key": "weather",
           "shortcut": "w",

@@ -10,6 +10,7 @@
 #include "text_processor.h"
 #include <ctype.h>
 #include <limits.h>
+#include <time.h>
 #include <sys/stat.h>
 
 typedef struct {
@@ -36,6 +37,7 @@ typedef struct {
 typedef struct {
     const TextProcessor *processor;
     const char *title;
+    const char *footer_text;
     WordReaderState *reader_state;
     size_t chunk_start;
     size_t chunk_end;
@@ -48,6 +50,64 @@ enum {
     WORD_READER_AUTOPLAY_CHUNK = 1,
     WORD_READER_AUTOPLAY_LINE = 2
 };
+
+static ReaderPage compute_reader_page(const TextProcessor *processor, size_t current_index, int width, int content_lines);
+static void print_highlighted_word(const TextWord *word);
+
+static void content_ui_show_message_screen(const char *title, const char *message) {
+    printf("\033[H\033[J--- %s ---\n\n%s\n\n%s",
+           title ? title : "Message",
+           message ? message : "",
+           menu_translate("ui_press_any_key_to_continue", "Press any key to continue..."));
+    fflush(stdout);
+    read_key();
+}
+
+static void render_spoken_text_reader_with_footer(const TextProcessor *processor,
+                                                  const char *title,
+                                                  size_t current_index,
+                                                  const WordReaderState *state,
+                                                  const char *footer_text) {
+    int rows;
+    int cols;
+    int content_lines;
+    ReaderPage page;
+    size_t i;
+    const TextWord *current_word = text_processor_get_word(processor, current_index);
+
+    get_terminal_size(&rows, &cols);
+    content_lines = rows - 7;
+    if (content_lines < 5) {
+        content_lines = 5;
+    }
+
+    page = compute_reader_page(processor, current_index, cols, content_lines);
+
+    printf("\033[H\033[J");
+    print_memory_widget_line();
+    printf("--- %s ---\n", title ? title : menu_translate("ui_text_reader", "Text Reader"));
+    printf(menu_translate("ui_word_position_format", "Word %zu of %zu"), current_index + 1, processor->token_count);
+    if (current_word) {
+        printf("  [");
+        printf(menu_translate("ui_line_column_format", "line %d, col %d"), current_word->line, current_word->column);
+        printf("]");
+    }
+    printf("\n\n");
+
+    for (i = page.start_token; i <= page.end_token && i < processor->token_count; i++) {
+        if (i == current_index) {
+            print_highlighted_word(&processor->tokens[i]);
+        } else {
+            printf("%s", processor->tokens[i].surface);
+        }
+    }
+
+    printf("\n\n%s\n", footer_text ? footer_text : menu_translate("ui_footer_spoken_text", "[Space: Pause/Resume | Up: Previous | Down: Next | Enter: Repeat | Esc: Back]"));
+    if (state && state->status[0]) {
+        printf("%s\n", state->status);
+    }
+    fflush(stdout);
+}
 
 static void advance_reader_cursor(const char *text, int width, int *line, int *col) {
     const unsigned char *p = (const unsigned char *)text;
@@ -396,6 +456,32 @@ static int spoken_text_interrupt(void *userdata) {
     return read_key_timeout(0);
 }
 
+static void spoken_text_progress_custom(int token_index, void *userdata) {
+    SpokenTextPlaybackContext *context = (SpokenTextPlaybackContext *)userdata;
+    size_t absolute_index;
+
+    if (!context || !context->current_index) {
+        return;
+    }
+
+    absolute_index = context->chunk_start + (size_t)(token_index < 0 ? 0 : token_index);
+    if (absolute_index > context->chunk_end) {
+        absolute_index = context->chunk_end;
+    }
+
+    *context->current_index = absolute_index;
+    if (!context->last_rendered_index || *context->last_rendered_index != absolute_index) {
+        if (context->last_rendered_index) {
+            *context->last_rendered_index = absolute_index;
+        }
+        render_spoken_text_reader_with_footer(context->processor,
+                                              context->title,
+                                              absolute_index,
+                                              context->reader_state,
+                                              context->footer_text);
+    }
+}
+
 static void drain_pending_input(void) {
     while (read_key_timeout(0) != 0) {
     }
@@ -409,6 +495,154 @@ static int read_nonzero_key(void) {
     } while (key == 0);
 
     return key;
+}
+
+static int content_ui_run_spoken_stage(const char *title, const char *text, const char *footer_text) {
+    TextProcessor *processor;
+    WordReaderState reader_state;
+    size_t index = 0;
+    size_t last_rendered_index = (size_t)-1;
+    int paused_by_space = 0;
+    int consume_space_key = 0;
+    int needs_render = 1;
+
+    if (!text || !text[0]) {
+        return KEY_ENTER;
+    }
+
+    processor = text_processor_load_from_text(title ? title : "text", text);
+    if (!processor || processor->token_count == 0) {
+        text_processor_free(processor);
+        return KEY_ENTER;
+    }
+
+    memset(&reader_state, 0, sizeof(reader_state));
+    reader_state.autoplay = speech_engine_is_enabled();
+    reader_state.autoplay_mode = WORD_READER_AUTOPLAY_LINE;
+    set_reader_status(&reader_state,
+                      reader_state.autoplay
+                          ? menu_translate("ui_reader_line_play_starting", "Starting line-by-line playback...")
+                          : menu_translate("ui_reader_speech_off", "Speech mode is off. Turn speech on to use Ctrl+P playback."));
+
+    while (1) {
+        char speech_error[128] = {0};
+        int key = 0;
+        size_t next_index = index;
+
+        if (needs_render || last_rendered_index != index) {
+            render_spoken_text_reader_with_footer(processor, title, index, &reader_state, footer_text);
+            last_rendered_index = index;
+            needs_render = 0;
+        }
+
+        if (reader_state.autoplay && speech_engine_is_enabled()) {
+            size_t chunk_end = determine_reader_line_end(processor, index);
+            char *chunk_text = build_reader_chunk_text(processor, index, chunk_end);
+            SpokenTextPlaybackContext playback_context;
+            int interrupted_key = 0;
+
+            if (!chunk_text) {
+                reader_state.autoplay = 0;
+                set_reader_status(&reader_state, menu_translate("ui_reader_playback_failed", "Unable to play buffered speech for this word."));
+                key = read_key();
+            } else {
+                playback_context.processor = processor;
+                playback_context.title = title;
+                playback_context.reader_state = &reader_state;
+                playback_context.chunk_start = index;
+                playback_context.chunk_end = chunk_end;
+                playback_context.current_index = &index;
+                playback_context.last_rendered_index = &last_rendered_index;
+                playback_context.footer_text = footer_text;
+
+                speech_engine_set_progress_callback(spoken_text_progress_custom, &playback_context);
+                speech_engine_set_interrupt_callback(spoken_text_interrupt, &playback_context);
+                if (!speech_engine_speak_text_buffered(chunk_text, speech_error, sizeof(speech_error))) {
+                    speech_engine_set_progress_callback(NULL, NULL);
+                    speech_engine_set_interrupt_callback(NULL, NULL);
+                    interrupted_key = speech_engine_take_interrupt_key();
+                    free(chunk_text);
+                    reader_state.autoplay = 0;
+                    if (interrupted_key != 0) {
+                        if (interrupted_key == ' ') {
+                            paused_by_space = 1;
+                            consume_space_key = 1;
+                            set_reader_status(&reader_state, menu_translate("ui_reader_play_paused", "Playback paused."));
+                            drain_pending_input();
+                            needs_render = 1;
+                        }
+                        key = interrupted_key;
+                    } else {
+                        set_reader_status(&reader_state, speech_error[0] ? speech_error : menu_translate("ui_reader_playback_failed", "Unable to play buffered speech for this word."));
+                        needs_render = 1;
+                        key = read_nonzero_key();
+                    }
+                } else {
+                    speech_engine_set_progress_callback(NULL, NULL);
+                    speech_engine_set_interrupt_callback(NULL, NULL);
+                    free(chunk_text);
+                    if (chunk_end + 1 < processor->token_count) {
+                        index = chunk_end + 1;
+                        paused_by_space = 0;
+                        set_reader_status(&reader_state, NULL);
+                        needs_render = 1;
+                        continue;
+                    }
+                    reader_state.autoplay = 0;
+                    paused_by_space = 0;
+                    set_reader_status(&reader_state, menu_translate("ui_reader_play_complete", "Playback complete."));
+                    needs_render = 1;
+                    key = read_nonzero_key();
+                }
+            }
+        } else {
+            key = read_nonzero_key();
+        }
+
+        if (key == KEY_ESC) {
+            text_processor_free(processor);
+            return KEY_ESC;
+        } else if (key == ' ') {
+            if (consume_space_key) {
+                consume_space_key = 0;
+                drain_pending_input();
+                needs_render = 1;
+            } else if (paused_by_space) {
+                reader_state.autoplay = 1;
+                reader_state.autoplay_mode = WORD_READER_AUTOPLAY_LINE;
+                paused_by_space = 0;
+                set_reader_status(&reader_state, menu_translate("ui_reader_line_play_starting", "Starting line-by-line playback..."));
+                drain_pending_input();
+                needs_render = 1;
+            } else if (reader_state.autoplay) {
+                reader_state.autoplay = 0;
+                paused_by_space = 1;
+                set_reader_status(&reader_state, menu_translate("ui_reader_play_paused", "Playback paused."));
+                drain_pending_input();
+                needs_render = 1;
+            }
+        } else if (key == KEY_DOWN) {
+            paused_by_space = 0;
+            consume_space_key = 0;
+            next_index = (size_t)menu_next_index((int)index, 1, (int)processor->token_count);
+            set_reader_status(&reader_state, NULL);
+            needs_render = 1;
+        } else if (key == KEY_UP) {
+            paused_by_space = 0;
+            consume_space_key = 0;
+            next_index = (size_t)menu_next_index((int)index, -1, (int)processor->token_count);
+            set_reader_status(&reader_state, NULL);
+            needs_render = 1;
+        } else if (key == KEY_ENTER) {
+            text_processor_free(processor);
+            return KEY_ENTER;
+        }
+
+        if (next_index != index) {
+            index = next_index;
+            needs_render = 1;
+        }
+    }
 }
 
 static void build_wave_export_path(const char *source_path, char *buffer, size_t buffer_size) {
@@ -1026,6 +1260,92 @@ void content_ui_show_random_joke_api(void) {
                                             "Random Joke",
                                             "https://api.apileague.com/retrieve-random-joke?exclude-tags=nsfw,sexual,racist,sexist,religious",
                                             format_joke_api);
+}
+
+void content_ui_show_local_riddle(void) {
+    const char *path = "Downloads/riddles.json";
+    FILE *file = fopen(path, "rb");
+    cJSON *json;
+    char *data;
+    long length;
+    int count;
+    int index;
+    cJSON *item;
+    cJSON *riddle;
+    cJSON *answer;
+    const char *riddle_text;
+    const char *answer_text;
+    static int random_seeded = 0;
+
+    if (!file) {
+        content_ui_show_message_screen("Riddles", "Unable to open Downloads/riddles.json.");
+        return;
+    }
+
+    fseek(file, 0, SEEK_END);
+    length = ftell(file);
+    fseek(file, 0, SEEK_SET);
+
+    data = (char *)malloc((size_t)length + 1);
+    if (!data) {
+        fclose(file);
+        content_ui_show_message_screen("Riddles", "Unable to allocate memory for riddles data.");
+        return;
+    }
+
+    fread(data, 1, (size_t)length, file);
+    data[length] = '\0';
+    fclose(file);
+
+    json = cJSON_Parse(data);
+    free(data);
+
+    if (!json || !cJSON_IsArray(json)) {
+        if (json) {
+            cJSON_Delete(json);
+        }
+        content_ui_show_message_screen("Riddles", "Error parsing Downloads/riddles.json.");
+        return;
+    }
+
+    count = cJSON_GetArraySize(json);
+    if (count <= 0) {
+        cJSON_Delete(json);
+        content_ui_show_message_screen("Riddles", "No riddles were found in Downloads/riddles.json.");
+        return;
+    }
+
+    if (!random_seeded) {
+        srand((unsigned int)time(NULL));
+        random_seeded = 1;
+    }
+
+    while (1) {
+        index = rand() % count;
+        item = cJSON_GetArrayItem(json, index);
+        riddle = cJSON_GetObjectItemCaseSensitive(item, "riddle");
+        answer = cJSON_GetObjectItemCaseSensitive(item, "answer");
+        riddle_text = (riddle && cJSON_IsString(riddle) && riddle->valuestring)
+            ? riddle->valuestring
+            : "No riddle text available.";
+        answer_text = (answer && cJSON_IsString(answer) && answer->valuestring)
+            ? answer->valuestring
+            : menu_translate("ui_not_available", "Not available");
+
+        if (content_ui_run_spoken_stage("Riddles",
+                                        riddle_text,
+                                        menu_translate("ui_footer_riddles_question", "[Enter: Show Answer | Esc: Back]")) == KEY_ESC) {
+            cJSON_Delete(json);
+            return;
+        }
+
+        if (content_ui_run_spoken_stage("Riddle Answer",
+                                        answer_text,
+                                        menu_translate("ui_footer_riddles_answer", "[Enter: Next Riddle | Esc: Back]")) == KEY_ESC) {
+            cJSON_Delete(json);
+            return;
+        }
+    }
 }
 
 void content_ui_show_short_stories(void) {

@@ -342,6 +342,8 @@ void app_dispatch_leaf_action(MenuNode *selected_node, MenuNode *root) {
         system_ui_show_news();
     } else if (strcmp(selected_node->key, "poems") == 0) {
         content_ui_show_poems();
+    } else if (strcmp(selected_node->key, "riddles") == 0) {
+        content_ui_show_local_riddle();
     } else if (strcmp(selected_node->key, "fm_word_viewer") == 0) {
         content_ui_run_word_viewer();
     } else if (strcmp(selected_node->key, "set_city") == 0) {

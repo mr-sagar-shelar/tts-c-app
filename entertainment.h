@@ -17,6 +17,7 @@ void content_ui_show_synonyms(void);
 void content_ui_show_singularize(void);
 void content_ui_show_random_poem_api(void);
 void content_ui_show_random_joke_api(void);
+void content_ui_show_local_riddle(void);
 
 /**
  * UI handler for short stories.
