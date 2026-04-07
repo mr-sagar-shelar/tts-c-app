@@ -8,6 +8,15 @@
  * UI handler for jokes.
  */
 void content_ui_show_joke(void);
+void content_ui_show_random_life_hack(void);
+void content_ui_show_random_affirmation(void);
+void content_ui_show_random_trivia(void);
+void content_ui_show_random_riddle(void);
+void content_ui_show_random_quote(void);
+void content_ui_show_synonyms(void);
+void content_ui_show_singularize(void);
+void content_ui_show_random_poem_api(void);
+void content_ui_show_random_joke_api(void);
 
 /**
  * UI handler for short stories.

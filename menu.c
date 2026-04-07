@@ -1,5 +1,6 @@
 #include "menu.h"
 #include "config.h"
+#include "keys_manager.h"
 #include "platform_ops.h"
 #include "speech_settings.h"
 #include "utils.h"
@@ -54,6 +55,20 @@ static char *menu_selected_value_label(MenuNode *node) {
         }
 
         free(audio_output);
+        return label;
+    }
+
+    if (strcmp(node->key, "keys_manager") == 0) {
+        char *api_key = keys_manager_get_api_league_key();
+        char *label = NULL;
+
+        if (api_key && api_key[0]) {
+            label = strdup(menu_translate("ui_key_saved", "Saved"));
+        } else {
+            label = strdup(menu_translate("ui_not_set", "Not set"));
+        }
+
+        free(api_key);
         return label;
     }
 

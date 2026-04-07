@@ -426,6 +426,68 @@
       "description_key": "web_tools_desc"
     },
     {
+      "title_key": "knowledge",
+      "key": "knowledge",
+      "shortcut": "k",
+      "items": [
+        {
+          "title_key": "random_life_hack",
+          "key": "random_life_hack",
+          "shortcut": "l",
+          "description_key": "random_life_hack_desc"
+        },
+        {
+          "title_key": "random_affirmation",
+          "key": "random_affirmation",
+          "shortcut": "a",
+          "description_key": "random_affirmation_desc"
+        },
+        {
+          "title_key": "random_trivia",
+          "key": "random_trivia",
+          "shortcut": "t",
+          "description_key": "random_trivia_desc"
+        },
+        {
+          "title_key": "random_riddle",
+          "key": "random_riddle",
+          "shortcut": "r",
+          "description_key": "random_riddle_desc"
+        },
+        {
+          "title_key": "random_quote",
+          "key": "random_quote",
+          "shortcut": "q",
+          "description_key": "random_quote_desc"
+        },
+        {
+          "title_key": "synonyms",
+          "key": "synonyms",
+          "shortcut": "s",
+          "description_key": "synonyms_desc"
+        },
+        {
+          "title_key": "singularize",
+          "key": "singularize",
+          "shortcut": "g",
+          "description_key": "singularize_desc"
+        },
+        {
+          "title_key": "random_poem_api",
+          "key": "random_poem_api",
+          "shortcut": "p",
+          "description_key": "random_poem_api_desc"
+        },
+        {
+          "title_key": "random_joke_api",
+          "key": "random_joke_api",
+          "shortcut": "j",
+          "description_key": "random_joke_api_desc"
+        }
+      ],
+      "description_key": "knowledge_desc"
+    },
+    {
       "title_key": "extras",
       "key": "extras",
       "shortcut": "x",
@@ -483,6 +545,12 @@
           "key": "sense_dictionary",
           "shortcut": "s",
           "description_key": "sense_dictionary_desc"
+        },
+        {
+          "title_key": "convert_units",
+          "key": "convert_units",
+          "shortcut": "c",
+          "description_key": "convert_units_desc"
         }
       ],
       "description_key": "extras_desc"
@@ -757,6 +825,12 @@
           "key": "sync_server",
           "shortcut": "s",
           "description_key": "sync_server_desc"
+        },
+        {
+          "title_key": "keys_manager",
+          "key": "keys_manager",
+          "shortcut": "k",
+          "description_key": "keys_manager_desc"
         },
         {
           "title_key": "power_off",

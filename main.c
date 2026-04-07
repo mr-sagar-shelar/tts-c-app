@@ -11,6 +11,7 @@
 #include "contacts.h"
 #include "database_manager.h"
 #include "file_manager.h"
+#include "keys_manager.h"
 #include "menu_audio.h"
 #include "menu.h"
 #include "platform_ops.h"
@@ -80,6 +81,7 @@ int main() {
     init_contacts();
     init_calendar();
     init_database_manager();
+    init_keys_manager();
     
     mkdir(USER_SPACE, 0777);
     mkdir("Downloads", 0777);
@@ -213,5 +215,6 @@ int main() {
     cleanup_contacts();
     cleanup_calendar();
     cleanup_database_manager();
+    cleanup_keys_manager();
     return 0;
 }

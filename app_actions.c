@@ -13,6 +13,7 @@
 #include "dictionary.h"
 #include "entertainment.h"
 #include "file_manager.h"
+#include "keys_manager.h"
 #include "notepad.h"
 #include "radio.h"
 #include "speech_engine.h"
@@ -296,6 +297,8 @@ void app_dispatch_leaf_action(MenuNode *selected_node, MenuNode *root) {
         }
     } else if (strcmp(selected_node->key, "sense_dictionary") == 0) {
         handle_dictionary();
+    } else if (strcmp(selected_node->key, "convert_units") == 0) {
+        system_ui_convert_units();
     } else if (strcmp(selected_node->key, "english_only_dictionary") == 0) {
         handle_english_only_dictionary();
     } else if (strcmp(selected_node->key, "multi_lang_dictionary") == 0) {
@@ -304,6 +307,24 @@ void app_dispatch_leaf_action(MenuNode *selected_node, MenuNode *root) {
         content_ui_show_short_stories();
     } else if (strcmp(selected_node->key, "joke") == 0) {
         content_ui_show_joke();
+    } else if (strcmp(selected_node->key, "random_life_hack") == 0) {
+        content_ui_show_random_life_hack();
+    } else if (strcmp(selected_node->key, "random_affirmation") == 0) {
+        content_ui_show_random_affirmation();
+    } else if (strcmp(selected_node->key, "random_trivia") == 0) {
+        content_ui_show_random_trivia();
+    } else if (strcmp(selected_node->key, "random_riddle") == 0) {
+        content_ui_show_random_riddle();
+    } else if (strcmp(selected_node->key, "random_quote") == 0) {
+        content_ui_show_random_quote();
+    } else if (strcmp(selected_node->key, "synonyms") == 0) {
+        content_ui_show_synonyms();
+    } else if (strcmp(selected_node->key, "singularize") == 0) {
+        content_ui_show_singularize();
+    } else if (strcmp(selected_node->key, "random_poem_api") == 0) {
+        content_ui_show_random_poem_api();
+    } else if (strcmp(selected_node->key, "random_joke_api") == 0) {
+        content_ui_show_random_joke_api();
     } else if (strcmp(selected_node->key, "calculator") == 0) {
         system_ui_run_calculator();
     } else if (strcmp(selected_node->key, "typing_tutor") == 0 ||
@@ -355,6 +376,8 @@ void app_dispatch_leaf_action(MenuNode *selected_node, MenuNode *root) {
         system_ui_display_power_status();
     } else if (strcmp(selected_node->key, "setup_internet") == 0) {
         wifi_manager_show_menu();
+    } else if (strcmp(selected_node->key, "keys_manager") == 0) {
+        keys_manager_show_menu();
     } else if (strcmp(selected_node->key, "internet_radio") == 0) {
         radio_ui_show_menu();
     } else if (strcmp(selected_node->key, "mp3_player") == 0 ||

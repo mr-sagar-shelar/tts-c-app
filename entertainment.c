@@ -3,6 +3,7 @@
 #include "download_ui.h"
 #include "document_reader.h"
 #include "file_manager.h"
+#include "keys_manager.h"
 #include "menu_audio.h"
 #include "menu.h"
 #include "speech_engine.h"
@@ -703,6 +704,328 @@ void content_ui_show_joke(void) {
         content_ui_show_spoken_text("Joke", "Joke", joke_text);
         break;
     }
+}
+
+static char *knowledge_fetch_response_from_url(const char *title,
+                                               const char *url_without_key,
+                                               char *error,
+                                               size_t error_size);
+
+static char *knowledge_fetch_response(const char *title,
+                                      const char *endpoint,
+                                      char *error,
+                                      size_t error_size) {
+    char url[1024];
+    snprintf(url, sizeof(url), "%s", endpoint);
+    return knowledge_fetch_response_from_url(title, url, error, error_size);
+}
+
+static char *knowledge_fetch_response_from_url(const char *title,
+                                               const char *url_without_key,
+                                               char *error,
+                                               size_t error_size) {
+    char *api_key;
+    char *encoded_key;
+    char url[1024];
+    char *response;
+
+    api_key = keys_manager_get_api_league_key();
+    if (!api_key || api_key[0] == '\0') {
+        if (error && error_size > 0) {
+            snprintf(error, error_size,
+                     "API League key is not set. Open Settings > Keys Manager and save the key first.");
+        }
+        free(api_key);
+        return NULL;
+    }
+
+    encoded_key = url_encode(api_key);
+    free(api_key);
+    if (!encoded_key) {
+        if (error && error_size > 0) {
+            snprintf(error, error_size, "Unable to encode API League key.");
+        }
+        return NULL;
+    }
+
+    snprintf(url, sizeof(url), "%s%sapi-key=%s",
+             url_without_key,
+             strchr(url_without_key, '?') ? "&" : "?",
+             encoded_key);
+    free(encoded_key);
+
+    response = fetch_text_with_progress_ui(title, url, "knowledge data", error, error_size);
+    return response;
+}
+
+static void content_ui_show_random_knowledge_item(const char *title,
+                                                  const char *source_name,
+                                                  const char *endpoint,
+                                                  void (*formatter)(cJSON *json, char *buffer, size_t buffer_size)) {
+    char error[256] = {0};
+    char text[2048];
+    char *response;
+    cJSON *json;
+
+    response = knowledge_fetch_response(title, endpoint, error, sizeof(error));
+    if (!response) {
+        snprintf(text, sizeof(text), "%s", error[0] ? error : "Unable to fetch knowledge item.");
+        content_ui_show_spoken_text(title, source_name, text);
+        return;
+    }
+
+    json = cJSON_Parse(response);
+    free(response);
+
+    if (!json) {
+        content_ui_show_spoken_text(title, source_name, "Error parsing API response.");
+        return;
+    }
+
+    text[0] = '\0';
+    formatter(json, text, sizeof(text));
+    if (text[0] == '\0') {
+        snprintf(text, sizeof(text), "The API response did not include usable content.");
+    }
+
+    cJSON_Delete(json);
+    content_ui_show_spoken_text(title, source_name, text);
+}
+
+static void content_ui_show_knowledge_item_from_url(const char *title,
+                                                    const char *source_name,
+                                                    const char *url,
+                                                    void (*formatter)(cJSON *json, char *buffer, size_t buffer_size)) {
+    char error[256] = {0};
+    char text[4096];
+    char *response;
+    cJSON *json;
+
+    response = knowledge_fetch_response_from_url(title, url, error, sizeof(error));
+    if (!response) {
+        snprintf(text, sizeof(text), "%s", error[0] ? error : "Unable to fetch knowledge item.");
+        content_ui_show_spoken_text(title, source_name, text);
+        return;
+    }
+
+    json = cJSON_Parse(response);
+    free(response);
+
+    if (!json) {
+        content_ui_show_spoken_text(title, source_name, "Error parsing API response.");
+        return;
+    }
+
+    text[0] = '\0';
+    formatter(json, text, sizeof(text));
+    if (text[0] == '\0') {
+        snprintf(text, sizeof(text), "The API response did not include usable content.");
+    }
+
+    cJSON_Delete(json);
+    content_ui_show_spoken_text(title, source_name, text);
+}
+
+static void format_life_hack(cJSON *json, char *buffer, size_t buffer_size) {
+    cJSON *title = cJSON_GetObjectItemCaseSensitive(json, "title");
+    cJSON *description = cJSON_GetObjectItemCaseSensitive(json, "description");
+
+    snprintf(buffer, buffer_size,
+             "%s%s%s%s",
+             cJSON_IsString(title) ? title->valuestring : "Life Hack",
+             cJSON_IsString(description) ? "\n\n" : "",
+             cJSON_IsString(description) ? description->valuestring : "",
+             "");
+}
+
+static void format_affirmation(cJSON *json, char *buffer, size_t buffer_size) {
+    cJSON *affirmation = cJSON_GetObjectItemCaseSensitive(json, "affirmation");
+
+    if (cJSON_IsString(affirmation)) {
+        snprintf(buffer, buffer_size, "%s", affirmation->valuestring);
+    }
+}
+
+static void format_trivia(cJSON *json, char *buffer, size_t buffer_size) {
+    cJSON *trivia = cJSON_GetObjectItemCaseSensitive(json, "trivia");
+    cJSON *category = cJSON_GetObjectItemCaseSensitive(json, "category");
+
+    if (cJSON_IsString(category) && cJSON_IsString(trivia)) {
+        snprintf(buffer, buffer_size, "Category: %s\n\n%s", category->valuestring, trivia->valuestring);
+    } else if (cJSON_IsString(trivia)) {
+        snprintf(buffer, buffer_size, "%s", trivia->valuestring);
+    }
+}
+
+static void format_riddle(cJSON *json, char *buffer, size_t buffer_size) {
+    cJSON *riddle = cJSON_GetObjectItemCaseSensitive(json, "riddle");
+    cJSON *answer = cJSON_GetObjectItemCaseSensitive(json, "answer");
+    cJSON *difficulty = cJSON_GetObjectItemCaseSensitive(json, "difficulty");
+
+    snprintf(buffer, buffer_size,
+             "%s%s%s%s%s%s",
+             cJSON_IsString(riddle) ? riddle->valuestring : "",
+             cJSON_IsString(difficulty) ? "\n\nDifficulty: " : "",
+             cJSON_IsString(difficulty) ? difficulty->valuestring : "",
+             cJSON_IsString(answer) ? "\n\nAnswer: " : "",
+             cJSON_IsString(answer) ? answer->valuestring : "",
+             "");
+}
+
+static void format_quote(cJSON *json, char *buffer, size_t buffer_size) {
+    cJSON *quote = cJSON_GetObjectItemCaseSensitive(json, "quote");
+    cJSON *author = cJSON_GetObjectItemCaseSensitive(json, "author");
+
+    snprintf(buffer, buffer_size,
+             "%s%s%s",
+             cJSON_IsString(quote) ? quote->valuestring : "",
+             cJSON_IsString(author) ? "\n\nAuthor: " : "",
+             cJSON_IsString(author) ? author->valuestring : "");
+}
+
+static void format_poem(cJSON *json, char *buffer, size_t buffer_size) {
+    cJSON *title = cJSON_GetObjectItemCaseSensitive(json, "title");
+    cJSON *author = cJSON_GetObjectItemCaseSensitive(json, "author");
+    cJSON *poem = cJSON_GetObjectItemCaseSensitive(json, "poem");
+
+    snprintf(buffer, buffer_size,
+             "%s%s%s%s%s",
+             cJSON_IsString(title) ? title->valuestring : "Poem",
+             cJSON_IsString(author) ? "\nBy: " : "",
+             cJSON_IsString(author) ? author->valuestring : "",
+             cJSON_IsString(poem) ? "\n\n" : "",
+             cJSON_IsString(poem) ? poem->valuestring : "");
+}
+
+static void format_joke_api(cJSON *json, char *buffer, size_t buffer_size) {
+    cJSON *joke = cJSON_GetObjectItemCaseSensitive(json, "joke");
+
+    if (cJSON_IsString(joke)) {
+        snprintf(buffer, buffer_size, "%s", joke->valuestring);
+    }
+}
+
+static void format_synonyms(cJSON *json, char *buffer, size_t buffer_size) {
+    cJSON *synonyms = cJSON_GetObjectItemCaseSensitive(json, "synonyms");
+    int i;
+
+    if (!cJSON_IsArray(synonyms)) {
+        return;
+    }
+
+    for (i = 0; i < cJSON_GetArraySize(synonyms) && strlen(buffer) < buffer_size - 32; i++) {
+        cJSON *item = cJSON_GetArrayItem(synonyms, i);
+        if (cJSON_IsString(item) && item->valuestring) {
+            if (buffer[0] != '\0') {
+                strncat(buffer, "\n", buffer_size - strlen(buffer) - 1);
+            }
+            strncat(buffer, item->valuestring, buffer_size - strlen(buffer) - 1);
+        }
+    }
+}
+
+static void format_singularize(cJSON *json, char *buffer, size_t buffer_size) {
+    cJSON *singular = cJSON_GetObjectItemCaseSensitive(json, "singular");
+    cJSON *plural = cJSON_GetObjectItemCaseSensitive(json, "plural");
+
+    if (cJSON_IsString(singular) && cJSON_IsString(plural)) {
+        snprintf(buffer, buffer_size, "Plural: %s\nSingular: %s", plural->valuestring, singular->valuestring);
+    } else if (cJSON_IsString(singular)) {
+        snprintf(buffer, buffer_size, "Singular: %s", singular->valuestring);
+    }
+}
+
+void content_ui_show_random_life_hack(void) {
+    content_ui_show_random_knowledge_item("Random Life Hack",
+                                          "Random Life Hack",
+                                          "https://api.apileague.com/retrieve-random-life-hack",
+                                          format_life_hack);
+}
+
+void content_ui_show_random_affirmation(void) {
+    content_ui_show_random_knowledge_item("Random Affirmation",
+                                          "Random Affirmation",
+                                          "https://api.apileague.com/retrieve-random-affirmation",
+                                          format_affirmation);
+}
+
+void content_ui_show_random_trivia(void) {
+    content_ui_show_random_knowledge_item("Random Trivia",
+                                          "Random Trivia",
+                                          "https://api.apileague.com/retrieve-random-trivia",
+                                          format_trivia);
+}
+
+void content_ui_show_random_riddle(void) {
+    content_ui_show_random_knowledge_item("Random Riddle",
+                                          "Random Riddle",
+                                          "https://api.apileague.com/retrieve-random-riddle",
+                                          format_riddle);
+}
+
+void content_ui_show_random_quote(void) {
+    content_ui_show_random_knowledge_item("Random Quote",
+                                          "Random Quote",
+                                          "https://api.apileague.com/retrieve-random-quote",
+                                          format_quote);
+}
+
+void content_ui_show_synonyms(void) {
+    char word[128];
+    char *encoded_word;
+    char url[1024];
+
+    get_user_input(word, sizeof(word), "Enter word");
+    if (word[0] == '\0') {
+        return;
+    }
+
+    encoded_word = url_encode(word);
+    if (!encoded_word) {
+        content_ui_show_spoken_text("Synonyms", "Synonyms", "Unable to encode the word.");
+        return;
+    }
+
+    snprintf(url, sizeof(url), "https://api.apileague.com/synonyms?word=%s", encoded_word);
+    free(encoded_word);
+
+    content_ui_show_knowledge_item_from_url("Synonyms", "Synonyms", url, format_synonyms);
+}
+
+void content_ui_show_singularize(void) {
+    char word[128];
+    char *encoded_word;
+    char url[1024];
+
+    get_user_input(word, sizeof(word), "Enter plural word");
+    if (word[0] == '\0') {
+        return;
+    }
+
+    encoded_word = url_encode(word);
+    if (!encoded_word) {
+        content_ui_show_spoken_text("Singularize", "Singularize", "Unable to encode the word.");
+        return;
+    }
+
+    snprintf(url, sizeof(url), "https://api.apileague.com/singularize?word=%s", encoded_word);
+    free(encoded_word);
+
+    content_ui_show_knowledge_item_from_url("Singularize", "Singularize", url, format_singularize);
+}
+
+void content_ui_show_random_poem_api(void) {
+    content_ui_show_random_knowledge_item("Random Poem",
+                                          "Random Poem",
+                                          "https://api.apileague.com/retrieve-random-poem",
+                                          format_poem);
+}
+
+void content_ui_show_random_joke_api(void) {
+    content_ui_show_knowledge_item_from_url("Random Joke",
+                                            "Random Joke",
+                                            "https://api.apileague.com/retrieve-random-joke?exclude-tags=nsfw,sexual,racist,sexist,religious",
+                                            format_joke_api);
 }
 
 void content_ui_show_short_stories(void) {

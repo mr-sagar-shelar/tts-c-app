@@ -8,6 +8,7 @@
 #include "download_ui.h"
 #include "entertainment.h"
 #include "file_manager.h"
+#include "keys_manager.h"
 #include "menu_audio.h"
 #include "menu.h"
 #include "platform_ops.h"
@@ -435,6 +436,121 @@ void system_ui_show_about_sai(void) {
         "Sai is a menu-driven accessible application written in C for lightweight Linux systems such as TinyCore Linux on Raspberry Pi.\n"
         "It combines speech-friendly menus with reading, writing, utilities, media, connectivity, and organizer tools.\n"
         "The design goal is to keep interaction simple, keyboard-first, and reliable on low-resource hardware.");
+}
+
+void system_ui_convert_units(void) {
+    char amount[64];
+    char source_unit[128];
+    char target_unit[128];
+    char food_name[128];
+    char *api_key;
+    char *encoded_amount = NULL;
+    char *encoded_key = NULL;
+    char *encoded_source = NULL;
+    char *encoded_target = NULL;
+    char *encoded_food = NULL;
+    char url[2048];
+    char error[256] = {0};
+    char text[1024];
+    char *response;
+    cJSON *json;
+    cJSON *target_amount;
+    cJSON *target_unit_node;
+
+    api_key = keys_manager_get_api_league_key();
+    if (!api_key || !api_key[0]) {
+        free(api_key);
+        show_platform_result_screen("Convert Units",
+                                    "API League key is not set. Open Settings > Keys Manager and save the key first.");
+        return;
+    }
+
+    get_user_input(amount, sizeof(amount), "Enter amount");
+    if (amount[0] == '\0') {
+        free(api_key);
+        return;
+    }
+
+    get_user_input(source_unit, sizeof(source_unit), "Enter source unit");
+    if (source_unit[0] == '\0') {
+        free(api_key);
+        return;
+    }
+
+    get_user_input(target_unit, sizeof(target_unit), "Enter target unit");
+    if (target_unit[0] == '\0') {
+        free(api_key);
+        return;
+    }
+
+    get_user_input(food_name, sizeof(food_name), "Optional food name");
+
+    encoded_amount = url_encode(amount);
+    encoded_key = url_encode(api_key);
+    encoded_source = url_encode(source_unit);
+    encoded_target = url_encode(target_unit);
+    if (food_name[0] != '\0') {
+        encoded_food = url_encode(food_name);
+    }
+    free(api_key);
+
+    if (!encoded_amount || !encoded_key || !encoded_source || !encoded_target || (food_name[0] != '\0' && !encoded_food)) {
+        free(encoded_amount);
+        free(encoded_key);
+        free(encoded_source);
+        free(encoded_target);
+        free(encoded_food);
+        show_platform_result_screen("Convert Units", "Unable to prepare conversion request.");
+        return;
+    }
+
+    snprintf(url, sizeof(url),
+             "https://api.apileague.com/convert-units?api-key=%s&amount=%s&sourceUnit=%s&targetUnit=%s",
+             encoded_key,
+             encoded_amount,
+             encoded_source,
+             encoded_target);
+    if (encoded_food) {
+        strncat(url, "&foodName=", sizeof(url) - strlen(url) - 1);
+        strncat(url, encoded_food, sizeof(url) - strlen(url) - 1);
+    }
+
+    free(encoded_amount);
+    free(encoded_key);
+    free(encoded_source);
+    free(encoded_target);
+    free(encoded_food);
+
+    response = fetch_text_with_progress_ui("Convert Units", url, "conversion data", error, sizeof(error));
+    if (!response) {
+        show_platform_result_screen("Convert Units",
+                                    error[0] ? error : "Failed to fetch conversion result.");
+        return;
+    }
+
+    json = cJSON_Parse(response);
+    free(response);
+    if (!json) {
+        show_platform_result_screen("Convert Units", "Error parsing conversion response.");
+        return;
+    }
+
+    target_amount = cJSON_GetObjectItemCaseSensitive(json, "target_amount");
+    target_unit_node = cJSON_GetObjectItemCaseSensitive(json, "target_unit");
+
+    if (cJSON_IsNumber(target_amount) && cJSON_IsString(target_unit_node)) {
+        snprintf(text, sizeof(text),
+                 "Conversion result\n\n%s %s equals %.6f %s",
+                 amount,
+                 source_unit,
+                 target_amount->valuedouble,
+                 target_unit_node->valuestring);
+        content_ui_show_spoken_text("Convert Units", "Convert Units", text);
+    } else {
+        show_platform_result_screen("Convert Units", "The API response did not include a conversion result.");
+    }
+
+    cJSON_Delete(json);
 }
 
 static int calculator_is_input_char(int key) {

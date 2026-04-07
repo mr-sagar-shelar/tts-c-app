@@ -59,5 +59,6 @@ void system_ui_display_power_status(void);
 void system_ui_mp3_player(void);
 void system_ui_show_user_guide(void);
 void system_ui_show_about_sai(void);
+void system_ui_convert_units(void);
 
 #endif /* TOOLS_H */
