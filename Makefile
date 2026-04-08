@@ -10,7 +10,7 @@ APP_BASE_DIR ?= $(PREFIX)/share/sai-base
 AR ?= ar
 RANLIB ?= ranlib
 
-OBJS=main.o app_actions.o menu.o cJSON.o config.o contacts.o utils.o braille_ui.o file_manager.o notepad.o dictionary.o entertainment.o tools.o typing_tutor.o alarm.o calendar.o radio.o text_processor.o document_reader.o speech_settings.o speech_engine.o voice_library.o download_manager.o download_ui.o task_ui.o wifi_manager.o platform_ops.o database_manager.o keys_manager.o trivia.o todo.o
+OBJS=main.o app_actions.o menu.o cJSON.o config.o contacts.o utils.o braille_ui.o ui_feedback.o file_manager.o notepad.o dictionary.o entertainment.o tools.o typing_tutor.o alarm.o calendar.o radio.o text_processor.o document_reader.o speech_settings.o speech_engine.o voice_library.o download_manager.o download_ui.o task_ui.o wifi_manager.o platform_ops.o database_manager.o keys_manager.o trivia.o todo.o
 APP_DATA_FILES=menu.json en.json hi.json dict_en.json dict_hn.json typing_tutor.json typing_leaderboard_mock.json timezones.json userSettings.json keys.json trivia.json todo.json
 
 ifeq ($(ENABLE_MENU_SPEECH),1)
@@ -173,6 +173,9 @@ utils.o: utils.c utils.h
 
 braille_ui.o: braille_ui.c braille_ui.h config.h menu.h
 	$(CC) $(CFLAGS) -c braille_ui.c
+
+ui_feedback.o: ui_feedback.c ui_feedback.h
+	$(CC) $(CFLAGS) -c ui_feedback.c
 
 file_manager.o: file_manager.c file_manager.h menu.h utils.h
 	$(CC) $(CFLAGS) -c file_manager.c

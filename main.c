@@ -18,6 +18,7 @@
 #include "speech_engine.h"
 #include "todo.h"
 #include "trivia.h"
+#include "ui_feedback.h"
 #include "utils.h"
 
 static void append_menu_speech_part(char *buffer, size_t buffer_size, const char *text) {
@@ -111,6 +112,7 @@ int main() {
     set_conio_terminal_mode();
     app_sync_language_voice_on_startup(root);
     menu_audio_init();
+    ui_feedback_init();
 
     MenuNode *current_node = root;
     int selected_index = 0;
@@ -196,10 +198,12 @@ int main() {
                 }
             }
         } else if (key > 0 && key < 1000) {
+            int matched_shortcut = 0;
             // Shortcut handling
             for (int i = 0; i < visible_count; i++) {
                 if (visible_items[i]->shortcut == tolower(key)) {
                     selected_index = i;
+                    matched_shortcut = 1;
                     // Trigger ENTER logic for the shortcut
                     // (Simplest is to just simulate key == KEY_ENTER here or move logic to function)
                     // For now, let's just use the selected_index and continue the loop to next turn
@@ -208,11 +212,15 @@ int main() {
                     break;
                 }
             }
+            if (!matched_shortcut && isprint(key)) {
+                ui_feedback_play(UI_FEEDBACK_ERROR);
+            }
         }
         free(lang);
     }
 
     free_menu(root);
+    ui_feedback_shutdown();
     menu_audio_shutdown();
     speech_engine_shutdown();
     cleanup_config();
