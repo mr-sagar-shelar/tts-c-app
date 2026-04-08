@@ -29,6 +29,8 @@ The flow is:
   Builds `sai`, packages `sai-app.tcz`, and emits `mydata.tgz`.
 - `scripts/build-artifacts.sh`
   Runs the Docker build on macOS/Linux and exports the Tiny Core artifacts.
+- `scripts/build-linphonecsh-extension.sh`
+  Builds a separate `linphonecsh.tcz` VoIP helper extension for TinyCore testing.
 - `scripts/build-picore-image-macos.sh`
   Downloads a stock piCore Raspberry Pi image, injects app/extensions, and writes a custom image.
 - `scripts/flash-sd-card-macos.sh`
@@ -93,6 +95,12 @@ Build Tiny Core artifacts:
 ./tinycore/scripts/build-artifacts.sh
 ```
 
+Build the standalone `linphonecsh` extension for VoIP testing:
+
+```sh
+./tinycore/scripts/build-linphonecsh-extension.sh
+```
+
 Build a custom piCore image:
 
 ```sh
@@ -104,6 +112,16 @@ This writes a versioned image such as:
 ```sh
 build/tinycore/image/piCore-sai-custom-16.x-armhf.img
 ```
+
+The separate Linphone extension build writes:
+
+```sh
+build/tinycore/linphonecsh/linphonecsh.tcz
+```
+
+Detailed VoIP extension notes are in:
+
+- [LINPHONECSH_EXTENSION.md](/Users/sagarshelar/fliteDemo/tts-c-app-codex/tinycore/LINPHONECSH_EXTENSION.md)
 
 Write that image to an SD card:
 

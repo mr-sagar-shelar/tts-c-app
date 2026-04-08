@@ -46,6 +46,12 @@ static void create_default_config() {
     cJSON_AddStringToObject(config_json, "speech_mode", "on");
     cJSON_AddStringToObject(config_json, "audio_playback", "off");
     cJSON_AddStringToObject(config_json, "audio_output", "hdmi");
+    cJSON_AddStringToObject(config_json, "voip_display_name", "");
+    cJSON_AddStringToObject(config_json, "voip_sip_server", "");
+    cJSON_AddStringToObject(config_json, "voip_sip_domain", "");
+    cJSON_AddStringToObject(config_json, "voip_username", "");
+    cJSON_AddStringToObject(config_json, "voip_password", "");
+    cJSON_AddStringToObject(config_json, "voip_transport", "udp");
     cJSON_AddStringToObject(config_json, "braille_display_cells", "20");
     cJSON_AddStringToObject(config_json, "braille_display_size", "small");
     cJSON_AddStringToObject(config_json, "braille_character_spacing", "2");
@@ -144,6 +150,12 @@ void init_config() {
     ensure_default_string("speech_mode", "on");
     ensure_default_string("audio_playback", "off");
     ensure_default_string("audio_output", "hdmi");
+    ensure_default_string("voip_display_name", "");
+    ensure_default_string("voip_sip_server", "");
+    ensure_default_string("voip_sip_domain", "");
+    ensure_default_string("voip_username", "");
+    ensure_default_string("voip_password", "");
+    ensure_default_string("voip_transport", "udp");
     ensure_default_string("braille_display_cells", "20");
     ensure_default_string("braille_display_size", "small");
     ensure_default_string("braille_character_spacing", "2");

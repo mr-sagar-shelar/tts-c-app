@@ -240,6 +240,80 @@
       "description_key": "email_desc"
     },
     {
+      "title_key": "voip",
+      "key": "voip",
+      "shortcut": "v",
+      "description_key": "voip_desc",
+      "items": [
+        {
+          "title_key": "voip_dial",
+          "key": "voip_dial",
+          "shortcut": "d",
+          "description_key": "voip_dial_desc"
+        },
+        {
+          "title_key": "voip_call_contact",
+          "key": "voip_call_contact",
+          "shortcut": "c",
+          "description_key": "voip_call_contact_desc"
+        },
+        {
+          "title_key": "voip_hangup",
+          "key": "voip_hangup",
+          "shortcut": "h",
+          "description_key": "voip_hangup_desc"
+        },
+        {
+          "title_key": "voip_status",
+          "key": "voip_status",
+          "shortcut": "s",
+          "description_key": "voip_status_desc"
+        },
+        {
+          "title_key": "voip_show_config",
+          "key": "voip_show_config",
+          "shortcut": "i",
+          "description_key": "voip_show_config_desc"
+        },
+        {
+          "title_key": "voip_display_name",
+          "key": "voip_display_name",
+          "shortcut": "n",
+          "description_key": "voip_display_name_desc"
+        },
+        {
+          "title_key": "voip_sip_server",
+          "key": "voip_sip_server",
+          "shortcut": "r",
+          "description_key": "voip_sip_server_desc"
+        },
+        {
+          "title_key": "voip_sip_domain",
+          "key": "voip_sip_domain",
+          "shortcut": "m",
+          "description_key": "voip_sip_domain_desc"
+        },
+        {
+          "title_key": "voip_username",
+          "key": "voip_username",
+          "shortcut": "u",
+          "description_key": "voip_username_desc"
+        },
+        {
+          "title_key": "voip_password",
+          "key": "voip_password",
+          "shortcut": "p",
+          "description_key": "voip_password_desc"
+        },
+        {
+          "title_key": "voip_transport",
+          "key": "voip_transport",
+          "shortcut": "t",
+          "description_key": "voip_transport_desc"
+        }
+      ]
+    },
+    {
       "title_key": "media",
       "key": "media",
       "shortcut": "m",
