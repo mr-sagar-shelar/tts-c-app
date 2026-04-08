@@ -267,6 +267,116 @@
           "key": "daisy_player",
           "shortcut": "d",
           "description_key": "daisy_player_desc"
+        },
+        {
+          "title_key": "mp3_player",
+          "key": "mp3_player",
+          "shortcut": "p",
+          "description_key": "mp3_player_desc"
+        },
+        {
+          "title_key": "music",
+          "key": "music",
+          "shortcut": "u",
+          "description_key": "music_desc",
+          "items": [
+            {
+              "title_key": "music_piano",
+              "key": "music_piano",
+              "shortcut": "p",
+              "description_key": "music_piano_desc"
+            },
+            {
+              "title_key": "music_electric_piano",
+              "key": "music_electric_piano",
+              "shortcut": "e",
+              "description_key": "music_electric_piano_desc"
+            },
+            {
+              "title_key": "music_organ",
+              "key": "music_organ",
+              "shortcut": "o",
+              "description_key": "music_organ_desc"
+            },
+            {
+              "title_key": "music_acoustic_guitar",
+              "key": "music_acoustic_guitar",
+              "shortcut": "g",
+              "description_key": "music_acoustic_guitar_desc"
+            },
+            {
+              "title_key": "music_bass_guitar",
+              "key": "music_bass_guitar",
+              "shortcut": "b",
+              "description_key": "music_bass_guitar_desc"
+            },
+            {
+              "title_key": "music_violin",
+              "key": "music_violin",
+              "shortcut": "v",
+              "description_key": "music_violin_desc"
+            },
+            {
+              "title_key": "music_cello",
+              "key": "music_cello",
+              "shortcut": "c",
+              "description_key": "music_cello_desc"
+            },
+            {
+              "title_key": "music_flute",
+              "key": "music_flute",
+              "shortcut": "f",
+              "description_key": "music_flute_desc"
+            },
+            {
+              "title_key": "music_clarinet",
+              "key": "music_clarinet",
+              "shortcut": "l",
+              "description_key": "music_clarinet_desc"
+            },
+            {
+              "title_key": "music_trumpet",
+              "key": "music_trumpet",
+              "shortcut": "t",
+              "description_key": "music_trumpet_desc"
+            },
+            {
+              "title_key": "music_saxophone",
+              "key": "music_saxophone",
+              "shortcut": "s",
+              "description_key": "music_saxophone_desc"
+            },
+            {
+              "title_key": "music_harp",
+              "key": "music_harp",
+              "shortcut": "h",
+              "description_key": "music_harp_desc"
+            },
+            {
+              "title_key": "music_vibraphone",
+              "key": "music_vibraphone",
+              "shortcut": "i",
+              "description_key": "music_vibraphone_desc"
+            },
+            {
+              "title_key": "music_bell",
+              "key": "music_bell",
+              "shortcut": "n",
+              "description_key": "music_bell_desc"
+            },
+            {
+              "title_key": "music_synth_lead",
+              "key": "music_synth_lead",
+              "shortcut": "y",
+              "description_key": "music_synth_lead_desc"
+            },
+            {
+              "title_key": "music_harmonica",
+              "key": "music_harmonica",
+              "shortcut": "r",
+              "description_key": "music_harmonica_desc"
+            }
+          ]
         }
       ],
       "description_key": "media_desc"
@@ -362,7 +472,89 @@
           "title_key": "database_manager",
           "key": "database_manager",
           "shortcut": "d",
+          "items": [
+            {
+              "title_key": "db_table_list",
+              "key": "db_table_list",
+              "shortcut": "l",
+              "description_key": "db_table_list_desc"
+            },
+            {
+              "title_key": "db_table_create",
+              "key": "db_table_create",
+              "shortcut": "c",
+              "description_key": "db_table_create_desc"
+            },
+            {
+              "title_key": "db_table_open",
+              "key": "db_table_open",
+              "shortcut": "o",
+              "description_key": "db_table_open_desc"
+            },
+            {
+              "title_key": "db_table_delete",
+              "key": "db_table_delete",
+              "shortcut": "d",
+              "description_key": "db_table_delete_desc"
+            }
+          ],
           "description_key": "database_manager_desc"
+        },
+        {
+          "title_key": "todo_app",
+          "key": "todo_app",
+          "shortcut": "t",
+          "items": [
+            {
+              "title_key": "todo_list",
+              "key": "todo_list",
+              "shortcut": "l",
+              "description_key": "todo_list_desc"
+            },
+            {
+              "title_key": "todo_search",
+              "key": "todo_search",
+              "shortcut": "s",
+              "description_key": "todo_search_desc"
+            },
+            {
+              "title_key": "todo_add",
+              "key": "todo_add",
+              "shortcut": "a",
+              "description_key": "todo_add_desc"
+            },
+            {
+              "title_key": "todo_open",
+              "key": "todo_open",
+              "shortcut": "o",
+              "description_key": "todo_open_desc"
+            },
+            {
+              "title_key": "todo_edit",
+              "key": "todo_edit",
+              "shortcut": "e",
+              "description_key": "todo_edit_desc"
+            },
+            {
+              "title_key": "todo_mark_complete",
+              "key": "todo_mark_complete",
+              "shortcut": "c",
+              "description_key": "todo_mark_complete_desc"
+            },
+            {
+              "title_key": "todo_mark_pending",
+              "key": "todo_mark_pending",
+              "shortcut": "p",
+              "description_key": "todo_mark_pending_desc"
+            },
+            {
+              "title_key": "todo_delete",
+              "key": "todo_delete",
+              "shortcut": "d",
+              "description_key": "todo_delete_desc"
+            }
+          ],
+          "description_key": "todo_app_desc"
         }
       ],
       "description_key": "organizer_desc"
@@ -394,22 +586,72 @@
       "description_key": "web_tools_desc"
     },
     {
+      "title_key": "knowledge",
+      "key": "knowledge",
+      "shortcut": "k",
+      "items": [
+        {
+          "title_key": "random_life_hack",
+          "key": "random_life_hack",
+          "shortcut": "l",
+          "description_key": "random_life_hack_desc"
+        },
+        {
+          "title_key": "random_affirmation",
+          "key": "random_affirmation",
+          "shortcut": "a",
+          "description_key": "random_affirmation_desc"
+        },
+        {
+          "title_key": "random_trivia",
+          "key": "random_trivia",
+          "shortcut": "t",
+          "description_key": "random_trivia_desc"
+        },
+        {
+          "title_key": "random_riddle",
+          "key": "random_riddle",
+          "shortcut": "r",
+          "description_key": "random_riddle_desc"
+        },
+        {
+          "title_key": "random_quote",
+          "key": "random_quote",
+          "shortcut": "q",
+          "description_key": "random_quote_desc"
+        },
+        {
+          "title_key": "synonyms",
+          "key": "synonyms",
+          "shortcut": "s",
+          "description_key": "synonyms_desc"
+        },
+        {
+          "title_key": "singularize",
+          "key": "singularize",
+          "shortcut": "g",
+          "description_key": "singularize_desc"
+        },
+        {
+          "title_key": "random_poem_api",
+          "key": "random_poem_api",
+          "shortcut": "p",
+          "description_key": "random_poem_api_desc"
+        },
+        {
+          "title_key": "random_joke_api",
+          "key": "random_joke_api",
+          "shortcut": "j",
+          "description_key": "random_joke_api_desc"
+        }
+      ],
+      "description_key": "knowledge_desc"
+    },
+    {
       "title_key": "extras",
       "key": "extras",
       "shortcut": "x",
       "items": [
-        {
-          "title_key": "excel_viewer",
-          "key": "excel_viewer",
-          "shortcut": "x",
-          "description_key": "excel_viewer_desc"
-        },
-        {
-          "title_key": "online_daisy",
-          "key": "online_daisy",
-          "shortcut": "o",
-          "description_key": "online_daisy_desc"
-        },
         {
           "title_key": "english_only_dictionary",
           "key": "english_only_dictionary",
@@ -441,6 +683,12 @@
           "description_key": "joke_desc"
         },
         {
+          "title_key": "riddles",
+          "key": "riddles",
+          "shortcut": "r",
+          "description_key": "riddles_desc"
+        },
+        {
           "title_key": "weather",
           "key": "weather",
           "shortcut": "w",
@@ -465,10 +713,54 @@
           "description_key": "sense_dictionary_desc"
         },
         {
-          "title_key": "color_reader",
-          "key": "color_reader",
+          "title_key": "convert_units",
+          "key": "convert_units",
           "shortcut": "c",
-          "description_key": "color_reader_desc"
+          "description_key": "convert_units_desc"
+        },
+        {
+          "title_key": "trivia",
+          "key": "trivia",
+          "shortcut": "v",
+          "description_key": "trivia_desc",
+          "items": [
+            {
+              "title_key": "trivia_start",
+              "key": "trivia_start",
+              "shortcut": "s",
+              "description_key": "trivia_start_desc"
+            },
+            {
+              "title_key": "trivia_amount",
+              "key": "trivia_amount",
+              "shortcut": "n",
+              "description_key": "trivia_amount_desc"
+            },
+            {
+              "title_key": "trivia_category",
+              "key": "trivia_category",
+              "shortcut": "c",
+              "description_key": "trivia_category_desc"
+            },
+            {
+              "title_key": "trivia_difficulty",
+              "key": "trivia_difficulty",
+              "shortcut": "d",
+              "description_key": "trivia_difficulty_desc"
+            },
+            {
+              "title_key": "trivia_type",
+              "key": "trivia_type",
+              "shortcut": "t",
+              "description_key": "trivia_type_desc"
+            },
+            {
+              "title_key": "trivia_encoding",
+              "key": "trivia_encoding",
+              "shortcut": "e",
+              "description_key": "trivia_encoding_desc"
+            }
+          ]
         }
       ],
       "description_key": "extras_desc"
@@ -499,34 +791,10 @@
           "description_key": "calculator_desc"
         },
         {
-          "title_key": "bs_math",
-          "key": "bs_math",
-          "shortcut": "m",
-          "description_key": "bs_math_desc"
-        },
-        {
           "title_key": "world_clock",
           "key": "world_clock",
           "shortcut": "w",
           "description_key": "world_clock_desc"
-        },
-        {
-          "title_key": "compass",
-          "key": "compass",
-          "shortcut": "o",
-          "description_key": "compass_desc"
-        },
-        {
-          "title_key": "current_time_date",
-          "key": "current_time_date",
-          "shortcut": "t",
-          "description_key": "current_time_date_desc"
-        },
-        {
-          "title_key": "display_time_date",
-          "key": "display_time_date",
-          "shortcut": "d",
-          "description_key": "display_time_date_desc"
         },
         {
           "title_key": "alarm",
@@ -535,10 +803,34 @@
           "description_key": "alarm_desc"
         },
         {
-          "title_key": "terminal",
-          "key": "terminal",
-          "shortcut": "s",
-          "description_key": "terminal_desc"
+          "title_key": "voice_recorder",
+          "key": "voice_recorder",
+          "shortcut": "v",
+          "description_key": "voice_recorder_desc"
+        },
+        {
+          "title_key": "display_free_memory",
+          "key": "display_free_memory",
+          "shortcut": "f",
+          "description_key": "display_free_memory_desc"
+        },
+        {
+          "title_key": "display_time_date",
+          "key": "display_time_date",
+          "shortcut": "d",
+          "description_key": "display_time_date_desc"
+        },
+        {
+          "title_key": "display_network_status",
+          "key": "display_network_status",
+          "shortcut": "n",
+          "description_key": "display_network_status_desc"
+        },
+        {
+          "title_key": "display_power_status",
+          "key": "display_power_status",
+          "shortcut": "p",
+          "description_key": "display_power_status_desc"
         }
       ],
       "description_key": "utilities_desc"
@@ -548,12 +840,6 @@
       "key": "settings",
       "shortcut": "s",
       "items": [
-        {
-          "title_key": "set_time_date",
-          "key": "set_time_date",
-          "shortcut": "t",
-          "description_key": "set_time_date_desc"
-        },
         {
           "title_key": "set_city",
           "key": "set_city",
@@ -571,24 +857,6 @@
           "key": "bluetooth_manager",
           "shortcut": "b",
           "description_key": "bluetooth_manager_desc"
-        },
-        {
-          "title_key": "menu_manager",
-          "key": "menu_manager",
-          "shortcut": "m",
-          "description_key": "menu_manager_desc"
-        },
-        {
-          "title_key": "global_options",
-          "key": "global_options",
-          "shortcut": "g",
-          "description_key": "global_options_desc"
-        },
-        {
-          "title_key": "android_settings",
-          "key": "android_settings",
-          "shortcut": "a",
-          "description_key": "android_settings_desc"
         },
         {
           "title_key": "language_switch",
@@ -629,42 +897,74 @@
           ]
         },
         {
+          "title_key": "speech_speed",
+          "key": "speech_speed",
+          "shortcut": "s",
+          "description_key": "speech_speed_desc",
+          "items": [
+            {
+              "title_key": "speech_speed_very_slow",
+              "key": "speech_speed_very_slow",
+              "shortcut": "v",
+              "description_key": "speech_speed_very_slow_desc"
+            },
+            {
+              "title_key": "speech_speed_slow",
+              "key": "speech_speed_slow",
+              "shortcut": "l",
+              "description_key": "speech_speed_slow_desc"
+            },
+            {
+              "title_key": "speech_speed_normal",
+              "key": "speech_speed_normal",
+              "shortcut": "n",
+              "description_key": "speech_speed_normal_desc"
+            },
+            {
+              "title_key": "speech_speed_fast",
+              "key": "speech_speed_fast",
+              "shortcut": "f",
+              "description_key": "speech_speed_fast_desc"
+            },
+            {
+              "title_key": "speech_speed_very_fast",
+              "key": "speech_speed_very_fast",
+              "shortcut": "t",
+              "description_key": "speech_speed_very_fast_desc"
+            }
+          ]
+        },
+        {
           "title_key": "download_voice",
           "key": "download_voice",
           "shortcut": "d",
           "description_key": "download_voice_desc"
         },
         {
+          "title_key": "audio_output",
+          "key": "audio_output",
+          "shortcut": "o",
+          "description_key": "audio_output_desc",
+          "items": [
+            {
+              "title_key": "audio_output_hdmi",
+              "key": "audio_output_hdmi",
+              "shortcut": "h",
+              "description_key": "audio_output_hdmi_desc"
+            },
+            {
+              "title_key": "audio_output_hat",
+              "key": "audio_output_hat",
+              "shortcut": "a",
+              "description_key": "audio_output_hat_desc"
+            }
+          ]
+        },
+        {
           "title_key": "set_volume",
           "key": "set_volume",
           "shortcut": "u",
-          "description_key": "set_volume_desc",
-          "items": [
-            {
-              "title_key": "volume_low",
-              "key": "volume_low",
-              "shortcut": "l",
-              "description_key": "volume_low_desc"
-            },
-            {
-              "title_key": "volume_medium",
-              "key": "volume_medium",
-              "shortcut": "m",
-              "description_key": "volume_medium_desc"
-            },
-            {
-              "title_key": "volume_high",
-              "key": "volume_high",
-              "shortcut": "h",
-              "description_key": "volume_high_desc"
-            },
-            {
-              "title_key": "volume_max",
-              "key": "volume_max",
-              "shortcut": "x",
-              "description_key": "volume_max_desc"
-            }
-          ]
+          "description_key": "set_volume_desc"
         },
         {
           "title_key": "toggle_speech_mode",
@@ -707,6 +1007,32 @@
           ]
         },
         {
+          "title_key": "braille_settings",
+          "key": "braille_settings",
+          "shortcut": "r",
+          "description_key": "braille_settings_desc",
+          "items": [
+            {
+              "title_key": "braille_display_cells",
+              "key": "braille_display_cells",
+              "shortcut": "c",
+              "description_key": "braille_display_cells_desc"
+            },
+            {
+              "title_key": "braille_display_size",
+              "key": "braille_display_size",
+              "shortcut": "s",
+              "description_key": "braille_display_size_desc"
+            },
+            {
+              "title_key": "braille_character_spacing",
+              "key": "braille_character_spacing",
+              "shortcut": "p",
+              "description_key": "braille_character_spacing_desc"
+            }
+          ]
+        },
+        {
           "title_key": "timezone",
           "key": "timezone",
           "shortcut": "z",
@@ -735,6 +1061,18 @@
           "key": "sync_server",
           "shortcut": "s",
           "description_key": "sync_server_desc"
+        },
+        {
+          "title_key": "keys_manager",
+          "key": "keys_manager",
+          "shortcut": "k",
+          "description_key": "keys_manager_desc"
+        },
+        {
+          "title_key": "power_off",
+          "key": "power_off",
+          "shortcut": "q",
+          "description_key": "power_off_desc"
         }
       ],
       "description_key": "settings_desc"
@@ -743,25 +1081,21 @@
       "title_key": "help",
       "key": "help",
       "shortcut": "h",
-      "description_key": "help_desc"
-    },
-    {
-      "title_key": "play_store",
-      "key": "play_store",
-      "shortcut": "p",
-      "description_key": "play_store_desc"
-    },
-    {
-      "title_key": "all_apps",
-      "key": "all_apps",
-      "shortcut": "a",
-      "description_key": "all_apps_desc"
-    },
-    {
-      "title_key": "info",
-      "key": "info",
-      "shortcut": "i",
-      "description_key": "info_desc"
+      "description_key": "help_desc",
+      "items": [
+        {
+          "title_key": "user_guide",
+          "key": "user_guide",
+          "shortcut": "u",
+          "description_key": "user_guide_desc"
+        },
+        {
+          "title_key": "about_sai",
+          "key": "about_sai",
+          "shortcut": "a",
+          "description_key": "about_sai_desc"
+        }
+      ]
     }
   ]
 }

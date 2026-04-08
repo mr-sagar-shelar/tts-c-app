@@ -7,6 +7,9 @@ unzip.tcz
 mpg123.tcz
 ca-certificates.tcz
 util-linux.tcz
-kmaps.tcz
+wireless_tools.tcz
+wpa_supplicant.tcz
+firmware-rpi-wifi.tcz
+wireless-KERNEL.tcz
 SDL2.tcz
 sai-app.tcz

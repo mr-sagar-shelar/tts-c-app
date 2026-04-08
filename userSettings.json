@@ -1,0 +1,47 @@
+{
+	"set_time_date": "2026-03-29",
+	"language": "en",
+	"time_format": "12h",
+	"timezone": "Asia/Kolkata",
+	"manual_time": "23:10:20",
+	"manual_date": "2026-03-30",
+	"contacts": [
+		{
+			"first_name": " Sai",
+			"last_name": "shel",
+			"phone": "12121",
+			"email": "sai@sdfsf.com",
+			"address": "232323, mubmai pune",
+			"postal_code": "121212"
+		}
+	],
+	"alarms": [
+		{
+			"hour": 3,
+			"minute": 3,
+			"enabled": 1,
+			"label": "first"
+		}
+	],
+	"city": "Pune",
+	"calendar": [
+		{
+			"date": "2026-03-30",
+			"time": "11:30 AM",
+			"title": "Hello World",
+			"description": "This is hello world",
+			"reminder": false
+		}
+	],
+	"tts_voice": "slt",
+	"tts_volume": "medium",
+	"tts_speed": "0.85",
+	"speech_mode": "off",
+	"last_sync": "Never",
+	"audio_playback": "off",
+	"audio_output": "hdmi",
+	"database_tables": [],
+	"braille_display_cells": "20",
+	"braille_display_size": "medium",
+	"braille_character_spacing": "2"
+}

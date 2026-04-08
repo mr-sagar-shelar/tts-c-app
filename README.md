@@ -21,6 +21,22 @@ speech mode is enabled.
 
 `./sai`
 
+## Runtime Modes
+
+The app now supports three runtime modes for OS-specific features:
+
+- `stub` mode on macOS:
+  - the app compiles and runs
+  - OS-level actions like Wi-Fi, timezone, and system clock changes become no-op stubs with an informational message
+- `dev` mode on Linux that is not Tiny Core, including Raspberry Pi OS:
+  - the app tries to perform real OS calls directly
+  - privileged operations may require running as root or configuring passwordless `sudo`
+- `tinycore` mode on the appliance image:
+  - the app uses Tiny Core specific helpers and boot-time services
+  - privileged features are routed through the packaged root-side platform service
+
+This is intended to make feature development fast on Raspberry Pi OS, while still keeping the Tiny Core image as the final appliance target.
+
 ## macOS commands
 
 Build Tiny Core artifacts:
@@ -41,7 +57,6 @@ TC_VERSION=17.x sh ./tinycore/scripts/build-picore-image-macos.sh
 
 ## Next Features
 
-- Hindi/Devnagari font default install on RPI OS
 - Typing Tutor
   - Expect specific character from user and maintain it's accuracy, time spent and other similar statics and show at the end
 - Setting Menu Completion

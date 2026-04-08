@@ -1,12 +1,18 @@
 #include "tools.h"
 #include <ctype.h>
+#include <dirent.h>
 #include <stdarg.h>
 #include <strings.h>
+#include <time.h>
 
 #include "download_ui.h"
 #include "entertainment.h"
+#include "file_manager.h"
+#include "keys_manager.h"
 #include "menu_audio.h"
 #include "menu.h"
+#include "platform_ops.h"
+#include "speech_engine.h"
 
 static void append_accessible_line(char lines[][256], int *count, int max_lines, const char *format, ...) {
     va_list args;
@@ -25,6 +31,526 @@ static void speak_menu_option(const char *title, int selected, int last_spoken) 
     if (title && selected != last_spoken) {
         menu_audio_speak(title);
     }
+}
+
+static void show_platform_result_screen(const char *title, const char *message) {
+    printf("\033[H\033[J--- %s ---\n\n%s\n\n%s",
+           title,
+           message && message[0] ? message : "Done.",
+           menu_translate("ui_press_any_key_to_continue", "Press any key to continue..."));
+    fflush(stdout);
+    read_key();
+}
+
+static int read_first_line_from_file(const char *path, char *buffer, size_t buffer_size) {
+    FILE *file;
+
+    if (!path || !buffer || buffer_size == 0) {
+        return 0;
+    }
+
+    buffer[0] = '\0';
+    file = fopen(path, "r");
+    if (!file) {
+        return 0;
+    }
+
+    if (!fgets(buffer, (int)buffer_size, file)) {
+        fclose(file);
+        return 0;
+    }
+
+    fclose(file);
+    buffer[strcspn(buffer, "\r\n")] = '\0';
+    return buffer[0] != '\0';
+}
+
+static int read_first_line_from_command(const char *command, char *buffer, size_t buffer_size) {
+    FILE *pipe;
+
+    if (!command || !buffer || buffer_size == 0) {
+        return 0;
+    }
+
+    buffer[0] = '\0';
+    pipe = popen(command, "r");
+    if (!pipe) {
+        return 0;
+    }
+
+    if (!fgets(buffer, (int)buffer_size, pipe)) {
+        pclose(pipe);
+        buffer[0] = '\0';
+        return 0;
+    }
+
+    pclose(pipe);
+    buffer[strcspn(buffer, "\r\n")] = '\0';
+    return buffer[0] != '\0';
+}
+
+static void show_accessible_text_screen(const char *title, const char *text) {
+    content_ui_show_spoken_text(title, title, text ? text : "");
+}
+
+static int confirm_system_action(const char *title, const char *message) {
+    int selected = 1;
+    const char *options[2] = {
+        menu_translate("ui_yes", "Yes"),
+        menu_translate("ui_no", "No")
+    };
+
+    while (1) {
+        printf("\033[H\033[J--- %s ---\n\n%s\n\n", title, message);
+        for (int i = 0; i < 2; i++) {
+            printf("%c %s\n", i == selected ? '>' : ' ', options[i]);
+        }
+        printf("\n%s\n", menu_translate("ui_footer_cancel", "[Arrows: Navigate | Enter: Select | Esc: Cancel]"));
+        fflush(stdout);
+
+        {
+            int key = read_key();
+            if (key == KEY_UP || key == KEY_DOWN) {
+                selected = menu_next_index(selected, key == KEY_UP ? -1 : 1, 2);
+            } else if (key == KEY_ENTER) {
+                return selected == 0;
+            } else if (key == KEY_ESC) {
+                return 0;
+            }
+        }
+    }
+}
+
+void system_ui_power_off(void) {
+    char message[512];
+
+    if (!confirm_system_action("Power Off",
+                               "This will execute the system poweroff command and shut down the device.")) {
+        return;
+    }
+
+    platform_ops_power_off(message, sizeof(message));
+    show_platform_result_screen("Power Off", message);
+}
+
+void system_ui_voice_recorder(void) {
+    char filename[256];
+    char seconds_text[32];
+    int seconds;
+    char path[1024];
+    char message[1400];
+
+    get_user_input(filename, sizeof(filename), "Enter recording file name");
+    if (filename[0] == '\0') {
+        return;
+    }
+
+    get_user_input(seconds_text, sizeof(seconds_text), "Enter recording duration in seconds");
+    seconds = atoi(seconds_text);
+    if (seconds <= 0) {
+        seconds = 10;
+    }
+    if (seconds > 600) {
+        seconds = 600;
+    }
+
+    if (!strstr(filename, ".wav")) {
+        snprintf(path, sizeof(path), "%s/%s.wav", USER_SPACE, filename);
+    } else {
+        snprintf(path, sizeof(path), "%s/%s", USER_SPACE, filename);
+    }
+
+    printf("\033[H\033[J--- Voice Recorder ---\n\nRecording will be saved to:\n%s\n\nDuration: %d seconds\n\nStarting recorder...\n",
+           path,
+           seconds);
+    fflush(stdout);
+
+    platform_ops_record_voice(path, seconds, message, sizeof(message));
+    show_platform_result_screen("Voice Recorder", message);
+}
+
+void system_ui_display_free_memory(void) {
+    FILE *file;
+    char line[256];
+    unsigned long total_kb = 0;
+    unsigned long free_kb = 0;
+    unsigned long available_kb = 0;
+    char text[1024];
+
+    if (platform_ops_get_mode() == PLATFORM_MODE_STUB) {
+        show_platform_result_screen("Free Memory", "macOS stub mode: free memory display skipped.");
+        return;
+    }
+
+    file = fopen("/proc/meminfo", "r");
+    if (!file) {
+        show_platform_result_screen("Free Memory", "Unable to read /proc/meminfo on this device.");
+        return;
+    }
+
+    while (fgets(line, sizeof(line), file)) {
+        if (sscanf(line, "MemTotal: %lu kB", &total_kb) == 1) {
+            continue;
+        }
+        if (sscanf(line, "MemFree: %lu kB", &free_kb) == 1) {
+            continue;
+        }
+        if (sscanf(line, "MemAvailable: %lu kB", &available_kb) == 1) {
+            continue;
+        }
+    }
+    fclose(file);
+
+    if (total_kb == 0) {
+        show_platform_result_screen("Free Memory", "Memory information is unavailable.");
+        return;
+    }
+
+    snprintf(text, sizeof(text),
+             "Memory summary\n\n"
+             "Total memory: %lu MB\n"
+             "Available memory: %lu MB\n"
+             "Free memory: %lu MB\n"
+             "Used memory estimate: %lu MB",
+             total_kb / 1024UL,
+             available_kb / 1024UL,
+             free_kb / 1024UL,
+             (total_kb - available_kb) / 1024UL);
+    show_accessible_text_screen("Free Memory", text);
+}
+
+void system_ui_display_time_date(void) {
+    time_t now;
+    struct tm tm_value;
+    char date_buffer[64];
+    char time_buffer[64];
+    char text[512];
+    char *time_format = get_setting("time_format");
+    char *timezone = get_setting("timezone");
+    char model[256];
+
+    if (platform_ops_get_mode() == PLATFORM_MODE_STUB) {
+        show_platform_result_screen("Time and Date", "macOS stub mode: time and date display skipped.");
+        free(time_format);
+        free(timezone);
+        return;
+    }
+
+    now = time(NULL);
+    localtime_r(&now, &tm_value);
+    platform_ops_get_device_model(model, sizeof(model));
+
+    strftime(date_buffer, sizeof(date_buffer), "%A, %d %B %Y", &tm_value);
+    if (time_format && strcmp(time_format, "24h") == 0) {
+        strftime(time_buffer, sizeof(time_buffer), "%H:%M:%S", &tm_value);
+    } else {
+        strftime(time_buffer, sizeof(time_buffer), "%I:%M:%S %p", &tm_value);
+    }
+
+    snprintf(text, sizeof(text),
+             "Current date and time\n\nDate: %s\nTime: %s\nTime zone: %s\nDevice: %s",
+             date_buffer,
+             time_buffer,
+             timezone && timezone[0] ? timezone : "System default",
+             model);
+    show_accessible_text_screen("Time and Date", text);
+
+    free(time_format);
+    free(timezone);
+}
+
+void system_ui_display_network_status(void) {
+    PlatformWifiResponse response;
+    char text[1024];
+    char model[256];
+
+    memset(&response, 0, sizeof(response));
+    platform_ops_wifi_status(&response);
+    platform_ops_get_device_model(model, sizeof(model));
+
+    snprintf(text, sizeof(text),
+             "Network status\n\n"
+             "Platform mode: %s\n"
+             "Device: %s\n"
+             "Interface: %s\n"
+             "Connected: %s\n"
+             "Network: %s\n"
+             "IP address: %s\n"
+             "Message: %s",
+             platform_ops_get_mode_name(),
+             model,
+             response.interface_name[0] ? response.interface_name : menu_translate("wifi_not_available", "Not available"),
+             (strcasecmp(response.connected, "yes") == 0)
+                 ? menu_translate("wifi_connected", "Connected")
+                 : menu_translate("wifi_not_connected", "Not connected"),
+             response.ssid[0] ? response.ssid : menu_translate("wifi_not_connected", "Not connected"),
+             response.ip_address[0] ? response.ip_address : menu_translate("wifi_not_assigned", "Not assigned"),
+             response.message[0] ? response.message : "No additional status message.");
+    show_accessible_text_screen("Network Status", text);
+}
+
+void system_ui_display_power_status(void) {
+    DIR *dir;
+    struct dirent *entry;
+    char source_name[128] = "";
+    char capacity[64] = "";
+    char status[64] = "";
+    char online[64] = "";
+    char text[1024];
+    char model[256];
+
+    if (platform_ops_get_mode() == PLATFORM_MODE_STUB) {
+        show_platform_result_screen("Power Status", "macOS stub mode: power status display skipped.");
+        return;
+    }
+
+    platform_ops_get_device_model(model, sizeof(model));
+
+    dir = opendir("/sys/class/power_supply");
+    if (dir) {
+        while ((entry = readdir(dir)) != NULL) {
+            char path[512];
+            char type[64];
+
+            if (entry->d_name[0] == '.') {
+                continue;
+            }
+
+            snprintf(path, sizeof(path), "/sys/class/power_supply/%s/type", entry->d_name);
+            if (!read_first_line_from_file(path, type, sizeof(type))) {
+                continue;
+            }
+
+            if (strcasecmp(type, "Battery") == 0) {
+                snprintf(source_name, sizeof(source_name), "%s", entry->d_name);
+                snprintf(path, sizeof(path), "/sys/class/power_supply/%s/capacity", entry->d_name);
+                read_first_line_from_file(path, capacity, sizeof(capacity));
+                snprintf(path, sizeof(path), "/sys/class/power_supply/%s/status", entry->d_name);
+                read_first_line_from_file(path, status, sizeof(status));
+                break;
+            }
+        }
+        closedir(dir);
+    }
+
+    if (source_name[0]) {
+        snprintf(text, sizeof(text),
+                 "Power status\n\nDevice: %s\nPower source: %s\nBattery level: %s%%\nBattery state: %s",
+                 model,
+                 source_name,
+                 capacity[0] ? capacity : "Unknown",
+                 status[0] ? status : "Unknown");
+        show_accessible_text_screen("Power Status", text);
+        return;
+    }
+
+    dir = opendir("/sys/class/power_supply");
+    if (dir) {
+        while ((entry = readdir(dir)) != NULL) {
+            char path[512];
+            char type[64];
+
+            if (entry->d_name[0] == '.') {
+                continue;
+            }
+
+            snprintf(path, sizeof(path), "/sys/class/power_supply/%s/type", entry->d_name);
+            if (!read_first_line_from_file(path, type, sizeof(type))) {
+                continue;
+            }
+
+            if (strcasecmp(type, "Mains") == 0 || strcasecmp(type, "USB") == 0) {
+                snprintf(source_name, sizeof(source_name), "%s", entry->d_name);
+                snprintf(path, sizeof(path), "/sys/class/power_supply/%s/online", entry->d_name);
+                read_first_line_from_file(path, online, sizeof(online));
+                break;
+            }
+        }
+        closedir(dir);
+    }
+
+    if (source_name[0]) {
+        snprintf(text, sizeof(text),
+                 "Power status\n\nDevice: %s\nPower source: %s\nExternal power: %s",
+                 model,
+                 source_name,
+                 strcmp(online, "1") == 0 ? "Connected" : "Not connected");
+        show_accessible_text_screen("Power Status", text);
+        return;
+    }
+
+    if (read_first_line_from_command("vcgencmd get_throttled 2>/dev/null", status, sizeof(status))) {
+        snprintf(text, sizeof(text),
+                 "Power status\n\nDevice: %s\nRaspberry Pi voltage monitor: %s\n\nA value of throttled=0x0 means power is healthy.",
+                 model,
+                 status);
+        show_accessible_text_screen("Power Status", text);
+        return;
+    }
+
+    show_platform_result_screen("Power Status",
+                                "No battery or external power status source was found on this device.");
+}
+
+void system_ui_mp3_player(void) {
+    char *selected_path = file_navigator(USER_SPACE, 0);
+    char message[1400];
+    const char *extension;
+
+    if (!selected_path) {
+        return;
+    }
+
+    extension = strrchr(selected_path, '.');
+    if (!extension || strcasecmp(extension, ".mp3") != 0) {
+        free(selected_path);
+        show_platform_result_screen("MP3 Player", "Please select an `.mp3` file from UserSpace.");
+        return;
+    }
+
+    printf("\033[H\033[J--- MP3 Player ---\n\nNow opening:\n%s\n\nUse the player's own keyboard controls if available.\n",
+           selected_path);
+    fflush(stdout);
+
+    platform_ops_play_mp3(selected_path, message, sizeof(message));
+
+    free(selected_path);
+    show_platform_result_screen("MP3 Player", message);
+}
+
+void system_ui_show_user_guide(void) {
+    show_accessible_text_screen(
+        "User Guide",
+        "Sai user guide\n\n"
+        "Use the Up and Down arrow keys to move through each menu.\n"
+        "Press Enter to open a menu or start the highlighted feature.\n"
+        "Press Escape to go back to the previous menu.\n"
+        "Press Control and I together to hear or read more information about the current item.\n\n"
+        "Most tools save files inside the UserSpace folder. Settings let you adjust language, audio, time, and device behavior.");
+}
+
+void system_ui_show_about_sai(void) {
+    show_accessible_text_screen(
+        "About Sai",
+        "About Sai\n\n"
+        "Sai is a menu-driven accessible application written in C for lightweight Linux systems such as TinyCore Linux on Raspberry Pi.\n"
+        "It combines speech-friendly menus with reading, writing, utilities, media, connectivity, and organizer tools.\n"
+        "The design goal is to keep interaction simple, keyboard-first, and reliable on low-resource hardware.");
+}
+
+void system_ui_convert_units(void) {
+    char amount[64];
+    char source_unit[128];
+    char target_unit[128];
+    char food_name[128];
+    char *api_key;
+    char *encoded_amount = NULL;
+    char *encoded_key = NULL;
+    char *encoded_source = NULL;
+    char *encoded_target = NULL;
+    char *encoded_food = NULL;
+    char url[2048];
+    char error[256] = {0};
+    char text[1024];
+    char *response;
+    cJSON *json;
+    cJSON *target_amount;
+    cJSON *target_unit_node;
+
+    api_key = keys_manager_get_api_league_key();
+    if (!api_key || !api_key[0]) {
+        free(api_key);
+        show_platform_result_screen("Convert Units",
+                                    "API League key is not set. Open Settings > Keys Manager and save the key first.");
+        return;
+    }
+
+    get_user_input(amount, sizeof(amount), "Enter amount");
+    if (amount[0] == '\0') {
+        free(api_key);
+        return;
+    }
+
+    get_user_input(source_unit, sizeof(source_unit), "Enter source unit");
+    if (source_unit[0] == '\0') {
+        free(api_key);
+        return;
+    }
+
+    get_user_input(target_unit, sizeof(target_unit), "Enter target unit");
+    if (target_unit[0] == '\0') {
+        free(api_key);
+        return;
+    }
+
+    get_user_input(food_name, sizeof(food_name), "Optional food name");
+
+    encoded_amount = url_encode(amount);
+    encoded_key = url_encode(api_key);
+    encoded_source = url_encode(source_unit);
+    encoded_target = url_encode(target_unit);
+    if (food_name[0] != '\0') {
+        encoded_food = url_encode(food_name);
+    }
+    free(api_key);
+
+    if (!encoded_amount || !encoded_key || !encoded_source || !encoded_target || (food_name[0] != '\0' && !encoded_food)) {
+        free(encoded_amount);
+        free(encoded_key);
+        free(encoded_source);
+        free(encoded_target);
+        free(encoded_food);
+        show_platform_result_screen("Convert Units", "Unable to prepare conversion request.");
+        return;
+    }
+
+    snprintf(url, sizeof(url),
+             "https://api.apileague.com/convert-units?api-key=%s&amount=%s&sourceUnit=%s&targetUnit=%s",
+             encoded_key,
+             encoded_amount,
+             encoded_source,
+             encoded_target);
+    if (encoded_food) {
+        strncat(url, "&foodName=", sizeof(url) - strlen(url) - 1);
+        strncat(url, encoded_food, sizeof(url) - strlen(url) - 1);
+    }
+
+    free(encoded_amount);
+    free(encoded_key);
+    free(encoded_source);
+    free(encoded_target);
+    free(encoded_food);
+
+    response = fetch_text_with_progress_ui("Convert Units", url, "conversion data", error, sizeof(error));
+    if (!response) {
+        show_platform_result_screen("Convert Units",
+                                    error[0] ? error : "Failed to fetch conversion result.");
+        return;
+    }
+
+    json = cJSON_Parse(response);
+    free(response);
+    if (!json) {
+        show_platform_result_screen("Convert Units", "Error parsing conversion response.");
+        return;
+    }
+
+    target_amount = cJSON_GetObjectItemCaseSensitive(json, "target_amount");
+    target_unit_node = cJSON_GetObjectItemCaseSensitive(json, "target_unit");
+
+    if (cJSON_IsNumber(target_amount) && cJSON_IsString(target_unit_node)) {
+        snprintf(text, sizeof(text),
+                 "Conversion result\n\n%s %s equals %.6f %s",
+                 amount,
+                 source_unit,
+                 target_amount->valuedouble,
+                 target_unit_node->valuestring);
+        content_ui_show_spoken_text("Convert Units", "Convert Units", text);
+    } else {
+        show_platform_result_screen("Convert Units", "The API response did not include a conversion result.");
+    }
+
+    cJSON_Delete(json);
 }
 
 static int calculator_is_input_char(int key) {
@@ -226,64 +752,426 @@ void system_ui_show_weather(void) {
     free(city);
 }
 
-void system_ui_show_current_time_date(void) {
-    char *city = get_setting("city");
+void system_ui_google_search(void) {
+    char query[256];
     char error[256] = {0};
     char *response;
+
+    get_user_input(query, sizeof(query), "Enter search term");
+    if (query[0] == '\0') {
+        return;
+    }
+
+    {
+        char *encoded_query = url_encode(query);
+        char url[1024];
+        char text[4096];
+
+        if (!encoded_query) {
+            return;
+        }
+
+        snprintf(url, sizeof(url),
+                 "https://api.duckduckgo.com/?q=%s&format=json&no_html=1&skip_disambig=1",
+                 encoded_query);
+        free(encoded_query);
+
+        response = fetch_text_with_progress_ui("Google Search", url, "search results", error, sizeof(error));
+        if (!response || !response[0]) {
+            snprintf(text, sizeof(text), "%s", error[0] ? error : "No search results found.");
+            content_ui_show_spoken_text("Google Search", "Google Search", text);
+            free(response);
+            return;
+        }
+
+        {
+            cJSON *json = cJSON_Parse(response);
+            free(response);
+            if (!json) {
+                content_ui_show_spoken_text("Google Search", "Google Search", "Unable to parse search results.");
+                return;
+            }
+
+            text[0] = '\0';
+            {
+                cJSON *heading = cJSON_GetObjectItemCaseSensitive(json, "Heading");
+                cJSON *abstract = cJSON_GetObjectItemCaseSensitive(json, "AbstractText");
+                cJSON *related = cJSON_GetObjectItemCaseSensitive(json, "RelatedTopics");
+                int added = 0;
+
+                if (heading && cJSON_IsString(heading) && heading->valuestring[0]) {
+                    strncat(text, heading->valuestring, sizeof(text) - strlen(text) - 1);
+                    strncat(text, "\n\n", sizeof(text) - strlen(text) - 1);
+                    added = 1;
+                }
+                if (abstract && cJSON_IsString(abstract) && abstract->valuestring[0]) {
+                    strncat(text, abstract->valuestring, sizeof(text) - strlen(text) - 1);
+                    strncat(text, "\n\n", sizeof(text) - strlen(text) - 1);
+                    added = 1;
+                }
+                if (cJSON_IsArray(related)) {
+                    int i;
+                    int count = cJSON_GetArraySize(related);
+                    for (i = 0; i < count && i < 5; i++) {
+                        cJSON *item = cJSON_GetArrayItem(related, i);
+                        cJSON *text_item = cJSON_GetObjectItemCaseSensitive(item, "Text");
+                        if (!cJSON_IsString(text_item) || !text_item->valuestring[0]) {
+                            cJSON *topics = cJSON_GetObjectItemCaseSensitive(item, "Topics");
+                            if (cJSON_IsArray(topics) && cJSON_GetArraySize(topics) > 0) {
+                                item = cJSON_GetArrayItem(topics, 0);
+                                text_item = cJSON_GetObjectItemCaseSensitive(item, "Text");
+                            }
+                        }
+                        if (cJSON_IsString(text_item) && text_item->valuestring[0]) {
+                            strncat(text, "- ", sizeof(text) - strlen(text) - 1);
+                            strncat(text, text_item->valuestring, sizeof(text) - strlen(text) - 1);
+                            strncat(text, "\n", sizeof(text) - strlen(text) - 1);
+                            added = 1;
+                        }
+                    }
+                }
+
+                if (!added) {
+                    snprintf(text, sizeof(text), "No search summary found for %s.", query);
+                }
+            }
+
+            content_ui_show_spoken_text("Google Search", query, text);
+            cJSON_Delete(json);
+        }
+    }
+}
+
+void system_ui_wiki_search(void) {
+    char query[256];
+    char error[256] = {0};
+    char *response;
+
+    get_user_input(query, sizeof(query), "Enter Wikipedia search term");
+    if (query[0] == '\0') {
+        return;
+    }
+
+    {
+        char *encoded_query = url_encode(query);
+        char url[1024];
+        char text[4096];
+
+        if (!encoded_query) {
+            return;
+        }
+
+        snprintf(url, sizeof(url),
+                 "https://en.wikipedia.org/w/api.php?action=opensearch&search=%s&limit=5&namespace=0&format=json",
+                 encoded_query);
+        free(encoded_query);
+
+        response = fetch_text_with_progress_ui("Wiki Search", url, "search results", error, sizeof(error));
+        if (!response || !response[0]) {
+            snprintf(text, sizeof(text), "%s", error[0] ? error : "No search results found.");
+            content_ui_show_spoken_text("Wiki Search", "Wiki Search", text);
+            free(response);
+            return;
+        }
+
+        {
+            cJSON *json = cJSON_Parse(response);
+            free(response);
+            if (!json || !cJSON_IsArray(json) || cJSON_GetArraySize(json) < 4) {
+                if (json) {
+                    cJSON_Delete(json);
+                }
+                content_ui_show_spoken_text("Wiki Search", "Wiki Search", "Unable to parse search results.");
+                return;
+            }
+
+            text[0] = '\0';
+            {
+                cJSON *titles = cJSON_GetArrayItem(json, 1);
+                cJSON *descriptions = cJSON_GetArrayItem(json, 2);
+                cJSON *links = cJSON_GetArrayItem(json, 3);
+                int count = cJSON_IsArray(titles) ? cJSON_GetArraySize(titles) : 0;
+                int i;
+
+                for (i = 0; i < count && i < 5; i++) {
+                    cJSON *title = cJSON_GetArrayItem(titles, i);
+                    cJSON *desc = cJSON_GetArrayItem(descriptions, i);
+                    cJSON *link = cJSON_GetArrayItem(links, i);
+
+                    if (cJSON_IsString(title) && title->valuestring[0]) {
+                        strncat(text, title->valuestring, sizeof(text) - strlen(text) - 1);
+                        strncat(text, "\n", sizeof(text) - strlen(text) - 1);
+                    }
+                    if (cJSON_IsString(desc) && desc->valuestring[0]) {
+                        strncat(text, desc->valuestring, sizeof(text) - strlen(text) - 1);
+                        strncat(text, "\n", sizeof(text) - strlen(text) - 1);
+                    }
+                    if (cJSON_IsString(link) && link->valuestring[0]) {
+                        strncat(text, link->valuestring, sizeof(text) - strlen(text) - 1);
+                        strncat(text, "\n", sizeof(text) - strlen(text) - 1);
+                    }
+                    strncat(text, "\n", sizeof(text) - strlen(text) - 1);
+                }
+
+                if (text[0] == '\0') {
+                    snprintf(text, sizeof(text), "No Wikipedia results found for %s.", query);
+                }
+            }
+
+            content_ui_show_spoken_text("Wiki Search", query, text);
+            cJSON_Delete(json);
+        }
+    }
+}
+
+static cJSON *load_timezones_json(char **error_message) {
+    FILE *f = fopen("timezones.json", "rb");
+    char *data;
+    long len;
+    cJSON *json;
+
+    if (error_message) {
+        *error_message = NULL;
+    }
+
+    if (!f) {
+        if (error_message) {
+            *error_message = strdup(menu_translate("world_clock_error_loading", "Unable to load time zone data."));
+        }
+        return NULL;
+    }
+
+    fseek(f, 0, SEEK_END);
+    len = ftell(f);
+    fseek(f, 0, SEEK_SET);
+
+    data = (char *)malloc((size_t)len + 1);
+    if (!data) {
+        fclose(f);
+        if (error_message) {
+            *error_message = strdup(menu_translate("world_clock_error_loading", "Unable to load time zone data."));
+        }
+        return NULL;
+    }
+
+    fread(data, 1, (size_t)len, f);
+    data[len] = '\0';
+    fclose(f);
+
+    json = cJSON_Parse(data);
+    free(data);
+    if (!json && error_message) {
+        *error_message = strdup(menu_translate("world_clock_error_loading", "Unable to load time zone data."));
+    }
+    return json;
+}
+
+static int pick_timezone_from_json(cJSON *tz_array, const char *title, const char *current_timezone, char *selected_timezone, size_t selected_timezone_size) {
+    int total_count;
+    char search_term[256] = {0};
+    int sel = 0;
+    int scroll = 0;
+    int page_size = 15;
+    int last_spoken = -1;
+
+    if (!cJSON_IsArray(tz_array) || !selected_timezone || selected_timezone_size == 0) {
+        return 0;
+    }
+
+    total_count = cJSON_GetArraySize(tz_array);
+    selected_timezone[0] = '\0';
+
+    while (1) {
+        int matches[total_count > 0 ? total_count : 1];
+        int match_count = 0;
+        char lower_search[256] = {0};
+        int i;
+
+        for (i = 0; search_term[i]; i++) {
+            lower_search[i] = (char)tolower((unsigned char)search_term[i]);
+        }
+
+        printf("\033[H\033[J--- %s ---\n", title);
+        printf("%s: %s\n",
+               menu_translate("ui_selected_value", "Selected Value"),
+               current_timezone && current_timezone[0] ? current_timezone : "Asia/Kolkata");
+        printf("%s\n", menu_translate("world_clock_prompt", "Choose a time zone to hear the current local time."));
+        printf("%s: %s_\n", menu_translate("ui_search", "Search"), search_term);
+        printf("---------------------------\n");
+
+        for (i = 0; i < total_count; i++) {
+            const char *tz = cJSON_GetArrayItem(tz_array, i)->valuestring;
+            char lower_tz[256] = {0};
+            int j;
+
+            for (j = 0; tz[j] && j < 255; j++) {
+                lower_tz[j] = (char)tolower((unsigned char)tz[j]);
+            }
+
+            if (strlen(lower_search) == 0 || strstr(lower_tz, lower_search) != NULL) {
+                matches[match_count++] = i;
+            }
+        }
+
+        if (sel >= match_count) {
+            sel = (match_count > 0) ? match_count - 1 : 0;
+        }
+        if (sel < scroll) {
+            scroll = sel;
+        }
+        if (sel >= scroll + page_size) {
+            scroll = sel - page_size + 1;
+        }
+
+        if (match_count == 0) {
+            printf("  (%s)\n", menu_translate("world_clock_no_match", "No matching time zones"));
+        } else {
+            int end = scroll + page_size;
+            if (end > match_count) {
+                end = match_count;
+            }
+
+            for (i = scroll; i < end; i++) {
+                const char *tz = cJSON_GetArrayItem(tz_array, matches[i])->valuestring;
+                if (i == sel) {
+                    printf("> %s\n", tz);
+                } else {
+                    printf("  %s\n", tz);
+                }
+            }
+
+            if (sel != last_spoken) {
+                menu_audio_speak(cJSON_GetArrayItem(tz_array, matches[sel])->valuestring);
+                last_spoken = sel;
+            }
+        }
+
+        printf("\n%s\n", menu_translate("ui_footer_search", "[Arrows: Navigate | Enter: Select | Esc: Cancel | Type to Search]"));
+        fflush(stdout);
+
+        {
+            int key = read_key();
+
+            if (key == KEY_UP) {
+                menu_audio_stop();
+                sel = menu_next_index(sel, -1, match_count);
+            } else if (key == KEY_DOWN) {
+                menu_audio_stop();
+                sel = menu_next_index(sel, 1, match_count);
+            } else if (key == KEY_ENTER && match_count > 0) {
+                menu_audio_stop();
+                snprintf(selected_timezone, selected_timezone_size, "%s",
+                         cJSON_GetArrayItem(tz_array, matches[sel])->valuestring);
+                return 1;
+            } else if (key == KEY_ESC) {
+                menu_audio_stop();
+                return 0;
+            } else if (key == KEY_BACKSPACE) {
+                int slen = (int)strlen(search_term);
+                menu_audio_stop();
+                if (slen > 0) {
+                    search_term[slen - 1] = '\0';
+                    sel = 0;
+                    scroll = 0;
+                    last_spoken = -1;
+                }
+            } else if (key > 0 && key < 1000 && isprint(key)) {
+                int slen = (int)strlen(search_term);
+                menu_audio_stop();
+                if (slen < 254) {
+                    search_term[slen] = (char)key;
+                    search_term[slen + 1] = '\0';
+                    sel = 0;
+                    scroll = 0;
+                    last_spoken = -1;
+                }
+            }
+        }
+    }
+}
+
+void system_ui_show_world_clock(void) {
+    char *current_timezone = get_setting("timezone");
+    char *load_error = NULL;
+    cJSON *json = load_timezones_json(&load_error);
+    char selected_timezone[128];
     char lines[8][256];
     int line_count = 0;
     char text[2048];
-    if (!city) city = strdup("Pune");
+    cJSON *tz_array;
+    const char *timezone;
+    time_t now;
+    struct tm tm_value;
+    char date_str[32];
+    char time_str[32];
+    char *original_tz = NULL;
 
-    const char *timezone = "Asia/Kolkata";
-    if (city) {
-        if (strcasecmp(city, "London") == 0) timezone = "Europe/London";
-        else if (strcasecmp(city, "New York") == 0) timezone = "America/New_York";
-        else if (strcasecmp(city, "Tokyo") == 0) timezone = "Asia/Tokyo";
-        else if (strcasecmp(city, "Sydney") == 0) timezone = "Australia/Sydney";
-        else if (strcasecmp(city, "Paris") == 0) timezone = "Europe/Paris";
-        else if (strcasecmp(city, "Berlin") == 0) timezone = "Europe/Berlin";
+    if (!current_timezone) {
+        current_timezone = strdup("Asia/Kolkata");
+    }
+    if (!json) {
+        show_platform_result_screen(menu_translate("world_clock_title", "World Clock"),
+                                    load_error ? load_error : menu_translate("world_clock_error_loading", "Unable to load time zone data."));
+        free(load_error);
+        free(current_timezone);
+        return;
     }
 
-    char url[512];
-    snprintf(url, sizeof(url), "http://worldtimeapi.org/api/timezone/%s", timezone);
+    tz_array = cJSON_GetObjectItemCaseSensitive(json, "timezones");
+    if (!pick_timezone_from_json(tz_array,
+                                 menu_translate("world_clock_search_title", "Select Time Zone"),
+                                 current_timezone,
+                                 selected_timezone,
+                                 sizeof(selected_timezone))) {
+        cJSON_Delete(json);
+        free(current_timezone);
+        return;
+    }
+    cJSON_Delete(json);
+    free(current_timezone);
 
-    response = fetch_text_with_progress_ui("Current Time and Date", url, "time data", error, sizeof(error));
-    if (response) {
-        cJSON *json = cJSON_Parse(response);
-        free(response);
-        if (json) {
-            cJSON *datetime = cJSON_GetObjectItemCaseSensitive(json, "datetime");
-            if (datetime && cJSON_IsString(datetime)) {
-                char date_str[11] = {0};
-                char time_str[9] = {0};
-                if (strlen(datetime->valuestring) >= 19) {
-                    strncpy(date_str, datetime->valuestring, 10);
-                    strncpy(time_str, datetime->valuestring + 11, 8);
-                    append_accessible_line(lines, &line_count, 8, "Date: %s", date_str);
-                    append_accessible_line(lines, &line_count, 8, "Time: %s", time_str);
-                    append_accessible_line(lines, &line_count, 8, "Timezone: %s", timezone);
-                } else {
-                    append_accessible_line(lines, &line_count, 8, "Date and time: %s", datetime->valuestring);
-                }
-            } else {
-                append_accessible_line(lines, &line_count, 8, "Error: Could not retrieve time for %s.", city);
-            }
-            cJSON_Delete(json);
-        } else {
-            append_accessible_line(lines, &line_count, 8, "%s", "Error parsing time data.");
+    timezone = selected_timezone;
+
+    {
+        char *tz_env = getenv("TZ");
+        if (tz_env) {
+            original_tz = strdup(tz_env);
         }
+    }
+
+    setenv("TZ", timezone, 1);
+    tzset();
+    now = time(NULL);
+    if (localtime_r(&now, &tm_value)) {
+        strftime(date_str, sizeof(date_str), "%Y-%m-%d", &tm_value);
+        strftime(time_str, sizeof(time_str), "%H:%M:%S", &tm_value);
+        append_accessible_line(lines, &line_count, 8, "%s: %s",
+                               menu_translate("world_clock_date_label", "Date"), date_str);
+        append_accessible_line(lines, &line_count, 8, "%s: %s",
+                               menu_translate("world_clock_time_label", "Time"), time_str);
+        append_accessible_line(lines, &line_count, 8, "%s: %s",
+                               menu_translate("world_clock_timezone_label", "Time Zone"), timezone);
     } else {
         append_accessible_line(lines, &line_count, 8, "%s",
-                               error[0] ? error : "Failed to connect to Time API.");
+                               menu_translate("world_clock_fetch_failed", "Failed to load world clock data."));
     }
+
+    if (original_tz) {
+        setenv("TZ", original_tz, 1);
+        free(original_tz);
+    } else {
+        unsetenv("TZ");
+    }
+    tzset();
+
     text[0] = '\0';
     for (int i = 0; i < line_count; i++) {
         strncat(text, lines[i], sizeof(text) - strlen(text) - 1);
         strncat(text, "\n", sizeof(text) - strlen(text) - 1);
     }
-    content_ui_show_spoken_text("Current Time and Date", "Current Time and Date", text);
-    free(city);
+    content_ui_show_spoken_text(menu_translate("world_clock_title", "World Clock"),
+                                menu_translate("world_clock_title", "World Clock"),
+                                text);
 }
 
 void system_ui_show_news(void) {
@@ -420,7 +1308,10 @@ static void handle_change_timezone() {
         } else if (key == KEY_ENTER && match_count > 0) {
             menu_audio_stop();
             const char *selected_tz = cJSON_GetArrayItem(tz_array, matches[sel])->valuestring;
+            char apply_message[256];
             save_setting("timezone", selected_tz);
+            platform_ops_set_timezone(selected_tz, apply_message, sizeof(apply_message));
+            show_platform_result_screen(menu_translate("timezone", "Time Zone"), apply_message);
             break;
         } else if (key == KEY_ESC) {
             menu_audio_stop();
@@ -502,6 +1393,78 @@ void system_ui_change_time_format(void) {
     }
 }
 
+void system_ui_set_volume(void) {
+    int volume = 0;
+    char message[256];
+    int last_spoken = -1;
+
+    platform_ops_get_system_volume_percent(&volume, message, sizeof(message));
+
+    while (1) {
+        printf("\033[H\033[J--- %s ---\n", menu_translate("set_volume", "Set Volume"));
+        printf("%s: %d%%\n", menu_translate("ui_selected_value", "Selected Value"), volume);
+        printf("%s: %s\n\n", menu_translate("ui_current_value", "Current Value"), platform_ops_get_mode_name());
+        printf("%s\n", menu_translate("volume_adjust_help", "Use Up and Down arrows to change volume by 10 percent."));
+        if (message[0]) {
+            printf("\n%s\n", message);
+        }
+        printf("\n%s\n",
+               menu_translate("volume_footer", "[Up/Down: Change | Enter: Refresh | Esc: Back]"));
+        fflush(stdout);
+
+        if (volume != last_spoken) {
+            char spoken[64];
+            snprintf(spoken, sizeof(spoken), "%d percent", volume);
+            menu_audio_speak(spoken);
+            last_spoken = volume;
+        }
+
+        {
+            int key = read_key();
+            if (key == KEY_UP || key == KEY_DOWN) {
+                int next_volume = volume + (key == KEY_UP ? 10 : -10);
+
+                if (next_volume < 0) {
+                    next_volume = 0;
+                } else if (next_volume > 100) {
+                    next_volume = 100;
+                }
+
+                if (platform_ops_set_system_volume_percent(next_volume, message, sizeof(message))) {
+                    platform_ops_get_system_volume_percent(&volume, message, sizeof(message));
+                }
+            } else if (key == KEY_ENTER) {
+                platform_ops_get_system_volume_percent(&volume, message, sizeof(message));
+            } else if (key == KEY_ESC) {
+                break;
+            }
+        }
+    }
+}
+
+void system_ui_set_audio_output(const char *output_key) {
+    char message[256];
+
+    if (!output_key || output_key[0] == '\0') {
+        show_platform_result_screen(menu_translate("audio_output", "Audio Output"),
+                                    "Audio output selection is required.");
+        return;
+    }
+
+    save_setting("audio_output", output_key);
+    if (!platform_ops_set_audio_output(output_key, message, sizeof(message))) {
+        show_platform_result_screen(menu_translate("audio_output", "Audio Output"), message);
+        return;
+    }
+
+    speech_engine_shutdown();
+    {
+        char speech_error[128];
+        speech_engine_startup(speech_error, sizeof(speech_error));
+    }
+    show_platform_result_screen(menu_translate("audio_output", "Audio Output"), message);
+}
+
 void system_ui_set_time_manual(void) {
     int h = 0, m = 0, s = 0;
     char *current = get_setting("manual_time");
@@ -555,12 +1518,13 @@ void system_ui_set_time_manual(void) {
                 if (val != -1) s = val;
             } else if (sel == 3) {
                 char buffer[16];
+                char apply_message[256];
                 snprintf(buffer, sizeof(buffer), "%02d:%02d:%02d", h, m, s);
                 save_setting("manual_time", buffer);
-                printf("\n%s %s",
-                       menu_translate("ui_time_saved", "Time saved!"),
-                       menu_translate("ui_press_any_key", "Press any key..."));
-                fflush(stdout); read_key();
+                platform_ops_set_system_time(h, m, s, apply_message, sizeof(apply_message));
+                show_platform_result_screen(menu_translate("set_time_manual", "Set Time"),
+                                            apply_message[0] ? apply_message
+                                                             : menu_translate("ui_time_saved", "Time saved!"));
                 break;
             }
         } else if (key == KEY_ESC) {
@@ -636,12 +1600,13 @@ void system_ui_set_date_manual(void) {
                 if (val != -1) day = val;
             } else if (sel == 3) {
                 char buffer[16];
+                char apply_message[256];
                 snprintf(buffer, sizeof(buffer), "%04d-%02d-%02d", year, month, day);
                 save_setting("manual_date", buffer);
-                printf("\n%s %s",
-                       menu_translate("ui_date_saved", "Date saved!"),
-                       menu_translate("ui_press_any_key", "Press any key..."));
-                fflush(stdout); read_key();
+                platform_ops_set_system_date(year, month, day, apply_message, sizeof(apply_message));
+                show_platform_result_screen(menu_translate("set_date_manual", "Set Date"),
+                                            apply_message[0] ? apply_message
+                                                             : menu_translate("ui_date_saved", "Date saved!"));
                 break;
             }
         } else if (key == KEY_ESC) {

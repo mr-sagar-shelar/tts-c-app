@@ -176,6 +176,30 @@ static float current_gain_from_settings(void) {
     return gain;
 }
 
+static float current_duration_stretch_from_settings(void) {
+    char *speed = get_setting("tts_speed");
+    float duration_stretch = 1.0f;
+
+    if (speed) {
+        char *endptr = NULL;
+        double parsed = strtod(speed, &endptr);
+        if (endptr != speed && parsed > 0.2 && parsed < 5.0) {
+            duration_stretch = (float)parsed;
+        }
+        free(speed);
+    }
+
+    return duration_stretch;
+}
+
+static void speech_engine_apply_runtime_voice_settings(void) {
+    if (!speech_state.voice) {
+        return;
+    }
+
+    feat_set_float(speech_state.voice->features, "duration_stretch", current_duration_stretch_from_settings());
+}
+
 void speech_engine_set_progress_callback(SpeechEngineProgressCallback callback, void *userdata) {
     speech_state.progress_callback = callback;
     speech_state.progress_userdata = userdata;
@@ -412,6 +436,7 @@ static int speech_engine_init(char *error, size_t error_size) {
     speech_state.asi->userdata = &speech_state;
     speech_state.gain = current_gain_from_settings();
     speech_engine_apply_voice(selected_voice);
+    speech_engine_apply_runtime_voice_settings();
     speech_state.initialized = 1;
 
     return 1;
@@ -433,6 +458,8 @@ static void speech_engine_refresh_settings(void) {
         speech_engine_apply_voice(selected_voice);
     }
     free(voice_name);
+
+    speech_engine_apply_runtime_voice_settings();
 }
 
 int speech_engine_startup(char *error, size_t error_size) {
@@ -509,7 +536,6 @@ int speech_engine_export_text_to_wave(const char *text, const char *output_path,
     }
 
     speech_engine_refresh_settings();
-    feat_set_float(speech_state.voice->features, "duration_stretch", 1.0f);
     wave = flite_text_to_wave(text, speech_state.voice);
     if (!wave) {
         set_error(error, error_size, "Flite export synthesis failed");

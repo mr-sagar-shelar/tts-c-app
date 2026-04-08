@@ -21,16 +21,17 @@ static const SpeechSettingOption voice_options[] = {
     {"voice_awb", "tts_voice", "awb", "Awb", "Voice"}
 };
 
-static const SpeechSettingOption volume_options[] = {
-    {"volume_low", "tts_volume", "low", "Low", "Volume"},
-    {"volume_medium", "tts_volume", "medium", "Medium", "Volume"},
-    {"volume_high", "tts_volume", "high", "High", "Volume"},
-    {"volume_max", "tts_volume", "max", "Max", "Volume"}
-};
-
 static const SpeechSettingOption speech_mode_options[] = {
     {"speech_mode_off", "speech_mode", "off", "Off", "Speech mode"},
     {"speech_mode_on", "speech_mode", "on", "On", "Speech mode"}
+};
+
+static const SpeechSettingOption speech_speed_options[] = {
+    {"speech_speed_very_slow", "tts_speed", "1.40", "Very Slow", "Speech speed"},
+    {"speech_speed_slow", "tts_speed", "1.20", "Slow", "Speech speed"},
+    {"speech_speed_normal", "tts_speed", "1.0", "Normal", "Speech speed"},
+    {"speech_speed_fast", "tts_speed", "0.85", "Fast", "Speech speed"},
+    {"speech_speed_very_fast", "tts_speed", "0.70", "Very Fast", "Speech speed"}
 };
 
 static const SpeechSettingOption audio_playback_options[] = {
@@ -58,10 +59,10 @@ int handle_speech_setting_selection(const char *menu_key, char *message, size_t 
     if (apply_option_group(voice_options, sizeof(voice_options) / sizeof(voice_options[0]), menu_key, message, message_size)) {
         return 1;
     }
-    if (apply_option_group(volume_options, sizeof(volume_options) / sizeof(volume_options[0]), menu_key, message, message_size)) {
+    if (apply_option_group(speech_mode_options, sizeof(speech_mode_options) / sizeof(speech_mode_options[0]), menu_key, message, message_size)) {
         return 1;
     }
-    if (apply_option_group(speech_mode_options, sizeof(speech_mode_options) / sizeof(speech_mode_options[0]), menu_key, message, message_size)) {
+    if (apply_option_group(speech_speed_options, sizeof(speech_speed_options) / sizeof(speech_speed_options[0]), menu_key, message, message_size)) {
         return 1;
     }
     if (apply_option_group(audio_playback_options, sizeof(audio_playback_options) / sizeof(audio_playback_options[0]), menu_key, message, message_size)) {
@@ -101,11 +102,11 @@ char *speech_settings_get_selected_label(const char *menu_key) {
     if (strcmp(menu_key, "voice_select") == 0) {
         return lookup_selected_label(voice_options, sizeof(voice_options) / sizeof(voice_options[0]), "tts_voice");
     }
-    if (strcmp(menu_key, "set_volume") == 0) {
-        return lookup_selected_label(volume_options, sizeof(volume_options) / sizeof(volume_options[0]), "tts_volume");
-    }
     if (strcmp(menu_key, "toggle_speech_mode") == 0) {
         return lookup_selected_label(speech_mode_options, sizeof(speech_mode_options) / sizeof(speech_mode_options[0]), "speech_mode");
+    }
+    if (strcmp(menu_key, "speech_speed") == 0) {
+        return lookup_selected_label(speech_speed_options, sizeof(speech_speed_options) / sizeof(speech_speed_options[0]), "tts_speed");
     }
     if (strcmp(menu_key, "audio_playback") == 0) {
         return lookup_selected_label(audio_playback_options, sizeof(audio_playback_options) / sizeof(audio_playback_options[0]), "audio_playback");

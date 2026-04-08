@@ -1,6 +1,10 @@
 #include "menu.h"
+#include "braille_ui.h"
 #include "config.h"
+#include "keys_manager.h"
+#include "platform_ops.h"
 #include "speech_settings.h"
+#include "trivia.h"
 #include "utils.h"
 
 static char *current_lang_code = NULL;
@@ -29,6 +33,56 @@ static char *menu_selected_value_label(MenuNode *node) {
         }
         free(language);
         return strdup(menu_translate("ui_language_english", "English"));
+    }
+
+    if (strcmp(node->key, "set_volume") == 0) {
+        int percent = 0;
+        char message[128];
+        char label[32];
+
+        if (platform_ops_get_system_volume_percent(&percent, message, sizeof(message))) {
+            snprintf(label, sizeof(label), "%d%%", percent);
+            return strdup(label);
+        }
+    }
+
+    if (strcmp(node->key, "audio_output") == 0) {
+        char *audio_output = get_setting("audio_output");
+        char *label = NULL;
+
+        if (!audio_output || strcmp(audio_output, "hdmi") == 0) {
+            label = strdup(menu_translate("audio_output_hdmi", "HDMI"));
+        } else if (strcmp(audio_output, "hat") == 0) {
+            label = strdup(menu_translate("audio_output_hat", "Audio HAT"));
+        }
+
+        free(audio_output);
+        return label;
+    }
+
+    if (strcmp(node->key, "keys_manager") == 0) {
+        char *api_key = keys_manager_get_api_league_key();
+        char *label = NULL;
+
+        if (api_key && api_key[0]) {
+            label = strdup(menu_translate("ui_key_saved", "Saved"));
+        } else {
+            label = strdup(menu_translate("ui_not_set", "Not set"));
+        }
+
+        free(api_key);
+        return label;
+    }
+
+    if (strcmp(node->key, "braille_settings") == 0 ||
+        strcmp(node->key, "braille_display_cells") == 0 ||
+        strcmp(node->key, "braille_display_size") == 0 ||
+        strcmp(node->key, "braille_character_spacing") == 0) {
+        return braille_ui_get_selected_label(node->key);
+    }
+
+    if (strncmp(node->key, "trivia_", 7) == 0) {
+        return trivia_get_selected_label(node->key);
     }
 
     return NULL;
@@ -138,6 +192,7 @@ void free_menu(MenuNode *node) {
 
 void print_menu(MenuNode *node, int selected_index) {
     char *selected_value = menu_selected_value_label(node);
+    const char *selected_title = node ? node->title : "";
     int lines_used = 0;
 
     // Clear screen (ANSI escape code)
@@ -174,6 +229,7 @@ void print_menu(MenuNode *node, int selected_index) {
                 snprintf(shortcut_str, sizeof(shortcut_str), "(%c) ", node->items[i]->shortcut);
             }
             if (current_visible_idx == selected_index) {
+                selected_title = node->items[i]->title;
                 printf("> %s%s\n", shortcut_str, node->items[i]->title);
             } else {
                 printf("  %s%s\n", shortcut_str, node->items[i]->title);
@@ -182,8 +238,10 @@ void print_menu(MenuNode *node, int selected_index) {
             current_visible_idx++;
         }
     }
-    pad_screen_to_footer(lines_used, 2);
-    printf("\n%s\n", menu_translate("ui_footer_menu_info", "[Arrows: Navigate | Enter: Select | Esc: Back/Exit | Ctrl+I: Info]"));
+    pad_screen_to_footer(lines_used, 2 + braille_ui_footer_line_count());
+    printf("\n");
+    braille_ui_print_status_line(selected_title);
+    printf("%s\n", menu_translate("ui_footer_menu_info", "[Arrows: Navigate | Enter: Select | Esc: Back/Exit | Ctrl+I: Info]"));
 }
 
 void print_description(MenuNode *node) {

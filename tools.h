@@ -14,11 +14,10 @@ void system_ui_run_calculator(void);
  * UI handler for weather information.
  */
 void system_ui_show_weather(void);
+void system_ui_google_search(void);
+void system_ui_wiki_search(void);
 
-/**
- * UI handler for current time and date.
- */
-void system_ui_show_current_time_date(void);
+void system_ui_show_world_clock(void);
 
 /**
  * UI handler for news (placeholder).
@@ -39,6 +38,8 @@ void system_ui_change_timezone(void);
  * UI handler for time format (12h/24h).
  */
 void system_ui_change_time_format(void);
+void system_ui_set_volume(void);
+void system_ui_set_audio_output(const char *output_key);
 
 /**
  * UI handler for manual time setting.
@@ -49,5 +50,15 @@ void system_ui_set_time_manual(void);
  * UI handler for manual date setting.
  */
 void system_ui_set_date_manual(void);
+void system_ui_power_off(void);
+void system_ui_voice_recorder(void);
+void system_ui_display_free_memory(void);
+void system_ui_display_time_date(void);
+void system_ui_display_network_status(void);
+void system_ui_display_power_status(void);
+void system_ui_mp3_player(void);
+void system_ui_show_user_guide(void);
+void system_ui_show_about_sai(void);
+void system_ui_convert_units(void);
 
 #endif /* TOOLS_H */

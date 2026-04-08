@@ -3,14 +3,15 @@ CFLAGS=-Wall -Wextra -O2 -pthread
 TARGET=sai
 UNAME_S := $(shell uname -s)
 ENABLE_MEMORY_WIDGET ?= 0
-ENABLE_MENU_SPEECH ?= $(if $(filter Linux,$(UNAME_S)),1,0)
+ENABLE_MENU_SPEECH ?= $(if $(filter Darwin,$(UNAME_S)),1,0)
+# ENABLE_MENU_SPEECH ?= $(if $(filter Linux,$(UNAME_S)),1,0)
 PREFIX ?= /usr/local
 APP_BASE_DIR ?= $(PREFIX)/share/sai-base
 AR ?= ar
 RANLIB ?= ranlib
 
-OBJS=main.o app_actions.o menu.o cJSON.o config.o contacts.o utils.o file_manager.o notepad.o dictionary.o entertainment.o tools.o typing_tutor.o alarm.o calendar.o radio.o text_processor.o document_reader.o speech_settings.o speech_engine.o voice_library.o download_manager.o download_ui.o task_ui.o
-APP_DATA_FILES=menu.json en.json hi.json dict_en.json dict_hn.json typing_tutor.json typing_leaderboard_mock.json timezones.json userConfig.json
+OBJS=main.o app_actions.o menu.o cJSON.o config.o contacts.o utils.o braille_ui.o ui_feedback.o music.o file_manager.o notepad.o dictionary.o entertainment.o tools.o typing_tutor.o alarm.o calendar.o radio.o text_processor.o document_reader.o speech_settings.o speech_engine.o voice_library.o download_manager.o download_ui.o task_ui.o wifi_manager.o platform_ops.o database_manager.o keys_manager.o trivia.o todo.o
+APP_DATA_FILES=menu.json en.json hi.json dict_en.json dict_hn.json typing_tutor.json typing_leaderboard_mock.json timezones.json userSettings.json keys.json trivia.json todo.json
 
 ifeq ($(ENABLE_MENU_SPEECH),1)
 OBJS += menu_audio.o
@@ -131,6 +132,24 @@ download_ui.o: download_ui.c download_ui.h download_manager.h utils.h
 task_ui.o: task_ui.c task_ui.h utils.h
 	$(CC) $(CFLAGS) -c task_ui.c
 
+wifi_manager.o: wifi_manager.c wifi_manager.h utils.h config.h menu.h menu_audio.h platform_ops.h
+	$(CC) $(CFLAGS) -c wifi_manager.c
+
+platform_ops.o: platform_ops.c platform_ops.h
+	$(CC) $(CFLAGS) -c platform_ops.c
+
+database_manager.o: database_manager.c database_manager.h config.h menu.h utils.h cJSON.h
+	$(CC) $(CFLAGS) -c database_manager.c
+
+keys_manager.o: keys_manager.c keys_manager.h cJSON.h menu.h utils.h
+	$(CC) $(CFLAGS) -c keys_manager.c
+
+trivia.o: trivia.c trivia.h cJSON.h download_ui.h entertainment.h menu.h utils.h
+	$(CC) $(CFLAGS) -c trivia.c
+
+todo.o: todo.c todo.h cJSON.h entertainment.h menu.h menu_audio.h utils.h
+	$(CC) $(CFLAGS) -c todo.c
+
 menu_audio.o: menu_audio.c menu_audio.h speech_engine.h config.h
 	$(CC) $(CFLAGS) -c menu_audio.c
 
@@ -151,6 +170,15 @@ cJSON.o: cJSON.c cJSON.h
 
 utils.o: utils.c utils.h
 	$(CC) $(CFLAGS) -c utils.c
+
+braille_ui.o: braille_ui.c braille_ui.h config.h menu.h
+	$(CC) $(CFLAGS) -c braille_ui.c
+
+ui_feedback.o: ui_feedback.c ui_feedback.h
+	$(CC) $(CFLAGS) -c ui_feedback.c
+
+music.o: music.c music.h braille_ui.h menu.h menu_audio.h ui_feedback.h utils.h
+	$(CC) $(CFLAGS) -c music.c
 
 file_manager.o: file_manager.c file_manager.h menu.h utils.h
 	$(CC) $(CFLAGS) -c file_manager.c
@@ -180,7 +208,7 @@ radio.o: radio.c radio.h utils.h
 	$(CC) $(CFLAGS) -c radio.c
 
 clean:
-	rm -f $(TARGET) $(OBJS)
+	rm -f $(TARGET) *.o
 	@if [ -d "$(LOCAL_FLITEDIR)" ]; then $(MAKE) -C $(LOCAL_FLITEDIR) clean; fi
 	@rm -f $(LOCAL_FLITEDIR)/build/.built
 

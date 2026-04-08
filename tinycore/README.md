@@ -52,7 +52,13 @@ The app itself shells out to a few external tools, so the image preloads:
 - `mpg123.tcz`
 - `ca-certificates.tcz`
 - `util-linux.tcz`
-- `kmaps.tcz`
+
+The build also bundles GNU Unifont assets inside `sai-app.tcz`:
+
+- a scalable Unifont face under `/usr/local/share/fonts/unifont/`
+- a console font alias at `/usr/local/share/consolefonts/sai-unifont.psf.gz`
+
+At boot, `bootlocal.sh` attempts to load that console font with `setfont` when that tool is available on the target piCore image, so Hindi and other Unicode-heavy text have better coverage on the Raspberry Pi console. Because Sai currently runs on the Linux text console on `tty1`, this is still bounded by console-font limitations and is not equivalent to a full graphical font stack.
 
 The image build script also tries to auto-add a matching `alsa-modules-...tcz` for the chosen piCore release. If the repo layout changes, set `AUDIO_MODULES_EXT` manually when running the script.
 
@@ -65,7 +71,6 @@ The image build script also tries to auto-add a matching `alsa-modules-...tcz` f
 - On the first boot after flashing, `sai-storage-init` expands partition 2 to fill the SD card, grows the ext filesystem, updates `cmdline.txt` to use that partition for `tce`, `home`, and `opt`, and then reboots.
 - Because of that resize flow, the very first power-on should be treated as a setup boot. Expect up to two automatic reboots before Sai reaches its normal startup path.
 - `bootlocal.sh` starts audio setup and then launches Sai on `tty1`.
-- The boot command line includes `kmap=us` so the console uses a standard US keyboard layout.
 - `sai-autostart` uses a 1 second default delay to let the boot console settle before input begins.
 - On the first spoken prompt after launch, the app says `Sai is ready` before announcing the current menu item.
 
@@ -311,6 +316,7 @@ The list should include:
 usr/local/bin/sai-audio-init
 usr/local/bin/sai-autostart
 usr/local/bin/sai-launch
+usr/local/bin/sai-platform-service
 usr/local/bin/sai-restart
 usr/local/bin/sai-storage-init
 ```
@@ -389,8 +395,16 @@ If card `0` does not exist, replace `0` with the card number shown in `/proc/aso
 After the first successful launch:
 
 1. Download the voice files you want from the app's voice management flow.
-2. Reboot once manually to confirm the downloaded voices and settings persist.
-3. If Wi-Fi is needed later, follow Tiny Core's piCore Wi-Fi guidance and store the related configuration in persistent storage.
+2. Use `Settings -> Setup Internet` to scan nearby Wi-Fi networks, enter the password, and connect.
+3. Reboot once manually to confirm the downloaded voices, Wi-Fi settings, and user settings persist.
+
+## Wi-Fi Notes
+
+- The Tiny Core image now includes `wireless_tools`, `wpa_supplicant`, Raspberry Pi Wi-Fi firmware, and a matching wireless kernel module extension when the image builder can resolve one.
+- `sai-platform-service` runs as root at boot and handles platform requests from the app over `/tmp/sai-platform-ipc`, while the main app continues to run as user `tc`.
+- Saved Wi-Fi credentials and related platform state are written under `/opt/sai-platform`, which persists after the first-boot storage setup moves `/opt` to the writable partition.
+- On later boots the platform service attempts to reconnect Wi-Fi automatically using the saved configuration before Sai starts.
+- Service logs are written to `/tmp/sai-platform-service.log`.
 
 ## Recovery Notes
 

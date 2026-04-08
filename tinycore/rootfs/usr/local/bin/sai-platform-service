@@ -1,0 +1,590 @@
+#!/bin/sh
+
+set -eu
+
+IPC_DIR="${SAI_PLATFORM_IPC_DIR:-/tmp/sai-platform-ipc}"
+STATE_DIR="${SAI_PLATFORM_STATE_DIR:-/opt/sai-platform}"
+LOG_FILE="${SAI_PLATFORM_LOG_FILE:-/tmp/sai-platform-service.log}"
+
+mkdir -p "$IPC_DIR" "$STATE_DIR"
+touch "$LOG_FILE"
+
+log() {
+    printf '%s %s\n' "$(date '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo now)" "$*" >> "$LOG_FILE"
+}
+
+write_response_file() {
+    req_dir="$1"
+    name="$2"
+    shift 2
+    printf '%s' "$*" > "$req_dir/$name"
+}
+
+read_request_value() {
+    req_dir="$1"
+    primary="$2"
+    fallback="$3"
+
+    if [ -f "$req_dir/$primary" ]; then
+        cat "$req_dir/$primary" 2>/dev/null || true
+        return 0
+    fi
+
+    if [ -n "$fallback" ] && [ -f "$req_dir/$fallback" ]; then
+        cat "$req_dir/$fallback" 2>/dev/null || true
+        return 0
+    fi
+
+    return 0
+}
+
+detect_wireless_interface() {
+    if [ -f "$STATE_DIR/interface" ]; then
+        iface="$(cat "$STATE_DIR/interface" 2>/dev/null || true)"
+        if [ -n "$iface" ] && [ -d "/sys/class/net/$iface" ]; then
+            printf '%s\n' "$iface"
+            return 0
+        fi
+    fi
+
+    iface="$(iwconfig 2>/dev/null | awk '/IEEE 802\.11/ {print $1; exit}')"
+    if [ -z "$iface" ]; then
+        iface="$(find /sys/class/net -mindepth 1 -maxdepth 1 -type d -name 'wl*' -exec basename {} \; 2>/dev/null | head -n 1)"
+    fi
+
+    if [ -n "$iface" ]; then
+        printf '%s\n' "$iface" > "$STATE_DIR/interface"
+        printf '%s\n' "$iface"
+        return 0
+    fi
+
+    return 1
+}
+
+current_ip_for_interface() {
+    iface="$1"
+
+    ifconfig "$iface" 2>/dev/null | awk '
+        /inet addr:/ {
+            split($2, a, ":");
+            print a[2];
+            exit
+        }
+        /inet / {
+            print $2;
+            exit
+        }
+    '
+}
+
+current_ssid_for_interface() {
+    iface="$1"
+
+    iwconfig "$iface" 2>/dev/null | awk -F 'ESSID:' '
+        /ESSID:/ {
+            ssid = $2;
+            sub(/^"/, "", ssid);
+            sub(/".*/, "", ssid);
+            if (ssid == "" || ssid == "off/any") {
+                exit
+            }
+            print ssid;
+            exit
+        }
+    '
+}
+
+stop_existing_connection() {
+    iface="$1"
+    pid_file="/var/run/udhcpc.$iface.pid"
+
+    if [ -f "$pid_file" ]; then
+        kill "$(cat "$pid_file" 2>/dev/null || true)" >/dev/null 2>&1 || true
+        rm -f "$pid_file"
+    fi
+
+    pkill -f "wpa_supplicant.*-i$iface" >/dev/null 2>&1 || true
+    pkill -f "udhcpc.*$iface" >/dev/null 2>&1 || true
+}
+
+render_open_network_conf() {
+    conf_path="$1"
+    ssid="$2"
+
+    cat > "$conf_path" <<EOF
+ctrl_interface=/var/run/wpa_supplicant
+update_config=1
+network={
+    ssid="$ssid"
+    key_mgmt=NONE
+}
+EOF
+}
+
+connect_saved_network() {
+    iface="$1"
+    conf_path="$STATE_DIR/wpa_supplicant.conf"
+    pid_file="/var/run/udhcpc.$iface.pid"
+    wait_seconds=0
+
+    [ -f "$conf_path" ] || return 1
+
+    stop_existing_connection "$iface"
+    ifconfig "$iface" up >/dev/null 2>&1 || true
+
+    if ! wpa_supplicant -B -i "$iface" -c "$conf_path" >> "$LOG_FILE" 2>&1; then
+        return 1
+    fi
+
+    udhcpc -b -i "$iface" -p "$pid_file" >> "$LOG_FILE" 2>&1 || true
+
+    while [ "$wait_seconds" -lt 20 ]; do
+        ip_addr="$(current_ip_for_interface "$iface")"
+        if [ -n "$ip_addr" ]; then
+            return 0
+        fi
+        sleep 1
+        wait_seconds=$((wait_seconds + 1))
+    done
+
+    return 1
+}
+
+detect_mixer_control() {
+    if amixer scontrols 2>/dev/null | grep -q "'Master'"; then
+        printf '%s\n' "Master"
+        return 0
+    fi
+    if amixer scontrols 2>/dev/null | grep -q "'PCM'"; then
+        printf '%s\n' "PCM"
+        return 0
+    fi
+    return 1
+}
+
+current_volume_percent() {
+    control="$(detect_mixer_control || true)"
+
+    [ -n "$control" ] || return 1
+    amixer sget "$control" 2>/dev/null | awk '
+        match($0, /\[[0-9]+%\]/) {
+            value = substr($0, RSTART + 1, RLENGTH - 3)
+            print value
+            exit
+        }
+    '
+}
+
+set_volume_percent() {
+    percent="$1"
+    control="$(detect_mixer_control || true)"
+
+    [ -n "$control" ] || return 1
+    amixer -q sset "$control" "${percent}%" unmute >/dev/null 2>&1
+}
+
+find_audio_card() {
+    output="$1"
+
+    [ -r /proc/asound/cards ] || return 1
+
+    case "$output" in
+        hat)
+            awk '/hifiberry|pirate|iqaudio|dac/i { print $1; exit }' /proc/asound/cards | tr -d '[:space:]'
+            ;;
+        *)
+            awk '/bcm2835|vc4hdmi|HDMI/i { print $1; exit }' /proc/asound/cards | tr -d '[:space:]'
+            ;;
+    esac
+}
+
+find_audio_device() {
+    output="$1"
+    card="$2"
+
+    [ -n "$card" ] || return 1
+    [ -r /proc/asound/pcm ] || return 1
+
+    case "$output" in
+        hat)
+            awk -F: -v card="$card" '
+                $1 ~ "^" card "-[0-9]+" && $0 ~ /playback/ {
+                    split($1, parts, "-");
+                    print parts[2];
+                    exit
+                }
+            ' /proc/asound/pcm | tr -d '[:space:]'
+            ;;
+        *)
+            awk -F: -v card="$card" '
+                $1 ~ "^" card "-[0-9]+" && $0 ~ /playback/ && $0 ~ /HDMI/ {
+                    split($1, parts, "-");
+                    print parts[2];
+                    exit
+                }
+                $1 ~ "^" card "-[0-9]+" && $0 ~ /playback/ && first == "" {
+                    split($1, parts, "-");
+                    first = parts[2];
+                }
+                END {
+                    if (first != "") print first;
+                }
+            ' /proc/asound/pcm | tr -d '[:space:]'
+            ;;
+    esac
+}
+
+write_audio_config() {
+    card="$1"
+    device="$2"
+
+    [ -n "$card" ] || return 1
+    [ -n "$device" ] || return 1
+
+    cat > /tmp/sai-asound.conf <<EOF
+pcm.!default {
+    type plug
+    slave.pcm "hw:${card},${device}"
+}
+
+ctl.!default {
+    type hw
+    card ${card}
+}
+EOF
+}
+
+set_audio_output_value() {
+    output="$1"
+    card="$(find_audio_card "$output" || true)"
+    device=""
+
+    [ -n "$card" ] || return 1
+    device="$(find_audio_device "$output" "$card" || true)"
+    [ -n "$device" ] || device="0"
+
+    write_audio_config "$card" "$device"
+}
+
+set_timezone_value() {
+    timezone="$1"
+
+    [ -n "$timezone" ] || return 1
+    ln -sf "/usr/share/zoneinfo/$timezone" /etc/localtime || return 1
+    printf '%s\n' "$timezone" > /etc/timezone
+}
+
+set_time_value() {
+    hour="$1"
+    minute="$2"
+    second="$3"
+    current_date="$(date '+%Y-%m-%d' 2>/dev/null || true)"
+
+    [ -n "$current_date" ] || return 1
+    date -s "$current_date $hour:$minute:$second" >/dev/null 2>&1
+}
+
+set_date_value() {
+    year="$1"
+    month="$2"
+    day="$3"
+    current_time="$(date '+%H:%M:%S' 2>/dev/null || true)"
+
+    [ -n "$current_time" ] || return 1
+    date -s "$year-$month-$day $current_time" >/dev/null 2>&1
+}
+
+scan_networks() {
+    iface="$1"
+    out_file="$2"
+    tmp_file="$STATE_DIR/scan.tmp"
+
+    : > "$out_file"
+
+    iwlist "$iface" scan > "$tmp_file" 2>> "$LOG_FILE" || return 1
+
+    awk '
+        function flush_record() {
+            if (seen && ssid != "") {
+                print ssid "\t" security "\t" signal
+            }
+        }
+        /Cell [0-9]+ - Address:/ {
+            flush_record()
+            ssid=""
+            security="secured"
+            signal="?"
+            seen=1
+            next
+        }
+        /Encryption key:/ {
+            split($0, a, ":")
+            security = (a[2] ~ /off/) ? "open" : "secured"
+            next
+        }
+        /Quality=/ {
+            if (match($0, /Quality=([0-9]+\/[0-9]+)/)) {
+                signal = substr($0, RSTART + 8, RLENGTH - 8)
+            } else if (match($0, /Signal level=[^ ]+/)) {
+                signal = substr($0, RSTART + 13, RLENGTH - 13)
+            }
+            next
+        }
+        /ESSID:/ {
+            ssid = $0
+            sub(/^.*ESSID:"/, "", ssid)
+            sub(/".*$/, "", ssid)
+            next
+        }
+        END {
+            flush_record()
+        }
+    ' "$tmp_file" | awk -F '\t' 'length($1) > 0 && !seen[$1]++ { print }' > "$out_file"
+}
+
+write_status_response() {
+    req_dir="$1"
+    iface="$2"
+    ssid=""
+    ip_addr=""
+    connected="no"
+
+    if [ -n "$iface" ]; then
+        ssid="$(current_ssid_for_interface "$iface")"
+        ip_addr="$(current_ip_for_interface "$iface")"
+        if [ -n "$ssid" ]; then
+            connected="yes"
+        fi
+    fi
+
+    write_response_file "$req_dir" status ok
+    write_response_file "$req_dir" interface "$iface"
+    write_response_file "$req_dir" connected "$connected"
+    write_response_file "$req_dir" current_ssid "$ssid"
+    write_response_file "$req_dir" ip_address "$ip_addr"
+    if [ "$connected" = "yes" ]; then
+        write_response_file "$req_dir" message "Wi-Fi is connected."
+    else
+        write_response_file "$req_dir" message "Wi-Fi is not connected."
+    fi
+}
+
+process_request() {
+    req_dir="$1"
+    command_file="$req_dir/command"
+    command=""
+    iface=""
+
+    [ -f "$command_file" ] || return 0
+    command="$(cat "$command_file" 2>/dev/null || true)"
+
+    iface="$(detect_wireless_interface || true)"
+    if [ -n "$iface" ]; then
+        write_response_file "$req_dir" interface "$iface"
+    fi
+
+    case "$command" in
+        status)
+            if [ -z "$iface" ]; then
+                write_response_file "$req_dir" status error
+                write_response_file "$req_dir" message "No wireless interface was detected."
+            else
+                write_status_response "$req_dir" "$iface"
+            fi
+            ;;
+        scan)
+            if [ -z "$iface" ]; then
+                write_response_file "$req_dir" status error
+                write_response_file "$req_dir" message "No wireless interface was detected."
+            elif scan_networks "$iface" "$req_dir/scan.tsv"; then
+                write_response_file "$req_dir" status ok
+                if [ -s "$req_dir/scan.tsv" ]; then
+                    write_response_file "$req_dir" message "Available Wi-Fi networks loaded."
+                else
+                    write_response_file "$req_dir" message "No Wi-Fi networks were found."
+                fi
+            else
+                write_response_file "$req_dir" status error
+                write_response_file "$req_dir" message "Wi-Fi scan failed."
+            fi
+            ;;
+        connect)
+            if [ -z "$iface" ]; then
+                write_response_file "$req_dir" status error
+                write_response_file "$req_dir" message "No wireless interface was detected."
+            else
+                ssid="$(read_request_value "$req_dir" ssid value1)"
+                password="$(read_request_value "$req_dir" password value2)"
+                conf_path="$STATE_DIR/wpa_supplicant.conf"
+
+                if [ -z "$ssid" ]; then
+                    write_response_file "$req_dir" status error
+                    write_response_file "$req_dir" message "A Wi-Fi network name is required."
+                else
+                    if [ -n "$password" ]; then
+                        wpa_passphrase "$ssid" "$password" > "$conf_path"
+                    else
+                        render_open_network_conf "$conf_path" "$ssid"
+                    fi
+                    chmod 600 "$conf_path"
+                    printf '%s\n' "$ssid" > "$STATE_DIR/last_ssid"
+
+                    if connect_saved_network "$iface"; then
+                        write_response_file "$req_dir" status ok
+                        write_response_file "$req_dir" message "Connected to $ssid."
+                        write_response_file "$req_dir" connected yes
+                        write_response_file "$req_dir" current_ssid "$ssid"
+                        write_response_file "$req_dir" ip_address "$(current_ip_for_interface "$iface")"
+                    else
+                        write_response_file "$req_dir" status error
+                        write_response_file "$req_dir" message "Failed to connect to $ssid."
+                    fi
+                fi
+            fi
+            ;;
+        get_volume)
+            volume="$(current_volume_percent || true)"
+            if [ -n "$volume" ]; then
+                write_response_file "$req_dir" status ok
+                write_response_file "$req_dir" value "$volume"
+                write_response_file "$req_dir" message "System volume is $volume%."
+            else
+                write_response_file "$req_dir" status error
+                write_response_file "$req_dir" message "Unable to read system volume."
+            fi
+            ;;
+        set_volume)
+            volume="$(read_request_value "$req_dir" value1 '')"
+            if [ -z "$volume" ]; then
+                write_response_file "$req_dir" status error
+                write_response_file "$req_dir" message "A volume value is required."
+            elif set_volume_percent "$volume"; then
+                write_response_file "$req_dir" status ok
+                write_response_file "$req_dir" value "$volume"
+                write_response_file "$req_dir" message "System volume updated to $volume%."
+            else
+                write_response_file "$req_dir" status error
+                write_response_file "$req_dir" message "Unable to update system volume."
+            fi
+            ;;
+        set_audio_output)
+            output="$(read_request_value "$req_dir" value1 '')"
+            if [ "$output" != "hdmi" ] && [ "$output" != "hat" ]; then
+                write_response_file "$req_dir" status error
+                write_response_file "$req_dir" message "Audio output must be hdmi or hat."
+            elif set_audio_output_value "$output"; then
+                write_response_file "$req_dir" status ok
+                write_response_file "$req_dir" value "$output"
+                if [ "$output" = "hat" ]; then
+                    write_response_file "$req_dir" message "Audio output set to Audio HAT."
+                else
+                    write_response_file "$req_dir" message "Audio output set to HDMI."
+                fi
+            else
+                write_response_file "$req_dir" status error
+                if [ "$output" = "hat" ]; then
+                    write_response_file "$req_dir" message "Unable to find an Audio HAT ALSA device."
+                else
+                    write_response_file "$req_dir" message "Unable to find an HDMI ALSA device."
+                fi
+            fi
+            ;;
+        set_timezone)
+            timezone="$(read_request_value "$req_dir" value1 '')"
+            if [ -z "$timezone" ]; then
+                write_response_file "$req_dir" status error
+                write_response_file "$req_dir" message "A timezone value is required."
+            elif set_timezone_value "$timezone"; then
+                write_response_file "$req_dir" status ok
+                write_response_file "$req_dir" message "Timezone updated to $timezone."
+            else
+                write_response_file "$req_dir" status error
+                write_response_file "$req_dir" message "Unable to update timezone."
+            fi
+            ;;
+        set_time)
+            hour="$(read_request_value "$req_dir" value1 '')"
+            minute="$(read_request_value "$req_dir" value2 '')"
+            second="$(read_request_value "$req_dir" value3 '')"
+            if [ -z "$hour" ] || [ -z "$minute" ] || [ -z "$second" ]; then
+                write_response_file "$req_dir" status error
+                write_response_file "$req_dir" message "Time values are required."
+            elif set_time_value "$hour" "$minute" "$second"; then
+                write_response_file "$req_dir" status ok
+                write_response_file "$req_dir" message "System time updated to $hour:$minute:$second."
+            else
+                write_response_file "$req_dir" status error
+                write_response_file "$req_dir" message "Unable to update system time."
+            fi
+            ;;
+        set_date)
+            year="$(read_request_value "$req_dir" value1 '')"
+            month="$(read_request_value "$req_dir" value2 '')"
+            day="$(read_request_value "$req_dir" value3 '')"
+            if [ -z "$year" ] || [ -z "$month" ] || [ -z "$day" ]; then
+                write_response_file "$req_dir" status error
+                write_response_file "$req_dir" message "Date values are required."
+            elif set_date_value "$year" "$month" "$day"; then
+                write_response_file "$req_dir" status ok
+                write_response_file "$req_dir" message "System date updated to $year-$month-$day."
+            else
+                write_response_file "$req_dir" status error
+                write_response_file "$req_dir" message "Unable to update system date."
+            fi
+            ;;
+        disconnect)
+            if [ -z "$iface" ]; then
+                write_response_file "$req_dir" status error
+                write_response_file "$req_dir" message "No wireless interface was detected."
+            else
+                stop_existing_connection "$iface"
+                write_response_file "$req_dir" status ok
+                write_response_file "$req_dir" connected no
+                write_response_file "$req_dir" current_ssid ""
+                write_response_file "$req_dir" ip_address ""
+                write_response_file "$req_dir" message "Wi-Fi disconnected."
+            fi
+            ;;
+        *)
+            write_response_file "$req_dir" status error
+            write_response_file "$req_dir" message "Unsupported Wi-Fi request."
+            ;;
+    esac
+
+    : > "$req_dir/done"
+}
+
+auto_connect_if_possible() {
+    iface="$(detect_wireless_interface || true)"
+
+    if [ -z "$iface" ]; then
+        log "No wireless interface detected during startup."
+        return 0
+    fi
+
+    if [ -f "$STATE_DIR/wpa_supplicant.conf" ]; then
+        log "Attempting automatic Wi-Fi reconnect on $iface."
+        if connect_saved_network "$iface"; then
+            log "Automatic Wi-Fi reconnect succeeded on $iface."
+        else
+            log "Automatic Wi-Fi reconnect failed on $iface."
+        fi
+    fi
+}
+
+auto_connect_if_possible
+log "Wi-Fi service started."
+
+while :; do
+    found_request=0
+    for req_dir in "$IPC_DIR"/req-*; do
+        [ -d "$req_dir" ] || continue
+        [ -f "$req_dir/done" ] && continue
+        found_request=1
+        process_request "$req_dir"
+    done
+
+    if [ "$found_request" -eq 0 ]; then
+        sleep 1
+    fi
+done

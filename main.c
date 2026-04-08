@@ -9,10 +9,16 @@
 #include "calendar.h"
 #include "config.h"
 #include "contacts.h"
+#include "database_manager.h"
 #include "file_manager.h"
+#include "keys_manager.h"
 #include "menu_audio.h"
 #include "menu.h"
+#include "platform_ops.h"
 #include "speech_engine.h"
+#include "todo.h"
+#include "trivia.h"
+#include "ui_feedback.h"
 #include "utils.h"
 
 static void append_menu_speech_part(char *buffer, size_t buffer_size, const char *text) {
@@ -52,6 +58,19 @@ static void build_menu_speech_text(MenuNode *selected_node, char *buffer, size_t
     }
 }
 
+static int menu_node_is_descendant_of(MenuNode *node, const char *ancestor_key) {
+    MenuNode *cursor = node;
+
+    while (cursor) {
+        if (cursor->key && ancestor_key && strcmp(cursor->key, ancestor_key) == 0) {
+            return 1;
+        }
+        cursor = cursor->parent;
+    }
+
+    return 0;
+}
+
 int main() {
     int has_utf8_locale;
     MenuNode *last_spoken_node = NULL;
@@ -63,11 +82,24 @@ int main() {
 
     init_config();
     {
+        char *audio_output = get_setting("audio_output");
+        char audio_message[256];
+
+        if (audio_output) {
+            platform_ops_set_audio_output(audio_output, audio_message, sizeof(audio_message));
+            free(audio_output);
+        }
+    }
+    {
         char speech_error[128];
         speech_engine_startup(speech_error, sizeof(speech_error));
     }
     init_contacts();
     init_calendar();
+    init_database_manager();
+    init_keys_manager();
+    init_trivia();
+    init_todo();
     
     mkdir(USER_SPACE, 0777);
     mkdir("Downloads", 0777);
@@ -93,6 +125,7 @@ int main() {
     set_conio_terminal_mode();
     app_sync_language_voice_on_startup(root);
     menu_audio_init();
+    ui_feedback_init();
 
     MenuNode *current_node = root;
     int selected_index = 0;
@@ -178,10 +211,12 @@ int main() {
                 }
             }
         } else if (key > 0 && key < 1000) {
+            int matched_shortcut = 0;
             // Shortcut handling
             for (int i = 0; i < visible_count; i++) {
                 if (visible_items[i]->shortcut == tolower(key)) {
                     selected_index = i;
+                    matched_shortcut = 1;
                     // Trigger ENTER logic for the shortcut
                     // (Simplest is to just simulate key == KEY_ENTER here or move logic to function)
                     // For now, let's just use the selected_index and continue the loop to next turn
@@ -190,15 +225,23 @@ int main() {
                     break;
                 }
             }
+            if (!matched_shortcut && isprint(key) && !menu_node_is_descendant_of(current_node, "music")) {
+                ui_feedback_play(UI_FEEDBACK_ERROR);
+            }
         }
         free(lang);
     }
 
     free_menu(root);
+    ui_feedback_shutdown();
     menu_audio_shutdown();
     speech_engine_shutdown();
     cleanup_config();
     cleanup_contacts();
     cleanup_calendar();
+    cleanup_database_manager();
+    cleanup_keys_manager();
+    cleanup_trivia();
+    cleanup_todo();
     return 0;
 }

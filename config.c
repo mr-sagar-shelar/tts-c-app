@@ -8,10 +8,19 @@
 #include "download_ui.h"
 #include "menu.h"
 
-#define CONFIG_FILE "userConfig.json"
+#define CONFIG_FILE "userSettings.json"
+#define LEGACY_CONFIG_FILE "userConfig.json"
 #define SERVER_URL "https://api.example.com/sync/userConfig" // Placeholder URL
 
 static cJSON *config_json = NULL;
+
+static FILE *open_config_file_for_read(void) {
+    FILE *file = fopen(CONFIG_FILE, "rb");
+    if (file) {
+        return file;
+    }
+    return fopen(LEGACY_CONFIG_FILE, "rb");
+}
 
 static void ensure_default_string(const char *key, const char *value) {
     cJSON *item = cJSON_GetObjectItemCaseSensitive(config_json, key);
@@ -33,10 +42,16 @@ static void create_default_config() {
     cJSON_AddStringToObject(config_json, "time_format", "12h");
     cJSON_AddStringToObject(config_json, "tts_voice", "slt");
     cJSON_AddStringToObject(config_json, "tts_volume", "medium");
+    cJSON_AddStringToObject(config_json, "tts_speed", "1.0");
     cJSON_AddStringToObject(config_json, "speech_mode", "on");
     cJSON_AddStringToObject(config_json, "audio_playback", "off");
+    cJSON_AddStringToObject(config_json, "audio_output", "hdmi");
+    cJSON_AddStringToObject(config_json, "braille_display_cells", "20");
+    cJSON_AddStringToObject(config_json, "braille_display_size", "small");
+    cJSON_AddStringToObject(config_json, "braille_character_spacing", "2");
     cJSON_AddItemToObject(config_json, "contacts", cJSON_CreateArray());
     cJSON_AddItemToObject(config_json, "alarms", cJSON_CreateArray());
+    cJSON_AddItemToObject(config_json, "database_tables", cJSON_CreateArray());
     cJSON_AddStringToObject(config_json, "last_sync", "Never");
 }
 
@@ -89,7 +104,7 @@ static void upload_to_server() {
 void init_config() {
     if (config_json) return;
 
-    FILE *f = fopen(CONFIG_FILE, "rb");
+    FILE *f = open_config_file_for_read();
     if (!f) {
         // File doesn't exist, try to sync from server
         if (!download_from_server()) {
@@ -125,9 +140,17 @@ void init_config() {
     ensure_default_string("time_format", "12h");
     ensure_default_string("tts_voice", "slt");
     ensure_default_string("tts_volume", "medium");
+    ensure_default_string("tts_speed", "1.0");
     ensure_default_string("speech_mode", "on");
     ensure_default_string("audio_playback", "off");
+    ensure_default_string("audio_output", "hdmi");
+    ensure_default_string("braille_display_cells", "20");
+    ensure_default_string("braille_display_size", "small");
+    ensure_default_string("braille_character_spacing", "2");
     ensure_default_string("last_sync", "Never");
+    if (!cJSON_IsArray(cJSON_GetObjectItemCaseSensitive(config_json, "database_tables"))) {
+        cJSON_ReplaceItemInObject(config_json, "database_tables", cJSON_CreateArray());
+    }
     save_config();
 }
 
