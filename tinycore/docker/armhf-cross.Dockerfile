@@ -18,6 +18,8 @@ RUN dpkg --add-architecture armhf \
         zip \
         libsdl2-dev:armhf \
         libasound2-dev:armhf \
+        psf-unifont \
+        unifont \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /src
@@ -53,13 +55,21 @@ RUN rm -rf /tmp/sai-package /tmp/mydata /out \
         SDL_CFLAGS="$SDL_CFLAGS" \
         SDL_LIBS="$SDL_LIBS" \
     && install -d /tmp/sai-package/usr/local/bin /tmp/sai-package/usr/local/etc \
+        /tmp/sai-package/usr/local/share/fonts/unifont \
+        /tmp/sai-package/usr/local/share/consolefonts \
     && install -m 0755 tinycore/rootfs/usr/local/bin/sai-audio-init /tmp/sai-package/usr/local/bin/sai-audio-init \
     && install -m 0755 tinycore/rootfs/usr/local/bin/sai-autostart /tmp/sai-package/usr/local/bin/sai-autostart \
     && install -m 0755 tinycore/rootfs/usr/local/bin/sai-launch /tmp/sai-package/usr/local/bin/sai-launch \
     && install -m 0755 tinycore/rootfs/usr/local/bin/sai-restart /tmp/sai-package/usr/local/bin/sai-restart \
     && install -m 0755 tinycore/rootfs/usr/local/bin/sai-storage-init /tmp/sai-package/usr/local/bin/sai-storage-init \
     && install -m 0755 tinycore/rootfs/usr/local/bin/sai-platform-service /tmp/sai-package/usr/local/bin/sai-platform-service \
-    && install -m 0644 tinycore/overlay/usr/local/etc/asound.conf /tmp/sai-package/usr/local/etc/asound.conf
+    && install -m 0644 tinycore/overlay/usr/local/etc/asound.conf /tmp/sai-package/usr/local/etc/asound.conf \
+    && find /usr/share/fonts -type f \( -iname 'unifont*.ttf' -o -iname 'unifont*.otf' \) \
+        -exec install -m 0644 {} /tmp/sai-package/usr/local/share/fonts/unifont/ \; \
+    && CONSOLE_FONT_PATH="$(find /usr/share/consolefonts /usr/share/kbd/consolefonts -type f \( -iname '*unifont*.psf.gz' -o -iname 'Uni*.psf.gz' \) 2>/dev/null | sort | head -n 1 || true)" \
+    && if [ -n "$CONSOLE_FONT_PATH" ]; then \
+        install -m 0644 "$CONSOLE_FONT_PATH" /tmp/sai-package/usr/local/share/consolefonts/sai-unifont.psf.gz; \
+    fi
 
 RUN find /tmp/sai-package -type f \( -perm -111 -o -name '*.so' -o -name '*.so.*' \) -exec "$STRIP" --strip-unneeded {} + || true
 
@@ -76,7 +86,7 @@ unzip.tcz
 mpg123.tcz
 ca-certificates.tcz
 util-linux.tcz
-kmaps.tcz
+kbd.tcz
 wireless_tools.tcz
 wpa_supplicant.tcz
 firmware-rpi-wifi.tcz

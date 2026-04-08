@@ -52,7 +52,14 @@ The app itself shells out to a few external tools, so the image preloads:
 - `mpg123.tcz`
 - `ca-certificates.tcz`
 - `util-linux.tcz`
-- `kmaps.tcz`
+- `kbd.tcz`
+
+The build also bundles GNU Unifont assets inside `sai-app.tcz`:
+
+- a scalable Unifont face under `/usr/local/share/fonts/unifont/`
+- a console font alias at `/usr/local/share/consolefonts/sai-unifont.psf.gz`
+
+At boot, `bootlocal.sh` loads that console font with `setfont` so Hindi and other Unicode-heavy text have better coverage on the Raspberry Pi console. Because Sai currently runs on the Linux text console on `tty1`, this is still bounded by console-font limitations and is not equivalent to a full graphical font stack.
 
 The image build script also tries to auto-add a matching `alsa-modules-...tcz` for the chosen piCore release. If the repo layout changes, set `AUDIO_MODULES_EXT` manually when running the script.
 
@@ -65,7 +72,6 @@ The image build script also tries to auto-add a matching `alsa-modules-...tcz` f
 - On the first boot after flashing, `sai-storage-init` expands partition 2 to fill the SD card, grows the ext filesystem, updates `cmdline.txt` to use that partition for `tce`, `home`, and `opt`, and then reboots.
 - Because of that resize flow, the very first power-on should be treated as a setup boot. Expect up to two automatic reboots before Sai reaches its normal startup path.
 - `bootlocal.sh` starts audio setup and then launches Sai on `tty1`.
-- The boot command line includes `kmap=us` so the console uses a standard US keyboard layout.
 - `sai-autostart` uses a 1 second default delay to let the boot console settle before input begins.
 - On the first spoken prompt after launch, the app says `Sai is ready` before announcing the current menu item.
 

@@ -57,7 +57,6 @@ TC_VERSION=17.x sh ./tinycore/scripts/build-picore-image-macos.sh
 
 ## Next Features
 
-- Hindi/Devnagari font default install on RPI OS
 - Typing Tutor
   - Expect specific character from user and maintain it's accuracy, time spent and other similar statics and show at the end
 - Setting Menu Completion
