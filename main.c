@@ -16,6 +16,7 @@
 #include "menu.h"
 #include "platform_ops.h"
 #include "speech_engine.h"
+#include "todo.h"
 #include "trivia.h"
 #include "utils.h"
 
@@ -84,6 +85,7 @@ int main() {
     init_database_manager();
     init_keys_manager();
     init_trivia();
+    init_todo();
     
     mkdir(USER_SPACE, 0777);
     mkdir("Downloads", 0777);
@@ -219,5 +221,6 @@ int main() {
     cleanup_database_manager();
     cleanup_keys_manager();
     cleanup_trivia();
+    cleanup_todo();
     return 0;
 }

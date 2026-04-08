@@ -395,6 +395,62 @@
             }
           ],
           "description_key": "database_manager_desc"
+        },
+        {
+          "title_key": "todo_app",
+          "key": "todo_app",
+          "shortcut": "t",
+          "items": [
+            {
+              "title_key": "todo_list",
+              "key": "todo_list",
+              "shortcut": "l",
+              "description_key": "todo_list_desc"
+            },
+            {
+              "title_key": "todo_search",
+              "key": "todo_search",
+              "shortcut": "s",
+              "description_key": "todo_search_desc"
+            },
+            {
+              "title_key": "todo_add",
+              "key": "todo_add",
+              "shortcut": "a",
+              "description_key": "todo_add_desc"
+            },
+            {
+              "title_key": "todo_open",
+              "key": "todo_open",
+              "shortcut": "o",
+              "description_key": "todo_open_desc"
+            },
+            {
+              "title_key": "todo_edit",
+              "key": "todo_edit",
+              "shortcut": "e",
+              "description_key": "todo_edit_desc"
+            },
+            {
+              "title_key": "todo_mark_complete",
+              "key": "todo_mark_complete",
+              "shortcut": "c",
+              "description_key": "todo_mark_complete_desc"
+            },
+            {
+              "title_key": "todo_mark_pending",
+              "key": "todo_mark_pending",
+              "shortcut": "p",
+              "description_key": "todo_mark_pending_desc"
+            },
+            {
+              "title_key": "todo_delete",
+              "key": "todo_delete",
+              "shortcut": "d",
+              "description_key": "todo_delete_desc"
+            }
+          ],
+          "description_key": "todo_app_desc"
         }
       ],
       "description_key": "organizer_desc"

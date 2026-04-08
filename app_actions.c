@@ -19,6 +19,7 @@
 #include "speech_engine.h"
 #include "speech_settings.h"
 #include "tools.h"
+#include "todo.h"
 #include "trivia.h"
 #include "typing_tutor.h"
 #include "utils.h"
@@ -409,6 +410,8 @@ void app_dispatch_leaf_action(MenuNode *selected_node, MenuNode *root) {
         handle_address_manager(selected_node);
     } else if (app_is_descendant_of(selected_node, "calendar")) {
         handle_calendar(selected_node);
+    } else if (app_is_descendant_of(selected_node, "todo_app")) {
+        handle_todo_app(selected_node);
     } else if (app_is_descendant_of(selected_node, "database_manager")) {
         handle_database_manager(selected_node);
     }
