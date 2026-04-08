@@ -58,6 +58,19 @@ static void build_menu_speech_text(MenuNode *selected_node, char *buffer, size_t
     }
 }
 
+static int menu_node_is_descendant_of(MenuNode *node, const char *ancestor_key) {
+    MenuNode *cursor = node;
+
+    while (cursor) {
+        if (cursor->key && ancestor_key && strcmp(cursor->key, ancestor_key) == 0) {
+            return 1;
+        }
+        cursor = cursor->parent;
+    }
+
+    return 0;
+}
+
 int main() {
     int has_utf8_locale;
     MenuNode *last_spoken_node = NULL;
@@ -212,7 +225,7 @@ int main() {
                     break;
                 }
             }
-            if (!matched_shortcut && isprint(key)) {
+            if (!matched_shortcut && isprint(key) && !menu_node_is_descendant_of(current_node, "music")) {
                 ui_feedback_play(UI_FEEDBACK_ERROR);
             }
         }

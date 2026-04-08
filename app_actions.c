@@ -15,6 +15,7 @@
 #include "entertainment.h"
 #include "file_manager.h"
 #include "keys_manager.h"
+#include "music.h"
 #include "notepad.h"
 #include "radio.h"
 #include "speech_engine.h"
@@ -508,6 +509,8 @@ void app_dispatch_leaf_action(MenuNode *selected_node, MenuNode *root) {
         keys_manager_show_menu();
     } else if (strcmp(selected_node->key, "internet_radio") == 0) {
         radio_ui_show_menu();
+    } else if (app_is_descendant_of(selected_node, "music")) {
+        music_ui_show_instrument(selected_node->key);
     } else if (strcmp(selected_node->key, "mp3_player") == 0 ||
                strcmp(selected_node->key, "media_player") == 0) {
         system_ui_mp3_player();

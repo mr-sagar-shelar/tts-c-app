@@ -273,6 +273,110 @@
           "key": "mp3_player",
           "shortcut": "p",
           "description_key": "mp3_player_desc"
+        },
+        {
+          "title_key": "music",
+          "key": "music",
+          "shortcut": "u",
+          "description_key": "music_desc",
+          "items": [
+            {
+              "title_key": "music_piano",
+              "key": "music_piano",
+              "shortcut": "p",
+              "description_key": "music_piano_desc"
+            },
+            {
+              "title_key": "music_electric_piano",
+              "key": "music_electric_piano",
+              "shortcut": "e",
+              "description_key": "music_electric_piano_desc"
+            },
+            {
+              "title_key": "music_organ",
+              "key": "music_organ",
+              "shortcut": "o",
+              "description_key": "music_organ_desc"
+            },
+            {
+              "title_key": "music_acoustic_guitar",
+              "key": "music_acoustic_guitar",
+              "shortcut": "g",
+              "description_key": "music_acoustic_guitar_desc"
+            },
+            {
+              "title_key": "music_bass_guitar",
+              "key": "music_bass_guitar",
+              "shortcut": "b",
+              "description_key": "music_bass_guitar_desc"
+            },
+            {
+              "title_key": "music_violin",
+              "key": "music_violin",
+              "shortcut": "v",
+              "description_key": "music_violin_desc"
+            },
+            {
+              "title_key": "music_cello",
+              "key": "music_cello",
+              "shortcut": "c",
+              "description_key": "music_cello_desc"
+            },
+            {
+              "title_key": "music_flute",
+              "key": "music_flute",
+              "shortcut": "f",
+              "description_key": "music_flute_desc"
+            },
+            {
+              "title_key": "music_clarinet",
+              "key": "music_clarinet",
+              "shortcut": "l",
+              "description_key": "music_clarinet_desc"
+            },
+            {
+              "title_key": "music_trumpet",
+              "key": "music_trumpet",
+              "shortcut": "t",
+              "description_key": "music_trumpet_desc"
+            },
+            {
+              "title_key": "music_saxophone",
+              "key": "music_saxophone",
+              "shortcut": "s",
+              "description_key": "music_saxophone_desc"
+            },
+            {
+              "title_key": "music_harp",
+              "key": "music_harp",
+              "shortcut": "h",
+              "description_key": "music_harp_desc"
+            },
+            {
+              "title_key": "music_vibraphone",
+              "key": "music_vibraphone",
+              "shortcut": "i",
+              "description_key": "music_vibraphone_desc"
+            },
+            {
+              "title_key": "music_bell",
+              "key": "music_bell",
+              "shortcut": "n",
+              "description_key": "music_bell_desc"
+            },
+            {
+              "title_key": "music_synth_lead",
+              "key": "music_synth_lead",
+              "shortcut": "y",
+              "description_key": "music_synth_lead_desc"
+            },
+            {
+              "title_key": "music_harmonica",
+              "key": "music_harmonica",
+              "shortcut": "r",
+              "description_key": "music_harmonica_desc"
+            }
+          ]
         }
       ],
       "description_key": "media_desc"
