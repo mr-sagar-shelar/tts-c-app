@@ -903,6 +903,12 @@
           ]
         },
         {
+          "title_key": "braille_display_cells",
+          "key": "braille_display_cells",
+          "shortcut": "r",
+          "description_key": "braille_display_cells_desc"
+        },
+        {
           "title_key": "timezone",
           "key": "timezone",
           "shortcut": "z",

@@ -6,6 +6,7 @@
 #include <sys/stat.h>
 
 #include "alarm.h"
+#include "braille_ui.h"
 #include "calendar.h"
 #include "config.h"
 #include "contacts.h"
@@ -213,6 +214,35 @@ void app_handle_settings_menu(MenuNode *node, MenuNode *root) {
             }
         }
         free(current_lang);
+        return;
+    }
+
+    if (strcmp(node->key, "braille_display_cells") == 0) {
+        char *current_value = get_setting("braille_display_cells");
+        int current_cells = current_value ? atoi(current_value) : 20;
+        int selected_cells;
+        char value_buffer[32];
+
+        if (current_cells <= 0) {
+            current_cells = 20;
+        }
+        free(current_value);
+
+        selected_cells = handle_value_picker(node->title, 1, 80, current_cells);
+        if (selected_cells == -1) {
+            return;
+        }
+
+        snprintf(value_buffer, sizeof(value_buffer), "%d", selected_cells);
+        save_setting("braille_display_cells", value_buffer);
+
+        printf("\033[H\033[J--- %s ---\n", node->title);
+        printf(menu_translate("braille_display_cells_saved", "Braille display width set to %d cells.\n"),
+               selected_cells);
+        braille_ui_print_status_line(node->title);
+        printf("\n%s", menu_translate("ui_press_any_key_to_continue", "Press any key to continue..."));
+        fflush(stdout);
+        read_key();
         return;
     }
 

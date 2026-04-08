@@ -52,14 +52,13 @@ The app itself shells out to a few external tools, so the image preloads:
 - `mpg123.tcz`
 - `ca-certificates.tcz`
 - `util-linux.tcz`
-- `kbd.tcz`
 
 The build also bundles GNU Unifont assets inside `sai-app.tcz`:
 
 - a scalable Unifont face under `/usr/local/share/fonts/unifont/`
 - a console font alias at `/usr/local/share/consolefonts/sai-unifont.psf.gz`
 
-At boot, `bootlocal.sh` loads that console font with `setfont` so Hindi and other Unicode-heavy text have better coverage on the Raspberry Pi console. Because Sai currently runs on the Linux text console on `tty1`, this is still bounded by console-font limitations and is not equivalent to a full graphical font stack.
+At boot, `bootlocal.sh` attempts to load that console font with `setfont` when that tool is available on the target piCore image, so Hindi and other Unicode-heavy text have better coverage on the Raspberry Pi console. Because Sai currently runs on the Linux text console on `tty1`, this is still bounded by console-font limitations and is not equivalent to a full graphical font stack.
 
 The image build script also tries to auto-add a matching `alsa-modules-...tcz` for the chosen piCore release. If the repo layout changes, set `AUDIO_MODULES_EXT` manually when running the script.
 

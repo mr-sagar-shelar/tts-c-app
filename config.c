@@ -46,6 +46,7 @@ static void create_default_config() {
     cJSON_AddStringToObject(config_json, "speech_mode", "on");
     cJSON_AddStringToObject(config_json, "audio_playback", "off");
     cJSON_AddStringToObject(config_json, "audio_output", "hdmi");
+    cJSON_AddStringToObject(config_json, "braille_display_cells", "20");
     cJSON_AddItemToObject(config_json, "contacts", cJSON_CreateArray());
     cJSON_AddItemToObject(config_json, "alarms", cJSON_CreateArray());
     cJSON_AddItemToObject(config_json, "database_tables", cJSON_CreateArray());
@@ -141,6 +142,7 @@ void init_config() {
     ensure_default_string("speech_mode", "on");
     ensure_default_string("audio_playback", "off");
     ensure_default_string("audio_output", "hdmi");
+    ensure_default_string("braille_display_cells", "20");
     ensure_default_string("last_sync", "Never");
     if (!cJSON_IsArray(cJSON_GetObjectItemCaseSensitive(config_json, "database_tables"))) {
         cJSON_ReplaceItemInObject(config_json, "database_tables", cJSON_CreateArray());

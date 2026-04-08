@@ -1,4 +1,5 @@
 #include "entertainment.h"
+#include "braille_ui.h"
 #include "config.h"
 #include "download_ui.h"
 #include "document_reader.h"
@@ -53,6 +54,7 @@ enum {
 
 static ReaderPage compute_reader_page(const TextProcessor *processor, size_t current_index, int width, int content_lines);
 static void print_highlighted_word(const TextWord *word);
+static char *build_reader_line_text(const TextProcessor *processor, size_t current_index);
 
 static void content_ui_show_message_screen(const char *title, const char *message) {
     printf("\033[H\033[J--- %s ---\n\n%s\n\n%s",
@@ -76,7 +78,7 @@ static void render_spoken_text_reader_with_footer(const TextProcessor *processor
     const TextWord *current_word = text_processor_get_word(processor, current_index);
 
     get_terminal_size(&rows, &cols);
-    content_lines = rows - 7;
+    content_lines = rows - 8;
     if (content_lines < 5) {
         content_lines = 5;
     }
@@ -102,7 +104,13 @@ static void render_spoken_text_reader_with_footer(const TextProcessor *processor
         }
     }
 
-    printf("\n\n%s\n", footer_text ? footer_text : menu_translate("ui_footer_spoken_text", "[Space: Pause/Resume | Up: Previous | Down: Next | Enter: Repeat | Esc: Back]"));
+    printf("\n\n");
+    {
+        char *line_text = build_reader_line_text(processor, current_index);
+        braille_ui_print_status_line(line_text ? line_text : (title ? title : ""));
+        free(line_text);
+    }
+    printf("%s\n", footer_text ? footer_text : menu_translate("ui_footer_spoken_text", "[Space: Pause/Resume | Up: Previous | Down: Next | Enter: Repeat | Esc: Back]"));
     if (state && state->status[0]) {
         printf("%s\n", state->status);
     }
@@ -232,7 +240,7 @@ static void render_word_reader(const TextProcessor *processor, const char *selec
     const TextWord *current_word = text_processor_get_word(processor, current_index);
 
     get_terminal_size(&rows, &cols);
-    content_lines = rows - 7;
+    content_lines = rows - 8;
     if (content_lines < 5) {
         content_lines = 5;
     }
@@ -259,7 +267,13 @@ static void render_word_reader(const TextProcessor *processor, const char *selec
         }
     }
 
-    printf("\n\n%s\n", menu_translate("ui_footer_word_reader", "[Up: Previous | Down: Next | Enter: Next | Ctrl+E: Export to wave | Ctrl+P: Play | Ctrl+L: Line Play | Esc: Back]"));
+    printf("\n\n");
+    {
+        char *line_text = build_reader_line_text(processor, current_index);
+        braille_ui_print_status_line(line_text ? line_text : selected_path);
+        free(line_text);
+    }
+    printf("%s\n", menu_translate("ui_footer_word_reader", "[Up: Previous | Down: Next | Enter: Next | Ctrl+E: Export to wave | Ctrl+P: Play | Ctrl+L: Line Play | Esc: Back]"));
     printf("%s\n", menu_translate("ui_reader_highlight_help", "The highlighted word represents the token currently being spoken."));
     printf("%s\n", menu_translate("ui_reader_export_help", "Use Ctrl+E to export the current document to a WAV file."));
     printf("%s\n", menu_translate("ui_reader_play_help", "Use Ctrl+P to play the document word by word with live highlighting."));
@@ -284,7 +298,7 @@ static void render_spoken_text_reader(const TextProcessor *processor, const char
     const TextWord *current_word = text_processor_get_word(processor, current_index);
 
     get_terminal_size(&rows, &cols);
-    content_lines = rows - 7;
+    content_lines = rows - 8;
     if (content_lines < 5) {
         content_lines = 5;
     }
@@ -310,7 +324,13 @@ static void render_spoken_text_reader(const TextProcessor *processor, const char
         }
     }
 
-    printf("\n\n%s\n", menu_translate("ui_footer_spoken_text", "[Space: Pause/Resume | Up: Previous | Down: Next | Enter: Repeat | Esc: Back]"));
+    printf("\n\n");
+    {
+        char *line_text = build_reader_line_text(processor, current_index);
+        braille_ui_print_status_line(line_text ? line_text : (title ? title : ""));
+        free(line_text);
+    }
+    printf("%s\n", menu_translate("ui_footer_spoken_text", "[Space: Pause/Resume | Up: Previous | Down: Next | Enter: Repeat | Esc: Back]"));
     if (state && state->status[0]) {
         printf("%s\n", state->status);
     }
@@ -405,6 +425,25 @@ static char *build_reader_chunk_text(const TextProcessor *processor, size_t star
 
     *cursor = '\0';
     return text;
+}
+
+static char *build_reader_line_text(const TextProcessor *processor, size_t current_index) {
+    int line;
+    size_t start_index;
+    size_t end_index;
+
+    if (!processor || processor->token_count == 0 || current_index >= processor->token_count) {
+        return NULL;
+    }
+
+    line = processor->tokens[current_index].line;
+    start_index = current_index;
+    while (start_index > 0 && processor->tokens[start_index - 1].line == line) {
+        start_index--;
+    }
+
+    end_index = determine_reader_line_end(processor, current_index);
+    return build_reader_chunk_text(processor, start_index, end_index);
 }
 
 static void reader_playback_progress(int token_index, void *userdata) {
@@ -754,7 +793,9 @@ void content_ui_show_spoken_text(const char *title, const char *source_name, con
         print_memory_widget_line();
         printf("--- %s ---\n", title ? title : menu_translate("ui_text_reader", "Text Reader"));
         printf("%s\n", menu_translate("ui_no_content_available", "No content available."));
-        printf("\n%s\n", menu_translate("ui_footer_spoken_text", "[Space: Pause/Resume | Up: Previous | Down: Next | Enter: Repeat | Esc: Back]"));
+        printf("\n");
+        braille_ui_print_status_line(menu_translate("ui_no_content_available", "No content available."));
+        printf("%s\n", menu_translate("ui_footer_spoken_text", "[Space: Pause/Resume | Up: Previous | Down: Next | Enter: Repeat | Esc: Back]"));
         fflush(stdout);
         while (read_key() != KEY_ESC) {
         }
@@ -768,6 +809,7 @@ void content_ui_show_spoken_text(const char *title, const char *source_name, con
         print_memory_widget_line();
         printf("--- %s ---\n", title ? title : menu_translate("ui_text_reader", "Text Reader"));
         printf("%s\n", menu_translate("ui_no_content_available", "No content available."));
+        braille_ui_print_status_line(menu_translate("ui_no_content_available", "No content available."));
         fflush(stdout);
         while (read_key() != KEY_ESC) {
         }

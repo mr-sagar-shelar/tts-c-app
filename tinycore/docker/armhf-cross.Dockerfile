@@ -86,7 +86,6 @@ unzip.tcz
 mpg123.tcz
 ca-certificates.tcz
 util-linux.tcz
-kbd.tcz
 wireless_tools.tcz
 wpa_supplicant.tcz
 firmware-rpi-wifi.tcz

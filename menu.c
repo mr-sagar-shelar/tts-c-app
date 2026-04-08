@@ -1,4 +1,5 @@
 #include "menu.h"
+#include "braille_ui.h"
 #include "config.h"
 #include "keys_manager.h"
 #include "platform_ops.h"
@@ -71,6 +72,10 @@ static char *menu_selected_value_label(MenuNode *node) {
 
         free(api_key);
         return label;
+    }
+
+    if (strcmp(node->key, "braille_display_cells") == 0) {
+        return braille_ui_get_selected_label();
     }
 
     if (strncmp(node->key, "trivia_", 7) == 0) {
@@ -184,6 +189,7 @@ void free_menu(MenuNode *node) {
 
 void print_menu(MenuNode *node, int selected_index) {
     char *selected_value = menu_selected_value_label(node);
+    const char *selected_title = node ? node->title : "";
     int lines_used = 0;
 
     // Clear screen (ANSI escape code)
@@ -220,6 +226,7 @@ void print_menu(MenuNode *node, int selected_index) {
                 snprintf(shortcut_str, sizeof(shortcut_str), "(%c) ", node->items[i]->shortcut);
             }
             if (current_visible_idx == selected_index) {
+                selected_title = node->items[i]->title;
                 printf("> %s%s\n", shortcut_str, node->items[i]->title);
             } else {
                 printf("  %s%s\n", shortcut_str, node->items[i]->title);
@@ -228,8 +235,10 @@ void print_menu(MenuNode *node, int selected_index) {
             current_visible_idx++;
         }
     }
-    pad_screen_to_footer(lines_used, 2);
-    printf("\n%s\n", menu_translate("ui_footer_menu_info", "[Arrows: Navigate | Enter: Select | Esc: Back/Exit | Ctrl+I: Info]"));
+    pad_screen_to_footer(lines_used, 3);
+    printf("\n");
+    braille_ui_print_status_line(selected_title);
+    printf("%s\n", menu_translate("ui_footer_menu_info", "[Arrows: Navigate | Enter: Select | Esc: Back/Exit | Ctrl+I: Info]"));
 }
 
 void print_description(MenuNode *node) {
