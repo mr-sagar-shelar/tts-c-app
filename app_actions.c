@@ -246,6 +246,96 @@ void app_handle_settings_menu(MenuNode *node, MenuNode *root) {
         return;
     }
 
+    if (strcmp(node->key, "braille_display_size") == 0) {
+        int selected_index = 0;
+        const char *values[] = {"small", "medium", "large"};
+        const char *titles[] = {
+            menu_translate("braille_display_size_small", "Small"),
+            menu_translate("braille_display_size_medium", "Medium"),
+            menu_translate("braille_display_size_large", "Large")
+        };
+        char *current_value = get_setting("braille_display_size");
+        int i;
+
+        if (current_value) {
+            for (i = 0; i < 3; i++) {
+                if (strcmp(current_value, values[i]) == 0) {
+                    selected_index = i;
+                    break;
+                }
+            }
+        }
+        free(current_value);
+
+        while (1) {
+            printf("\033[H\033[J");
+            printf("--- %s ---\n", node->title);
+            printf("%s: %s\n\n",
+                   menu_translate("ui_selected_value", "Selected Value"),
+                   titles[selected_index]);
+            for (i = 0; i < 3; i++) {
+                if (i == selected_index) {
+                    printf("> %s\n", titles[i]);
+                } else {
+                    printf("  %s\n", titles[i]);
+                }
+            }
+            printf("\n%s\n", menu_translate("ui_footer_back", "[Arrows: Navigate | Enter: Select | Esc: Back]"));
+            braille_ui_print_status_line(titles[selected_index]);
+            fflush(stdout);
+
+            {
+                int key = read_key();
+                if (key == KEY_UP) {
+                    selected_index = menu_next_index(selected_index, -1, 3);
+                } else if (key == KEY_DOWN) {
+                    selected_index = menu_next_index(selected_index, 1, 3);
+                } else if (key == KEY_ENTER) {
+                    save_setting("braille_display_size", values[selected_index]);
+                    printf("\033[H\033[J--- %s ---\n", node->title);
+                    printf(menu_translate("braille_display_size_saved", "Braille display size set to %s.\n"),
+                           titles[selected_index]);
+                    braille_ui_print_status_line(node->title);
+                    printf("\n%s", menu_translate("ui_press_any_key_to_continue", "Press any key to continue..."));
+                    fflush(stdout);
+                    read_key();
+                    return;
+                } else if (key == KEY_ESC) {
+                    return;
+                }
+            }
+        }
+    }
+
+    if (strcmp(node->key, "braille_character_spacing") == 0) {
+        char *current_value = get_setting("braille_character_spacing");
+        int current_spacing = current_value ? atoi(current_value) : 2;
+        int selected_spacing;
+        char value_buffer[16];
+
+        if (current_spacing < 1 || current_spacing > 5) {
+            current_spacing = 2;
+        }
+        free(current_value);
+
+        selected_spacing = handle_value_picker(node->title, 1, 5, current_spacing);
+        if (selected_spacing == -1) {
+            return;
+        }
+
+        snprintf(value_buffer, sizeof(value_buffer), "%d", selected_spacing);
+        save_setting("braille_character_spacing", value_buffer);
+
+        printf("\033[H\033[J--- %s ---\n", node->title);
+        printf(menu_translate("braille_character_spacing_saved", "Braille character spacing set to %d spaces.\n"),
+               selected_spacing);
+        braille_ui_print_status_line(node->title);
+        printf("\n%s", menu_translate("ui_press_any_key_to_continue", "Press any key to continue..."));
+        fflush(stdout);
+        read_key();
+        return;
+    }
+
     if (handle_speech_setting_selection(node->key, speech_message, sizeof(speech_message))) {
         speech_engine_reload_settings();
         printf("\033[H\033[J");

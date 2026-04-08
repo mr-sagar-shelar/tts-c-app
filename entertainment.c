@@ -78,7 +78,7 @@ static void render_spoken_text_reader_with_footer(const TextProcessor *processor
     const TextWord *current_word = text_processor_get_word(processor, current_index);
 
     get_terminal_size(&rows, &cols);
-    content_lines = rows - 8;
+    content_lines = rows - (7 + braille_ui_footer_line_count());
     if (content_lines < 5) {
         content_lines = 5;
     }
@@ -240,7 +240,7 @@ static void render_word_reader(const TextProcessor *processor, const char *selec
     const TextWord *current_word = text_processor_get_word(processor, current_index);
 
     get_terminal_size(&rows, &cols);
-    content_lines = rows - 8;
+    content_lines = rows - (7 + braille_ui_footer_line_count());
     if (content_lines < 5) {
         content_lines = 5;
     }
@@ -298,7 +298,7 @@ static void render_spoken_text_reader(const TextProcessor *processor, const char
     const TextWord *current_word = text_processor_get_word(processor, current_index);
 
     get_terminal_size(&rows, &cols);
-    content_lines = rows - 8;
+    content_lines = rows - (7 + braille_ui_footer_line_count());
     if (content_lines < 5) {
         content_lines = 5;
     }

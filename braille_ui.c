@@ -10,6 +10,9 @@
 #define BRAILLE_DEFAULT_CELLS 20
 #define BRAILLE_MIN_CELLS 1
 #define BRAILLE_MAX_CELLS 80
+#define BRAILLE_SIZE_SMALL "small"
+#define BRAILLE_SIZE_MEDIUM "medium"
+#define BRAILLE_SIZE_LARGE "large"
 
 #define DOT1 0x01
 #define DOT2 0x02
@@ -218,6 +221,41 @@ static int braille_ui_parse_cell_count(const char *value) {
     return (int)parsed;
 }
 
+static int braille_ui_parse_spacing(const char *value) {
+    long parsed;
+    char *end = NULL;
+
+    if (!value || !value[0]) {
+        return 2;
+    }
+
+    parsed = strtol(value, &end, 10);
+    if (!end || *end != '\0') {
+        return 2;
+    }
+    if (parsed < 1) {
+        return 1;
+    }
+    if (parsed > 5) {
+        return 5;
+    }
+
+    return (int)parsed;
+}
+
+static const char *braille_ui_normalize_size(const char *value) {
+    if (!value || !value[0]) {
+        return BRAILLE_SIZE_SMALL;
+    }
+    if (strcmp(value, BRAILLE_SIZE_MEDIUM) == 0) {
+        return BRAILLE_SIZE_MEDIUM;
+    }
+    if (strcmp(value, BRAILLE_SIZE_LARGE) == 0) {
+        return BRAILLE_SIZE_LARGE;
+    }
+    return BRAILLE_SIZE_SMALL;
+}
+
 static int utf8_decode_next(const char **cursor, unsigned int *codepoint) {
     const unsigned char *p = (const unsigned char *)*cursor;
 
@@ -316,71 +354,199 @@ int braille_ui_get_cell_count(void) {
     return count;
 }
 
-char *braille_ui_get_selected_label(void) {
-    char label[64];
+const char *braille_ui_get_size_mode(void) {
+    char *value = get_setting("braille_display_size");
+    const char *normalized = braille_ui_normalize_size(value);
 
-    snprintf(label,
-             sizeof(label),
-             menu_translate("braille_display_cells_value_format", "%d cells"),
-             braille_ui_get_cell_count());
-    return strdup(label);
+    free(value);
+    return normalized;
 }
 
-char *braille_ui_build_display_text(const char *text) {
+int braille_ui_get_character_spacing(void) {
+    char *value = get_setting("braille_character_spacing");
+    int spacing = braille_ui_parse_spacing(value);
+
+    free(value);
+    return spacing;
+}
+
+static const char *braille_ui_get_size_label(void) {
+    const char *mode = braille_ui_get_size_mode();
+
+    if (strcmp(mode, BRAILLE_SIZE_MEDIUM) == 0) {
+        return menu_translate("braille_display_size_medium", "Medium");
+    }
+    if (strcmp(mode, BRAILLE_SIZE_LARGE) == 0) {
+        return menu_translate("braille_display_size_large", "Large");
+    }
+    return menu_translate("braille_display_size_small", "Small");
+}
+
+char *braille_ui_get_selected_label(const char *menu_key) {
+    char label[64];
+
+    if (!menu_key) {
+        return NULL;
+    }
+
+    if (strcmp(menu_key, "braille_display_cells") == 0) {
+        snprintf(label,
+                 sizeof(label),
+                 menu_translate("braille_display_cells_value_format", "%d cells"),
+                 braille_ui_get_cell_count());
+        return strdup(label);
+    }
+
+    if (strcmp(menu_key, "braille_display_size") == 0) {
+        return strdup(braille_ui_get_size_label());
+    }
+
+    if (strcmp(menu_key, "braille_character_spacing") == 0) {
+        snprintf(label,
+                 sizeof(label),
+                 menu_translate("braille_character_spacing_value_format", "%d spaces"),
+                 braille_ui_get_character_spacing());
+        return strdup(label);
+    }
+
+    if (strcmp(menu_key, "braille_settings") == 0) {
+        snprintf(label,
+                 sizeof(label),
+                 menu_translate("braille_settings_value_format", "%d cells, %s, %d spaces"),
+                 braille_ui_get_cell_count(),
+                 braille_ui_get_size_label(),
+                 braille_ui_get_character_spacing());
+        return strdup(label);
+    }
+
+    return NULL;
+}
+
+static unsigned char *braille_ui_collect_patterns(const char *text, int *out_count) {
     int max_cells = braille_ui_get_cell_count();
-    size_t capacity;
-    size_t length = 0;
     int cells = 0;
-    char *output;
+    unsigned char *patterns;
     const char *cursor;
 
     if (!text || max_cells <= 0) {
-        return strdup("");
+        if (out_count) {
+            *out_count = 0;
+        }
+        return NULL;
     }
 
-    capacity = (size_t)max_cells * 4 + 1;
-    output = (char *)malloc(capacity);
-    if (!output) {
-        return strdup("");
+    patterns = (unsigned char *)malloc((size_t)max_cells);
+    if (!patterns) {
+        if (out_count) {
+            *out_count = 0;
+        }
+        return NULL;
     }
 
     cursor = text;
     while (*cursor && cells < max_cells) {
         unsigned int codepoint = 0;
-        unsigned char pattern;
-        char encoded[5];
-        size_t encoded_length;
 
         if (!utf8_decode_next(&cursor, &codepoint)) {
             break;
         }
-
-        pattern = braille_pattern_for_codepoint(codepoint);
-        encoded_length = utf8_encode_codepoint(0x2800U + pattern, encoded);
-        if (length + encoded_length + 1 > capacity) {
-            size_t new_capacity = capacity * 2;
-            char *grown = (char *)realloc(output, new_capacity);
-            if (!grown) {
-                break;
-            }
-            output = grown;
-            capacity = new_capacity;
-        }
-
-        memcpy(output + length, encoded, encoded_length);
-        length += encoded_length;
-        cells++;
+        patterns[cells++] = braille_pattern_for_codepoint(codepoint);
     }
 
+    if (out_count) {
+        *out_count = cells;
+    }
+
+    return patterns;
+}
+
+int braille_ui_footer_line_count(void) {
+    const char *mode = braille_ui_get_size_mode();
+
+    if (strcmp(mode, BRAILLE_SIZE_SMALL) == 0) {
+        return 1;
+    }
+    return 5;
+}
+
+static void braille_ui_print_small(const unsigned char *patterns, int count) {
+    int spacing = braille_ui_get_character_spacing();
+    size_t capacity = (size_t)(count > 0 ? count : 1) * (4 + (size_t)spacing) + 1;
+    size_t length = 0;
+    char *output = (char *)malloc(capacity);
+    int i;
+
+    if (!output) {
+        printf("%s:\n", menu_translate("ui_braille_label", "Braille"));
+        return;
+    }
+
+    for (i = 0; i < count; i++) {
+        char encoded[5];
+        size_t encoded_length = utf8_encode_codepoint(0x2800U + patterns[i], encoded);
+        memcpy(output + length, encoded, encoded_length);
+        length += encoded_length;
+        if (i + 1 < count && spacing > 0) {
+            memset(output + length, ' ', (size_t)spacing);
+            length += (size_t)spacing;
+        }
+    }
     output[length] = '\0';
-    return output;
+
+    printf("%s: %s\n", menu_translate("ui_braille_label", "Braille"), output);
+    free(output);
+}
+
+static void braille_ui_print_zoomed(const unsigned char *patterns, int count, int large_mode) {
+    static const unsigned char row_masks[4][2] = {
+        {DOT1, DOT4},
+        {DOT2, DOT5},
+        {DOT3, DOT6},
+        {DOT7, DOT8}
+    };
+    int row;
+    int cell;
+    int spacing = braille_ui_get_character_spacing();
+    const char *intra_gap = large_mode ? " " : " ";
+    const char *active_dot = "\xE2\x97\x8F";
+    const char *inactive_dot = ".";
+
+    printf("%s:\n", menu_translate("ui_braille_label", "Braille"));
+    for (row = 0; row < 4; row++) {
+        for (cell = 0; cell < count; cell++) {
+            fputs((patterns[cell] & row_masks[row][0]) ? active_dot : inactive_dot, stdout);
+            fputs(intra_gap, stdout);
+            fputs((patterns[cell] & row_masks[row][1]) ? active_dot : inactive_dot, stdout);
+            if (cell + 1 < count) {
+                int gap = large_mode ? 2 + spacing : spacing;
+                while (gap-- > 0) {
+                    putchar(' ');
+                }
+            }
+        }
+        putchar('\n');
+    }
 }
 
 void braille_ui_print_status_line(const char *text) {
-    char *braille_text = braille_ui_build_display_text(text);
+    const char *mode = braille_ui_get_size_mode();
+    int count = 0;
+    unsigned char *patterns = braille_ui_collect_patterns(text, &count);
 
-    printf("%s: %s\n",
-           menu_translate("ui_braille_label", "Braille"),
-           braille_text ? braille_text : "");
-    free(braille_text);
+    if (!patterns || count <= 0) {
+        if (strcmp(mode, BRAILLE_SIZE_SMALL) == 0) {
+            printf("%s:\n", menu_translate("ui_braille_label", "Braille"));
+        } else {
+            printf("%s:\n\n\n\n\n", menu_translate("ui_braille_label", "Braille"));
+        }
+        free(patterns);
+        return;
+    }
+
+    if (strcmp(mode, BRAILLE_SIZE_SMALL) == 0) {
+        braille_ui_print_small(patterns, count);
+    } else {
+        braille_ui_print_zoomed(patterns, count, strcmp(mode, BRAILLE_SIZE_LARGE) == 0);
+    }
+    free(patterns);
 }

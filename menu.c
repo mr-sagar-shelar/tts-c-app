@@ -74,8 +74,11 @@ static char *menu_selected_value_label(MenuNode *node) {
         return label;
     }
 
-    if (strcmp(node->key, "braille_display_cells") == 0) {
-        return braille_ui_get_selected_label();
+    if (strcmp(node->key, "braille_settings") == 0 ||
+        strcmp(node->key, "braille_display_cells") == 0 ||
+        strcmp(node->key, "braille_display_size") == 0 ||
+        strcmp(node->key, "braille_character_spacing") == 0) {
+        return braille_ui_get_selected_label(node->key);
     }
 
     if (strncmp(node->key, "trivia_", 7) == 0) {
@@ -235,7 +238,7 @@ void print_menu(MenuNode *node, int selected_index) {
             current_visible_idx++;
         }
     }
-    pad_screen_to_footer(lines_used, 3);
+    pad_screen_to_footer(lines_used, 2 + braille_ui_footer_line_count());
     printf("\n");
     braille_ui_print_status_line(selected_title);
     printf("%s\n", menu_translate("ui_footer_menu_info", "[Arrows: Navigate | Enter: Select | Esc: Back/Exit | Ctrl+I: Info]"));

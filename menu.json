@@ -903,10 +903,30 @@
           ]
         },
         {
-          "title_key": "braille_display_cells",
-          "key": "braille_display_cells",
+          "title_key": "braille_settings",
+          "key": "braille_settings",
           "shortcut": "r",
-          "description_key": "braille_display_cells_desc"
+          "description_key": "braille_settings_desc",
+          "items": [
+            {
+              "title_key": "braille_display_cells",
+              "key": "braille_display_cells",
+              "shortcut": "c",
+              "description_key": "braille_display_cells_desc"
+            },
+            {
+              "title_key": "braille_display_size",
+              "key": "braille_display_size",
+              "shortcut": "s",
+              "description_key": "braille_display_size_desc"
+            },
+            {
+              "title_key": "braille_character_spacing",
+              "key": "braille_character_spacing",
+              "shortcut": "p",
+              "description_key": "braille_character_spacing_desc"
+            }
+          ]
         },
         {
           "title_key": "timezone",
