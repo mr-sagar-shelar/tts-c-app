@@ -7,6 +7,7 @@ STATE_DIR="${SAI_PLATFORM_STATE_DIR:-/opt/sai-platform}"
 LOG_FILE="${SAI_PLATFORM_LOG_FILE:-/tmp/sai-platform-service.log}"
 
 mkdir -p "$IPC_DIR" "$STATE_DIR"
+chmod 1777 "$IPC_DIR" 2>/dev/null || true
 touch "$LOG_FILE"
 
 log() {
@@ -300,6 +301,8 @@ scan_networks() {
     tmp_file="$STATE_DIR/scan.tmp"
 
     : > "$out_file"
+    ifconfig "$iface" up >> "$LOG_FILE" 2>&1 || true
+    sleep 1
 
     iwlist "$iface" scan > "$tmp_file" 2>> "$LOG_FILE" || return 1
 
@@ -377,6 +380,7 @@ process_request() {
 
     [ -f "$command_file" ] || return 0
     command="$(cat "$command_file" 2>/dev/null || true)"
+    log "Processing request: dir=$req_dir command=$command"
 
     iface="$(detect_wireless_interface || true)"
     if [ -n "$iface" ]; then
@@ -400,12 +404,15 @@ process_request() {
                 write_response_file "$req_dir" status ok
                 if [ -s "$req_dir/scan.tsv" ]; then
                     write_response_file "$req_dir" message "Available Wi-Fi networks loaded."
+                    log "Wi-Fi scan completed with results on interface $iface"
                 else
                     write_response_file "$req_dir" message "No Wi-Fi networks were found."
+                    log "Wi-Fi scan completed with no results on interface $iface"
                 fi
             else
                 write_response_file "$req_dir" status error
                 write_response_file "$req_dir" message "Wi-Fi scan failed."
+                log "Wi-Fi scan failed on interface $iface"
             fi
             ;;
         connect)
@@ -432,12 +439,14 @@ process_request() {
                     if connect_saved_network "$iface"; then
                         write_response_file "$req_dir" status ok
                         write_response_file "$req_dir" message "Connected to $ssid."
+                        log "Wi-Fi connected to $ssid on interface $iface"
                         write_response_file "$req_dir" connected yes
                         write_response_file "$req_dir" current_ssid "$ssid"
                         write_response_file "$req_dir" ip_address "$(current_ip_for_interface "$iface")"
                     else
                         write_response_file "$req_dir" status error
                         write_response_file "$req_dir" message "Failed to connect to $ssid."
+                        log "Wi-Fi connect failed for $ssid on interface $iface"
                     fi
                 fi
             fi
@@ -448,9 +457,11 @@ process_request() {
                 write_response_file "$req_dir" status ok
                 write_response_file "$req_dir" value "$volume"
                 write_response_file "$req_dir" message "System volume is $volume%."
+                log "Read system volume: $volume%"
             else
                 write_response_file "$req_dir" status error
                 write_response_file "$req_dir" message "Unable to read system volume."
+                log "Unable to read system volume."
             fi
             ;;
         set_volume)
@@ -462,9 +473,11 @@ process_request() {
                 write_response_file "$req_dir" status ok
                 write_response_file "$req_dir" value "$volume"
                 write_response_file "$req_dir" message "System volume updated to $volume%."
+                log "System volume updated to $volume%"
             else
                 write_response_file "$req_dir" status error
                 write_response_file "$req_dir" message "Unable to update system volume."
+                log "Unable to update system volume to $volume%"
             fi
             ;;
         set_audio_output)
@@ -552,6 +565,7 @@ process_request() {
     esac
 
     : > "$req_dir/done"
+    log "Completed request: dir=$req_dir command=$command"
 }
 
 auto_connect_if_possible() {

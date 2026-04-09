@@ -245,7 +245,7 @@ static int braille_ui_parse_spacing(const char *value) {
 
 static const char *braille_ui_normalize_size(const char *value) {
     if (!value || !value[0]) {
-        return BRAILLE_SIZE_SMALL;
+        return BRAILLE_SIZE_MEDIUM;
     }
     if (strcmp(value, BRAILLE_SIZE_MEDIUM) == 0) {
         return BRAILLE_SIZE_MEDIUM;
@@ -253,7 +253,7 @@ static const char *braille_ui_normalize_size(const char *value) {
     if (strcmp(value, BRAILLE_SIZE_LARGE) == 0) {
         return BRAILLE_SIZE_LARGE;
     }
-    return BRAILLE_SIZE_SMALL;
+    return BRAILLE_SIZE_MEDIUM;
 }
 
 static int utf8_decode_next(const char **cursor, unsigned int *codepoint) {
@@ -508,7 +508,7 @@ static void braille_ui_print_zoomed(const unsigned char *patterns, int count, in
     int cell;
     int spacing = braille_ui_get_character_spacing();
     const char *intra_gap = large_mode ? " " : " ";
-    const char *active_dot = "\xE2\x97\x8F";
+    const char *active_dot = "\xE2\x80\xA2";
     const char *inactive_dot = ".";
 
     printf("%s:\n", menu_translate("ui_braille_label", "Braille"));

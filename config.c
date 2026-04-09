@@ -43,7 +43,7 @@ static void create_default_config() {
     cJSON_AddStringToObject(config_json, "tts_voice", "slt");
     cJSON_AddStringToObject(config_json, "tts_volume", "medium");
     cJSON_AddStringToObject(config_json, "tts_speed", "1.0");
-    cJSON_AddStringToObject(config_json, "speech_mode", "on");
+    cJSON_AddStringToObject(config_json, "speech_mode", "off");
     cJSON_AddStringToObject(config_json, "audio_playback", "off");
     cJSON_AddStringToObject(config_json, "audio_output", "hdmi");
     cJSON_AddStringToObject(config_json, "voip_display_name", "");
@@ -53,7 +53,7 @@ static void create_default_config() {
     cJSON_AddStringToObject(config_json, "voip_password", "");
     cJSON_AddStringToObject(config_json, "voip_transport", "udp");
     cJSON_AddStringToObject(config_json, "braille_display_cells", "20");
-    cJSON_AddStringToObject(config_json, "braille_display_size", "small");
+    cJSON_AddStringToObject(config_json, "braille_display_size", "medium");
     cJSON_AddStringToObject(config_json, "braille_character_spacing", "2");
     cJSON_AddItemToObject(config_json, "contacts", cJSON_CreateArray());
     cJSON_AddItemToObject(config_json, "alarms", cJSON_CreateArray());
@@ -147,7 +147,7 @@ void init_config() {
     ensure_default_string("tts_voice", "slt");
     ensure_default_string("tts_volume", "medium");
     ensure_default_string("tts_speed", "1.0");
-    ensure_default_string("speech_mode", "on");
+    ensure_default_string("speech_mode", "off");
     ensure_default_string("audio_playback", "off");
     ensure_default_string("audio_output", "hdmi");
     ensure_default_string("voip_display_name", "");
@@ -157,7 +157,7 @@ void init_config() {
     ensure_default_string("voip_password", "");
     ensure_default_string("voip_transport", "udp");
     ensure_default_string("braille_display_cells", "20");
-    ensure_default_string("braille_display_size", "small");
+    ensure_default_string("braille_display_size", "medium");
     ensure_default_string("braille_character_spacing", "2");
     ensure_default_string("last_sync", "Never");
     if (!cJSON_IsArray(cJSON_GetObjectItemCaseSensitive(config_json, "database_tables"))) {

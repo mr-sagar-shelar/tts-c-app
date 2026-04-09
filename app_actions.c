@@ -5,6 +5,7 @@
 #include <string.h>
 #include <sys/stat.h>
 
+#include "app_logger.h"
 #include "alarm.h"
 #include "braille_ui.h"
 #include "calendar.h"
@@ -130,7 +131,9 @@ void app_sync_language_voice_on_startup(MenuNode *root) {
         }
     } else {
         char speech_error[128];
-        speech_engine_startup(speech_error, sizeof(speech_error));
+        if (!speech_engine_startup(speech_error, sizeof(speech_error))) {
+            app_log_message("speech", "Speech startup failed after language sync: %s", speech_error);
+        }
     }
 
     free(language_code);
