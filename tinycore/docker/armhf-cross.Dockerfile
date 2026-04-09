@@ -62,6 +62,7 @@ RUN rm -rf /tmp/sai-package /tmp/mydata /out \
     && install -m 0755 tinycore/rootfs/usr/local/bin/sai-launch /tmp/sai-package/usr/local/bin/sai-launch \
     && install -m 0755 tinycore/rootfs/usr/local/bin/sai-restart /tmp/sai-package/usr/local/bin/sai-restart \
     && install -m 0755 tinycore/rootfs/usr/local/bin/sai-storage-init /tmp/sai-package/usr/local/bin/sai-storage-init \
+    && install -m 0755 tinycore/rootfs/usr/local/bin/sai-time-sync /tmp/sai-package/usr/local/bin/sai-time-sync \
     && install -m 0755 tinycore/rootfs/usr/local/bin/sai-platform-service /tmp/sai-package/usr/local/bin/sai-platform-service \
     && install -m 0644 tinycore/overlay/usr/local/etc/asound.conf /tmp/sai-package/usr/local/etc/asound.conf \
     && find /usr/share/fonts -type f \( -iname 'unifont*.ttf' -o -iname 'unifont*.otf' \) \

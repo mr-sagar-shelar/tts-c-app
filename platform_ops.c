@@ -858,6 +858,20 @@ int platform_ops_wifi_connect(const char *ssid, const char *password, PlatformWi
     return 1;
 }
 
+int platform_ops_wifi_set_default(const char *ssid, const char *password, PlatformWifiResponse *response) {
+    if (platform_ops_get_mode() == PLATFORM_MODE_TINYCORE) {
+        return platform_tinycore_wifi_request("set_default_wifi", ssid, password, response);
+    }
+    if (platform_ops_get_mode() == PLATFORM_MODE_DEV) {
+        return platform_dev_wifi_connect(ssid, password, response);
+    }
+
+    platform_init_wifi_response(response, "Wi-Fi default settings are stubbed on macOS.");
+    snprintf(response->ssid, sizeof(response->ssid), "%s", ssid ? ssid : "");
+    response->success = 1;
+    return 1;
+}
+
 int platform_ops_wifi_disconnect(PlatformWifiResponse *response) {
     if (platform_ops_get_mode() == PLATFORM_MODE_TINYCORE) {
         return platform_tinycore_wifi_request("disconnect", NULL, NULL, response);

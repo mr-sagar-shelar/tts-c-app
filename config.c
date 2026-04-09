@@ -46,6 +46,9 @@ static void create_default_config() {
     cJSON_AddStringToObject(config_json, "speech_mode", "off");
     cJSON_AddStringToObject(config_json, "audio_playback", "off");
     cJSON_AddStringToObject(config_json, "audio_output", "hdmi");
+    cJSON_AddStringToObject(config_json, "wifi_auto_connect", "off");
+    cJSON_AddStringToObject(config_json, "wifi_default_ssid", "");
+    cJSON_AddStringToObject(config_json, "wifi_default_password", "");
     cJSON_AddStringToObject(config_json, "voip_display_name", "");
     cJSON_AddStringToObject(config_json, "voip_sip_server", "");
     cJSON_AddStringToObject(config_json, "voip_sip_domain", "");
@@ -150,6 +153,9 @@ void init_config() {
     ensure_default_string("speech_mode", "off");
     ensure_default_string("audio_playback", "off");
     ensure_default_string("audio_output", "hdmi");
+    ensure_default_string("wifi_auto_connect", "off");
+    ensure_default_string("wifi_default_ssid", "");
+    ensure_default_string("wifi_default_password", "");
     ensure_default_string("voip_display_name", "");
     ensure_default_string("voip_sip_server", "");
     ensure_default_string("voip_sip_domain", "");

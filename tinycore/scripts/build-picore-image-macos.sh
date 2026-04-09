@@ -422,6 +422,7 @@ for required_entry in \
     usr/local/bin/sai-launch \
     usr/local/bin/sai-restart \
     usr/local/bin/sai-storage-init \
+    usr/local/bin/sai-time-sync \
     usr/local/bin/sai-platform-service
 do
     if ! grep -Fqx "$required_entry" "$ARTIFACT_DIR/sai-app.tcz.list"; then

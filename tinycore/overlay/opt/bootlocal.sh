@@ -53,6 +53,7 @@ else
 fi
 
 /usr/local/bin/sai-audio-init >/tmp/sai-audio-init.log 2>&1 || log "sai-audio-init exited with a non-zero status"
+/usr/local/bin/sai-time-sync >/tmp/sai-time-sync.log 2>&1 || log "sai-time-sync exited with a non-zero status"
 
 if ! pgrep -f '/usr/local/bin/sai-platform-service' >/dev/null 2>&1; then
     /usr/local/bin/sai-platform-service >/tmp/sai-platform-service.log 2>&1 &

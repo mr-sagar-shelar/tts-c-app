@@ -36,6 +36,7 @@ int platform_ops_wifi_status(PlatformWifiResponse *response);
 int platform_ops_wifi_scan(PlatformWifiResponse *response);
 int platform_ops_wifi_connect(const char *ssid, const char *password, PlatformWifiResponse *response);
 int platform_ops_wifi_disconnect(PlatformWifiResponse *response);
+int platform_ops_wifi_set_default(const char *ssid, const char *password, PlatformWifiResponse *response);
 
 int platform_ops_get_system_volume_percent(int *percent, char *message, size_t message_size);
 int platform_ops_set_system_volume_percent(int percent, char *message, size_t message_size);
