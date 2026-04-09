@@ -9,7 +9,7 @@ CACHE_DIR="${CACHE_DIR:-$ROOT_DIR/build/tinycore/cache}"
 TC_VERSION="${TC_VERSION:-16.x}"
 TC_ARCH="${TC_ARCH:-armhf}"
 TCE_NAME="${TCE_NAME:-tce}"
-RPI_BOOT_PROFILE="${RPI_BOOT_PROFILE:-cm4}"
+RPI_BOOT_PROFILE="${RPI_BOOT_PROFILE:-zero2w}"
 RELEASE_BASE_URL_DEFAULT="http://tinycorelinux.net/${TC_VERSION}/${TC_ARCH}/release/RPi/"
 EXT_BASE_URL_DEFAULT="http://repo.tinycorelinux.net/${TC_VERSION}/${TC_ARCH}/tcz/"
 RELEASE_BASE_URL="${RELEASE_BASE_URL:-$RELEASE_BASE_URL_DEFAULT}"
@@ -130,6 +130,33 @@ prune_boot_partition_for_profile() {
         all|"")
             return 0
             ;;
+        zero2w|pi0|pi02w)
+            printf 'Pruning boot files for %s profile to free FAT partition space\n' "$RPI_BOOT_PROFILE"
+            rm -f \
+                "$boot_mount/kernel61225.img" \
+                "$boot_mount/kernel61225v7l.img" \
+                "$boot_mount/modules-6.12.25-piCore.gz" \
+                "$boot_mount/modules-6.12.25-piCore-v7l.gz" \
+                "$boot_mount/start4.elf" \
+                "$boot_mount/start4cd.elf" \
+                "$boot_mount/start4db.elf" \
+                "$boot_mount/start4x.elf" \
+                "$boot_mount/fixup4.dat" \
+                "$boot_mount/fixup4cd.dat" \
+                "$boot_mount/fixup4db.dat" \
+                "$boot_mount/fixup4x.dat" \
+                "$boot_mount/start_cd.elf" \
+                "$boot_mount/start_db.elf" \
+                "$boot_mount/start_x.elf" \
+                "$boot_mount/fixup_cd.dat" \
+                "$boot_mount/fixup_db.dat" \
+                "$boot_mount/fixup_x.dat"
+            find "$boot_mount" -maxdepth 1 -type f -name 'bcm2708-*.dtb' -delete
+            find "$boot_mount" -maxdepth 1 -type f -name 'bcm2709-*.dtb' -delete
+            find "$boot_mount" -maxdepth 1 -type f -name 'bcm2711-*.dtb' -delete
+            find "$boot_mount" -maxdepth 1 -type f -name 'bcm2712-*.dtb' -delete
+            find "$boot_mount" -maxdepth 1 -type f -name 'bcm2712d0-*.dtb' -delete
+            ;;
         cm4|pi4)
             printf 'Pruning boot files for %s profile to free FAT partition space\n' "$RPI_BOOT_PROFILE"
             rm -f \
@@ -141,13 +168,17 @@ prune_boot_partition_for_profile() {
                 "$boot_mount/modules-6.12.25-piCore-v7l.gz" \
                 "$boot_mount/start.elf" \
                 "$boot_mount/start_cd.elf" \
+                "$boot_mount/start_db.elf" \
                 "$boot_mount/start_x.elf" \
                 "$boot_mount/fixup.dat" \
                 "$boot_mount/fixup_cd.dat" \
+                "$boot_mount/fixup_db.dat" \
                 "$boot_mount/fixup_x.dat" \
                 "$boot_mount/start4cd.elf" \
+                "$boot_mount/start4db.elf" \
                 "$boot_mount/start4x.elf" \
                 "$boot_mount/fixup4cd.dat" \
+                "$boot_mount/fixup4db.dat" \
                 "$boot_mount/fixup4x.dat"
             find "$boot_mount" -maxdepth 1 -type f -name 'bcm2708-*.dtb' -delete
             find "$boot_mount" -maxdepth 1 -type f -name 'bcm2709-*.dtb' -delete

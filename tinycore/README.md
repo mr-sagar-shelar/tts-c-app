@@ -107,11 +107,30 @@ Build a custom piCore image:
 ./tinycore/scripts/build-picore-image-macos.sh
 ```
 
+By default, the image builder now uses a `zero2w` boot profile. That profile keeps the Raspberry Pi Zero 2 W boot files but prunes unrelated Pi 4 / CM4 / Pi 5 files so there is enough FAT-partition space for the Sai extensions.
+
+If you want to keep every stock boot file, set:
+
+```sh
+RPI_BOOT_PROFILE=all ./tinycore/scripts/build-picore-image-macos.sh
+```
+
+If you intentionally want a smaller CM4-focused boot partition, set:
+
+```sh
+RPI_BOOT_PROFILE=cm4 ./tinycore/scripts/build-picore-image-macos.sh
+```
+
 This writes a versioned image such as:
 
 ```sh
 build/tinycore/image/piCore-sai-custom-16.x-armhf.img
 ```
+
+Important:
+
+- older custom images built when `RPI_BOOT_PROFILE` defaulted to `cm4` can fail to boot on Raspberry Pi Zero / Zero 2 W because the builder pruned files such as `start.elf`, `kernel61225v7.img`, and matching device trees from the FAT boot partition
+- using `RPI_BOOT_PROFILE=all` can keep the image bootable, but the FAT boot partition may not have enough free space for the full Sai extension set
 
 The separate Linphone extension build writes:
 
