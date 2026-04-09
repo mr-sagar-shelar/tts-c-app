@@ -6,6 +6,7 @@
 #include <unistd.h>
 
 #include "app_actions.h"
+#include "app_logger.h"
 #include "calendar.h"
 #include "config.h"
 #include "contacts.h"
@@ -86,13 +87,19 @@ int main() {
         char audio_message[256];
 
         if (audio_output) {
-            platform_ops_set_audio_output(audio_output, audio_message, sizeof(audio_message));
+            if (!platform_ops_set_audio_output(audio_output, audio_message, sizeof(audio_message))) {
+                app_log_message("audio", "Startup audio output apply failed: %s", audio_message);
+            } else {
+                app_log_message("audio", "Startup audio output applied: %s", audio_message);
+            }
             free(audio_output);
         }
     }
     {
         char speech_error[128];
-        speech_engine_startup(speech_error, sizeof(speech_error));
+        if (!speech_engine_startup(speech_error, sizeof(speech_error))) {
+            app_log_message("speech", "Speech startup failed during main init: %s", speech_error);
+        }
     }
     init_contacts();
     init_calendar();

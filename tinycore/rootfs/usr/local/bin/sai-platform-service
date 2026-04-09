@@ -7,6 +7,7 @@ STATE_DIR="${SAI_PLATFORM_STATE_DIR:-/opt/sai-platform}"
 LOG_FILE="${SAI_PLATFORM_LOG_FILE:-/tmp/sai-platform-service.log}"
 
 mkdir -p "$IPC_DIR" "$STATE_DIR"
+chmod 1777 "$IPC_DIR" 2>/dev/null || true
 touch "$LOG_FILE"
 
 log() {
@@ -121,6 +122,25 @@ network={
 EOF
 }
 
+save_default_wifi_conf() {
+    ssid="$1"
+    password="$2"
+    conf_path="$STATE_DIR/wpa_supplicant.conf"
+
+    if [ -z "$ssid" ]; then
+        return 1
+    fi
+
+    if [ -n "$password" ]; then
+        wpa_passphrase "$ssid" "$password" > "$conf_path" || return 1
+    else
+        render_open_network_conf "$conf_path" "$ssid"
+    fi
+    chmod 600 "$conf_path"
+    printf '%s\n' "$ssid" > "$STATE_DIR/last_ssid"
+    return 0
+}
+
 connect_saved_network() {
     iface="$1"
     conf_path="$STATE_DIR/wpa_supplicant.conf"
@@ -141,6 +161,7 @@ connect_saved_network() {
     while [ "$wait_seconds" -lt 20 ]; do
         ip_addr="$(current_ip_for_interface "$iface")"
         if [ -n "$ip_addr" ]; then
+            /usr/local/bin/sai-time-sync >> "$LOG_FILE" 2>&1 || true
             return 0
         fi
         sleep 1
@@ -300,6 +321,8 @@ scan_networks() {
     tmp_file="$STATE_DIR/scan.tmp"
 
     : > "$out_file"
+    ifconfig "$iface" up >> "$LOG_FILE" 2>&1 || true
+    sleep 1
 
     iwlist "$iface" scan > "$tmp_file" 2>> "$LOG_FILE" || return 1
 
@@ -377,6 +400,7 @@ process_request() {
 
     [ -f "$command_file" ] || return 0
     command="$(cat "$command_file" 2>/dev/null || true)"
+    log "Processing request: dir=$req_dir command=$command"
 
     iface="$(detect_wireless_interface || true)"
     if [ -n "$iface" ]; then
@@ -400,12 +424,15 @@ process_request() {
                 write_response_file "$req_dir" status ok
                 if [ -s "$req_dir/scan.tsv" ]; then
                     write_response_file "$req_dir" message "Available Wi-Fi networks loaded."
+                    log "Wi-Fi scan completed with results on interface $iface"
                 else
                     write_response_file "$req_dir" message "No Wi-Fi networks were found."
+                    log "Wi-Fi scan completed with no results on interface $iface"
                 fi
             else
                 write_response_file "$req_dir" status error
                 write_response_file "$req_dir" message "Wi-Fi scan failed."
+                log "Wi-Fi scan failed on interface $iface"
             fi
             ;;
         connect)
@@ -421,25 +448,52 @@ process_request() {
                     write_response_file "$req_dir" status error
                     write_response_file "$req_dir" message "A Wi-Fi network name is required."
                 else
-                    if [ -n "$password" ]; then
-                        wpa_passphrase "$ssid" "$password" > "$conf_path"
-                    else
-                        render_open_network_conf "$conf_path" "$ssid"
-                    fi
-                    chmod 600 "$conf_path"
-                    printf '%s\n' "$ssid" > "$STATE_DIR/last_ssid"
+                    save_default_wifi_conf "$ssid" "$password" || {
+                        write_response_file "$req_dir" status error
+                        write_response_file "$req_dir" message "Unable to save Wi-Fi configuration."
+                        : > "$req_dir/done"
+                        log "Unable to save Wi-Fi configuration for $ssid"
+                        return 0
+                    }
 
                     if connect_saved_network "$iface"; then
                         write_response_file "$req_dir" status ok
                         write_response_file "$req_dir" message "Connected to $ssid."
+                        log "Wi-Fi connected to $ssid on interface $iface"
                         write_response_file "$req_dir" connected yes
                         write_response_file "$req_dir" current_ssid "$ssid"
                         write_response_file "$req_dir" ip_address "$(current_ip_for_interface "$iface")"
                     else
                         write_response_file "$req_dir" status error
                         write_response_file "$req_dir" message "Failed to connect to $ssid."
+                        log "Wi-Fi connect failed for $ssid on interface $iface"
                     fi
                 fi
+            fi
+            ;;
+        set_default_wifi)
+            ssid="$(read_request_value "$req_dir" ssid value1)"
+            password="$(read_request_value "$req_dir" password value2)"
+            if [ -z "$ssid" ]; then
+                write_response_file "$req_dir" status error
+                write_response_file "$req_dir" message "A Wi-Fi network name is required."
+            elif save_default_wifi_conf "$ssid" "$password"; then
+                if [ -n "$iface" ] && connect_saved_network "$iface"; then
+                    write_response_file "$req_dir" status ok
+                    write_response_file "$req_dir" connected yes
+                    write_response_file "$req_dir" current_ssid "$ssid"
+                    write_response_file "$req_dir" ip_address "$(current_ip_for_interface "$iface")"
+                    write_response_file "$req_dir" message "Default Wi-Fi settings saved and connected to $ssid."
+                    log "Default Wi-Fi saved and connected to $ssid on $iface"
+                else
+                    write_response_file "$req_dir" status ok
+                    write_response_file "$req_dir" message "Default Wi-Fi settings saved for $ssid."
+                    log "Default Wi-Fi saved for $ssid"
+                fi
+            else
+                write_response_file "$req_dir" status error
+                write_response_file "$req_dir" message "Unable to save default Wi-Fi settings."
+                log "Unable to save default Wi-Fi settings for $ssid"
             fi
             ;;
         get_volume)
@@ -448,9 +502,11 @@ process_request() {
                 write_response_file "$req_dir" status ok
                 write_response_file "$req_dir" value "$volume"
                 write_response_file "$req_dir" message "System volume is $volume%."
+                log "Read system volume: $volume%"
             else
                 write_response_file "$req_dir" status error
                 write_response_file "$req_dir" message "Unable to read system volume."
+                log "Unable to read system volume."
             fi
             ;;
         set_volume)
@@ -462,9 +518,11 @@ process_request() {
                 write_response_file "$req_dir" status ok
                 write_response_file "$req_dir" value "$volume"
                 write_response_file "$req_dir" message "System volume updated to $volume%."
+                log "System volume updated to $volume%"
             else
                 write_response_file "$req_dir" status error
                 write_response_file "$req_dir" message "Unable to update system volume."
+                log "Unable to update system volume to $volume%"
             fi
             ;;
         set_audio_output)
@@ -552,6 +610,7 @@ process_request() {
     esac
 
     : > "$req_dir/done"
+    log "Completed request: dir=$req_dir command=$command"
 }
 
 auto_connect_if_possible() {
@@ -569,6 +628,9 @@ auto_connect_if_possible() {
         else
             log "Automatic Wi-Fi reconnect failed on $iface."
         fi
+    elif [ -n "$(current_ip_for_interface "$iface")" ]; then
+        log "Wi-Fi already has an IP on $iface. Attempting time sync."
+        /usr/local/bin/sai-time-sync >> "$LOG_FILE" 2>&1 || true
     fi
 }
 

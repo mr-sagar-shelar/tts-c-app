@@ -6,6 +6,7 @@
 #include "speech_settings.h"
 #include "trivia.h"
 #include "utils.h"
+#include "voip.h"
 
 static char *current_lang_code = NULL;
 static cJSON *current_lang_json = NULL;
@@ -83,6 +84,16 @@ static char *menu_selected_value_label(MenuNode *node) {
 
     if (strncmp(node->key, "trivia_", 7) == 0) {
         return trivia_get_selected_label(node->key);
+    }
+
+    if (strcmp(node->key, "voip") == 0 ||
+        strcmp(node->key, "voip_display_name") == 0 ||
+        strcmp(node->key, "voip_sip_server") == 0 ||
+        strcmp(node->key, "voip_sip_domain") == 0 ||
+        strcmp(node->key, "voip_username") == 0 ||
+        strcmp(node->key, "voip_password") == 0 ||
+        strcmp(node->key, "voip_transport") == 0) {
+        return voip_get_selected_label(node->key);
     }
 
     return NULL;

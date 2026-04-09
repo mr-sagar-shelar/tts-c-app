@@ -9,6 +9,7 @@
 #include <unistd.h>
 
 #include "download_manager.h"
+#include "app_logger.h"
 #include "menu_audio.h"
 #include "menu.h"
 #include "utils.h"
@@ -44,6 +45,83 @@ static char *shell_quote(const char *text) {
     *out++ = '\'';
     *out = '\0';
     return quoted;
+}
+
+static void api_log_redacted_url(const char *input, char *output, size_t output_size) {
+    const char *needle = "api-key=";
+    const char *found;
+
+    if (!output || output_size == 0) {
+        return;
+    }
+
+    output[0] = '\0';
+    if (!input) {
+        return;
+    }
+
+    found = strstr(input, needle);
+    if (!found) {
+        snprintf(output, output_size, "%s", input);
+        return;
+    }
+
+    {
+        size_t prefix_len = (size_t)(found - input) + strlen(needle);
+        const char *value_start = found + strlen(needle);
+        const char *value_end = value_start;
+
+        while (*value_end && *value_end != '&') {
+            value_end++;
+        }
+
+        if (prefix_len >= output_size) {
+            prefix_len = output_size - 1;
+        }
+        memcpy(output, input, prefix_len);
+        output[prefix_len] = '\0';
+        strncat(output, "***", output_size - strlen(output) - 1);
+        strncat(output, value_end, output_size - strlen(output) - 1);
+    }
+}
+
+static void api_log_fetch_result(const char *title,
+                                 const char *url,
+                                 const char *label,
+                                 const char *response,
+                                 const char *error) {
+    char safe_url[2048];
+
+    api_log_redacted_url(url, safe_url, sizeof(safe_url));
+    app_log_message("api", "title=%s label=%s url=%s", title ? title : "", label ? label : "", safe_url);
+    if (error && error[0]) {
+        app_log_message("api", "result=error error=%s", error);
+    } else if (response) {
+        app_log_message("api", "result=success response=%s", response);
+    }
+}
+
+static void api_log_error_file(const char *title, const char *url, const char *label, const char *error_path) {
+    FILE *file;
+    char buffer[2048];
+    size_t len;
+
+    if (!error_path || !error_path[0]) {
+        return;
+    }
+
+    file = fopen(error_path, "rb");
+    if (!file) {
+        return;
+    }
+
+    len = fread(buffer, 1, sizeof(buffer) - 1, file);
+    fclose(file);
+    buffer[len] = '\0';
+
+    if (buffer[0]) {
+        api_log_fetch_result(title, url, label, NULL, buffer);
+    }
 }
 
 static int run_transfer_progress_ui(const char *title,
@@ -263,6 +341,9 @@ char *fetch_text_with_progress_ui(const char *title,
     char *data;
     char *quoted_url;
     char *quoted_path;
+    char err_template[] = "/tmp/sai_fetch_err_XXXXXX";
+    int err_fd;
+    char *quoted_err_path;
     char command[PATH_MAX * 2];
 
     fd = mkstemp(tmp_template);
@@ -270,19 +351,34 @@ char *fetch_text_with_progress_ui(const char *title,
         if (error && error_size > 0) {
             snprintf(error, error_size, "Unable to create temporary fetch file");
         }
+        api_log_fetch_result(title, url, label, NULL, error && error_size > 0 ? error : "Unable to create temporary fetch file");
         return NULL;
     }
     close(fd);
+    err_fd = mkstemp(err_template);
+    if (err_fd < 0) {
+        unlink(tmp_template);
+        if (error && error_size > 0) {
+            snprintf(error, error_size, "Unable to create temporary fetch error file");
+        }
+        api_log_fetch_result(title, url, label, NULL, error && error_size > 0 ? error : "Unable to create temporary fetch error file");
+        return NULL;
+    }
+    close(err_fd);
 
     quoted_url = shell_quote(url);
     quoted_path = shell_quote(tmp_template);
-    if (!quoted_url || !quoted_path) {
+    quoted_err_path = shell_quote(err_template);
+    if (!quoted_url || !quoted_path || !quoted_err_path) {
         free(quoted_url);
         free(quoted_path);
+        free(quoted_err_path);
         unlink(tmp_template);
+        unlink(err_template);
         if (error && error_size > 0) {
             snprintf(error, error_size, "Unable to prepare fetch command");
         }
+        api_log_fetch_result(title, url, label, NULL, error && error_size > 0 ? error : "Unable to prepare fetch command");
         return NULL;
     }
 
@@ -290,10 +386,13 @@ char *fetch_text_with_progress_ui(const char *title,
     if (pid < 0) {
         free(quoted_url);
         free(quoted_path);
+        free(quoted_err_path);
         unlink(tmp_template);
+        unlink(err_template);
         if (error && error_size > 0) {
             snprintf(error, error_size, "Unable to start fetch process");
         }
+        api_log_fetch_result(title, url, label, NULL, error && error_size > 0 ? error : "Unable to start fetch process");
         return NULL;
     }
 
@@ -302,30 +401,37 @@ char *fetch_text_with_progress_ui(const char *title,
 
         if (devnull >= 0) {
             dup2(devnull, STDOUT_FILENO);
-            dup2(devnull, STDERR_FILENO);
             close(devnull);
         }
 
-        snprintf(command, sizeof(command), "curl -s -L --fail %s -o %s", quoted_url, quoted_path);
+        snprintf(command, sizeof(command), "curl -s -L --fail %s -o %s 2>%s",
+                 quoted_url, quoted_path, quoted_err_path);
         free(quoted_url);
         free(quoted_path);
+        free(quoted_err_path);
         execl("/bin/sh", "sh", "-lc", command, (char *)NULL);
         _exit(1);
     }
 
     free(quoted_url);
     free(quoted_path);
+    free(quoted_err_path);
     if (!run_transfer_progress_ui(title, tmp_template, label ? label : "Fetching data", pid, -1, error, error_size)) {
+        api_log_error_file(title, url, label, err_template);
+        api_log_fetch_result(title, url, label, NULL, error && error_size > 0 ? error : "Fetch transfer failed");
         unlink(tmp_template);
+        unlink(err_template);
         return NULL;
     }
 
     file = fopen(tmp_template, "rb");
     if (!file) {
         unlink(tmp_template);
+        unlink(err_template);
         if (error && error_size > 0) {
             snprintf(error, error_size, "Unable to open fetched data");
         }
+        api_log_fetch_result(title, url, label, NULL, error && error_size > 0 ? error : "Unable to open fetched data");
         return NULL;
     }
 
@@ -336,9 +442,11 @@ char *fetch_text_with_progress_ui(const char *title,
     if (!data) {
         fclose(file);
         unlink(tmp_template);
+        unlink(err_template);
         if (error && error_size > 0) {
             snprintf(error, error_size, "Unable to allocate fetched data buffer");
         }
+        api_log_fetch_result(title, url, label, NULL, error && error_size > 0 ? error : "Unable to allocate fetched data buffer");
         return NULL;
     }
 
@@ -346,9 +454,11 @@ char *fetch_text_with_progress_ui(const char *title,
     data[len] = '\0';
     fclose(file);
     unlink(tmp_template);
+    unlink(err_template);
 
     if (error && error_size > 0) {
         error[0] = '\0';
     }
+    api_log_fetch_result(title, url, label, data, NULL);
     return data;
 }

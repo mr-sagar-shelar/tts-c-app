@@ -12,6 +12,8 @@
 #include <time.h>
 #include <unistd.h>
 
+#include "app_logger.h"
+
 static PlatformMode cached_mode = -1;
 
 static int platform_get_linux_volume_percent(int *percent, char *message, size_t message_size);
@@ -445,11 +447,23 @@ static int platform_tinycore_request(const char *command,
     int waited_ms = 0;
 
     platform_init_wifi_response(response, "Platform service is not available.");
-    mkdir("/tmp/sai-platform-ipc", 0777);
+    if (mkdir("/tmp/sai-platform-ipc", 0777) != 0 && errno != EEXIST) {
+        app_log_message("platform", "Unable to create IPC root /tmp/sai-platform-ipc: %s", strerror(errno));
+    }
+    chmod("/tmp/sai-platform-ipc", 01777);
     if (!mkdtemp(request_template)) {
         platform_set_message(response->message, sizeof(response->message), "Unable to prepare Wi-Fi request.");
+        app_log_message("platform", "mkdtemp failed for command %s: %s", command ? command : "(null)", strerror(errno));
         return 0;
     }
+
+    app_log_message("platform", "TinyCore request created: command=%s dir=%s value1=%s value2=%s value3=%s value4=%s",
+                    command ? command : "",
+                    request_template,
+                    value1 ? value1 : "",
+                    value2 ? value2 : "",
+                    value3 ? value3 : "",
+                    value4 ? value4 : "");
 
     snprintf(path, sizeof(path), "%s/command", request_template);
     platform_write_text_file(path, command);
@@ -474,6 +488,7 @@ static int platform_tinycore_request(const char *command,
     while (access(done_path, F_OK) != 0) {
         if (waited_ms >= 30000) {
             platform_set_message(response->message, sizeof(response->message), "Wi-Fi operation timed out.");
+            app_log_message("platform", "TinyCore request timed out: command=%s dir=%s", command ? command : "", request_template);
             platform_cleanup_dir(request_template);
             return 0;
         }
@@ -503,6 +518,11 @@ static int platform_tinycore_request(const char *command,
         snprintf(path, sizeof(path), "%s/value", request_template);
         platform_read_text_file(path, value_out, value_out_size);
     }
+    app_log_message("platform", "TinyCore request completed: command=%s success=%d message=%s value=%s",
+                    command ? command : "",
+                    response ? response->success : 0,
+                    response && response->message[0] ? response->message : "",
+                    value_out ? value_out : "");
     platform_cleanup_dir(request_template);
 
     return response->success;
@@ -838,6 +858,20 @@ int platform_ops_wifi_connect(const char *ssid, const char *password, PlatformWi
     return 1;
 }
 
+int platform_ops_wifi_set_default(const char *ssid, const char *password, PlatformWifiResponse *response) {
+    if (platform_ops_get_mode() == PLATFORM_MODE_TINYCORE) {
+        return platform_tinycore_wifi_request("set_default_wifi", ssid, password, response);
+    }
+    if (platform_ops_get_mode() == PLATFORM_MODE_DEV) {
+        return platform_dev_wifi_connect(ssid, password, response);
+    }
+
+    platform_init_wifi_response(response, "Wi-Fi default settings are stubbed on macOS.");
+    snprintf(response->ssid, sizeof(response->ssid), "%s", ssid ? ssid : "");
+    response->success = 1;
+    return 1;
+}
+
 int platform_ops_wifi_disconnect(PlatformWifiResponse *response) {
     if (platform_ops_get_mode() == PLATFORM_MODE_TINYCORE) {
         return platform_tinycore_wifi_request("disconnect", NULL, NULL, response);
@@ -865,6 +899,7 @@ int platform_ops_get_system_volume_percent(int *percent, char *message, size_t m
 
     if (platform_ops_get_mode() == PLATFORM_MODE_TINYCORE) {
         if (!platform_tinycore_request("get_volume", NULL, NULL, NULL, NULL, &response, value, sizeof(value))) {
+            app_log_message("platform", "TinyCore get_volume failed: %s", response.message);
             platform_set_message(message, message_size,
                                  response.message[0] ? response.message : "Unable to read system volume.");
             return 0;
@@ -874,6 +909,7 @@ int platform_ops_get_system_volume_percent(int *percent, char *message, size_t m
         }
         platform_set_message(message, message_size,
                              response.message[0] ? response.message : "System volume loaded.");
+        app_log_message("platform", "TinyCore get_volume succeeded: value=%s message=%s", value, response.message);
         return 1;
     }
 
@@ -895,12 +931,14 @@ int platform_ops_set_system_volume_percent(int percent, char *message, size_t me
     if (platform_ops_get_mode() == PLATFORM_MODE_TINYCORE) {
         snprintf(value, sizeof(value), "%d", percent);
         if (!platform_tinycore_request("set_volume", value, NULL, NULL, NULL, &response, NULL, 0)) {
+            app_log_message("platform", "TinyCore set_volume failed: value=%s message=%s", value, response.message);
             platform_set_message(message, message_size,
                                  response.message[0] ? response.message : "Unable to update system volume.");
             return 0;
         }
         platform_set_message(message, message_size,
                              response.message[0] ? response.message : "System volume updated.");
+        app_log_message("platform", "TinyCore set_volume succeeded: value=%s message=%s", value, response.message);
         return 1;
     }
 

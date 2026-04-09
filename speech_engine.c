@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "app_logger.h"
 #include "config.h"
 
 #ifdef HAVE_FLITE
@@ -464,10 +465,12 @@ static void speech_engine_refresh_settings(void) {
 
 int speech_engine_startup(char *error, size_t error_size) {
     if (!speech_engine_init(error, error_size)) {
+        app_log_message("speech", "speech_engine_init failed: %s", error ? error : "unknown");
         return 0;
     }
 
     speech_engine_refresh_settings();
+    app_log_message("speech", "Speech engine startup completed.");
     return 1;
 }
 
@@ -583,6 +586,7 @@ int speech_engine_is_enabled(void) {
 
 int speech_engine_startup(char *error, size_t error_size) {
     set_error(error, error_size, "Flite support was not built into this binary");
+    app_log_message("speech", "Speech startup failed: Flite support was not built into this binary");
     return 0;
 }
 

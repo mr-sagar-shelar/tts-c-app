@@ -5,6 +5,7 @@
 #include <string.h>
 #include <sys/stat.h>
 
+#include "app_logger.h"
 #include "alarm.h"
 #include "braille_ui.h"
 #include "calendar.h"
@@ -26,6 +27,7 @@
 #include "typing_tutor.h"
 #include "utils.h"
 #include "voice_library.h"
+#include "voip.h"
 #include "wifi_manager.h"
 
 static int app_confirm_action(const char *title, const char *message) {
@@ -129,7 +131,9 @@ void app_sync_language_voice_on_startup(MenuNode *root) {
         }
     } else {
         char speech_error[128];
-        speech_engine_startup(speech_error, sizeof(speech_error));
+        if (!speech_engine_startup(speech_error, sizeof(speech_error))) {
+            app_log_message("speech", "Speech startup failed after language sync: %s", speech_error);
+        }
     }
 
     free(language_code);
@@ -509,6 +513,8 @@ void app_dispatch_leaf_action(MenuNode *selected_node, MenuNode *root) {
         keys_manager_show_menu();
     } else if (strcmp(selected_node->key, "internet_radio") == 0) {
         radio_ui_show_menu();
+    } else if (app_is_descendant_of(selected_node, "voip")) {
+        voip_handle_menu(selected_node);
     } else if (app_is_descendant_of(selected_node, "music")) {
         music_ui_show_instrument(selected_node->key);
     } else if (strcmp(selected_node->key, "mp3_player") == 0 ||
